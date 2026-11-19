@@ -1,0 +1,26 @@
+{
+  "slug": "monkey-pico-park",
+  "title": "Pico Macaco: A Chave da Banana",
+  "subtitle": "Puzzle-platformer cooperativo caótico de empilhar macacos e gritar com os amigos!",
+  "inspiredBy": "Pico Park",
+  "description": "Suba na cabeça dos amigos formando torres de macacos, empurre caixas pesadas de coco em equipe, segure botões de pressão, balance em cipós elásticos e pegue a Chave de Banana Dourada para colocar TODOS os macacos dentro da Porta da Selva! 8 fases criativas com Solo Inteligente (troca de macaco + Seguir), Co-op Local 2P/3P no mesmo teclado e Co-op Online P2P para até 6 macacos!",
+  "category": "arcade",
+  "tags": ["coop", "puzzle", "plataforma", "multiplayer", "local-coop", "física"],
+  "emoji": "🔑",
+  "accentColor": "#facc15",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop",
+    "maxPlayers": 6,
+    "summary": "Co-op Online P2P (2-6 macacos) com física sincronizada e grito com balãozinho (E/B), além de Co-op Local 2P/3P no mesmo teclado e Solo com troca de macaco!"
+  },
+  "controls": [
+    "Solo: A/D ou Setas (mover), W/Cima/Espaço (pular), Tab/Q/1-3 (trocar macaco), F (chamar/seguir)",
+    "Local 2P/3P: P1 (WASD), P2 (Setas), P3 (IJKL)",
+    "E ou B: Grito / Ping de Macaco com balãozinho",
+    "R: Reiniciar fase instantaneamente"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}

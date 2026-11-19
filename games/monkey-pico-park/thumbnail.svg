@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="55%" stop-color="#ecfccb" />
+      <stop offset="100%" stop-color="#bbf7d0" />
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#14532d" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Pastel Jungle Sky -->
+  <rect width="640" height="360" fill="url(#sky)" />
+
+  <!-- Distant soft jungle hills -->
+  <path d="M0 285 Q110 230 220 275 T450 265 T640 280 L640 360 L0 360 Z" fill="#86efac" opacity="0.55" />
+  <path d="M0 305 Q170 260 320 295 T640 290 L640 360 L0 360 Z" fill="#4ade80" opacity="0.4" />
+
+  <!-- Hanging vines -->
+  <path d="M70 0 Q82 55 68 108" stroke="#16a34a" stroke-width="5" fill="none" stroke-linecap="round" />
+  <ellipse cx="68" cy="108" rx="9" ry="5" fill="#22c55e" transform="rotate(-25 68 108)" />
+  <path d="M565 0 Q550 65 572 135" stroke="#16a34a" stroke-width="5" fill="none" stroke-linecap="round" />
+  <ellipse cx="572" cy="135" rx="9" ry="5" fill="#22c55e" transform="rotate(20 572 135)" />
+
+  <!-- Ground & High Platform -->
+  <rect x="0" y="302" width="640" height="58" fill="#15803d" />
+  <rect x="0" y="294" width="640" height="14" rx="4" fill="#22c55e" />
+  <rect x="355" y="135" width="235" height="22" rx="8" fill="#166534" />
+  <rect x="355" y="130" width="235" height="10" rx="5" fill="#4ade80" />
+
+  <!-- Jungle Door on High Platform -->
+  <g transform="translate(505, 52)" filter="url(#shadow)">
+    <rect x="0" y="0" width="56" height="78" rx="26" fill="#78350f" stroke="#451a03" stroke-width="4" />
+    <rect x="8" y="10" width="40" height="68" rx="18" fill="#92400e" />
+    <circle cx="40" cy="44" r="5" fill="#fde047" />
+    <text x="28" y="-8" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="900" font-size="13" fill="#15803d">3/3</text>
+  </g>
+
+  <!-- Coconut Push Crate "2" -->
+  <g transform="translate(72, 240)" filter="url(#shadow)">
+    <rect x="0" y="0" width="56" height="56" rx="8" fill="#b45309" stroke="#78350f" stroke-width="4" />
+    <line x1="8" y1="8" x2="48" y2="48" stroke="#92400e" stroke-width="4" />
+    <line x1="48" y1="8" x2="8" y2="48" stroke="#92400e" stroke-width="4" />
+    <circle cx="28" cy="28" r="14" fill="#fef3c7" stroke="#78350f" stroke-width="3" />
+    <text x="28" y="34" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="900" font-size="19" fill="#92400e">2</text>
+  </g>
+
+  <!-- Stacked Tower of 3 Pico Monkeys! -->
+  <!-- Bottom Monkey: Pink (Squished panic!) -->
+  <g transform="translate(260, 242)" filter="url(#shadow)">
+    <circle cx="0" cy="20" r="8" fill="#fb7185" stroke="#881337" stroke-width="3" />
+    <circle cx="48" cy="20" r="8" fill="#fb7185" stroke="#881337" stroke-width="3" />
+    <rect x="4" y="4" width="40" height="48" rx="14" fill="#fb7185" stroke="#881337" stroke-width="3.5" />
+    <ellipse cx="24" cy="24" rx="14" ry="12" fill="#ffe4e6" />
+    <!-- Panic googly eyes -->
+    <circle cx="18" cy="18" r="5" fill="#fff" stroke="#1e293b" stroke-width="2" />
+    <circle cx="30" cy="18" r="5" fill="#fff" stroke="#1e293b" stroke-width="2" />
+    <circle cx="17" cy="17" r="2" fill="#1e293b" />
+    <circle cx="32" cy="19" r="2" fill="#1e293b" />
+    <ellipse cx="24" cy="30" rx="5" ry="3.5" fill="#881337" />
+  </g>
+
+  <!-- Middle Monkey: Green -->
+  <g transform="translate(262, 190)" filter="url(#shadow)">
+    <circle cx="0" cy="20" r="8" fill="#4ade80" stroke="#14532d" stroke-width="3" />
+    <circle cx="48" cy="20" r="8" fill="#4ade80" stroke="#14532d" stroke-width="3" />
+    <rect x="4" y="4" width="40" height="48" rx="14" fill="#4ade80" stroke="#14532d" stroke-width="3.5" />
+    <ellipse cx="24" cy="24" rx="14" ry="12" fill="#dcfce7" />
+    <circle cx="18" cy="18" r="5" fill="#fff" stroke="#1e293b" stroke-width="2" />
+    <circle cx="30" cy="18" r="5" fill="#fff" stroke="#1e293b" stroke-width="2" />
+    <circle cx="20" cy="18" r="2" fill="#1e293b" />
+    <circle cx="28" cy="17" r="2" fill="#1e293b" />
+    <path d="M18 29 Q24 34 30 29" stroke="#14532d" stroke-width="2.5" fill="none" stroke-linecap="round" />
+  </g>
+
+  <!-- Top Monkey: Yellow (Reaching for the Banana Key!) -->
+  <g transform="translate(266, 134)" filter="url(#shadow)">
+    <circle cx="0" cy="20" r="8" fill="#facc15" stroke="#854d0e" stroke-width="3" />
+    <circle cx="48" cy="20" r="8" fill="#facc15" stroke="#854d0e" stroke-width="3" />
+    <rect x="4" y="4" width="40" height="48" rx="14" fill="#facc15" stroke="#854d0e" stroke-width="3.5" />
+    <ellipse cx="24" cy="24" rx="14" ry="12" fill="#fef9c3" />
+    <circle cx="18" cy="18" r="5.5" fill="#fff" stroke="#1e293b" stroke-width="2" />
+    <circle cx="30" cy="18" r="5.5" fill="#fff" stroke="#1e293b" stroke-width="2" />
+    <circle cx="20" cy="16" r="2.2" fill="#1e293b" />
+    <circle cx="32" cy="17" r="2.2" fill="#1e293b" />
+    <path d="M18 28 Q24 35 30 28" stroke="#854d0e" stroke-width="2.5" fill="none" stroke-linecap="round" />
+    <!-- Crown/tuft -->
+    <path d="M20 4 Q24 -4 28 4" stroke="#854d0e" stroke-width="3" fill="none" stroke-linecap="round" />
+  </g>
+
+  <!-- Golden Banana Key! -->
+  <g transform="translate(362, 72) rotate(-14)" filter="url(#shadow)">
+    <circle cx="20" cy="22" r="14" fill="url(#gold)" stroke="#92400e" stroke-width="3.5" />
+    <circle cx="20" cy="22" r="6" fill="#fef9c3" stroke="#92400e" stroke-width="2.5" />
+    <!-- Key shaft shaped like a banana curve -->
+    <path d="M32 22 Q58 20 72 34" stroke="url(#gold)" stroke-width="10" stroke-linecap="round" fill="none" />
+    <path d="M32 22 Q58 20 72 34" stroke="#92400e" stroke-width="3" stroke-linecap="round" fill="none" />
+    <rect x="58" y="29" width="6" height="12" rx="2" fill="#f59e0b" stroke="#92400e" stroke-width="2" />
+    <rect x="68" y="33" width="6" height="13" rx="2" fill="#f59e0b" stroke="#92400e" stroke-width="2" />
+    <!-- Sparkles -->
+    <text x="-8" y="10" font-size="16">✨</text>
+    <text x="74" y="20" font-size="16">✨</text>
+  </g>
+
+  <!-- Speech Bubble "SOBE AQUI!" -->
+  <g transform="translate(152, 134)">
+    <rect x="0" y="0" width="102" height="32" rx="12" fill="#ffffff" stroke="#1e293b" stroke-width="3" />
+    <polygon points="88,30 100,40 96,24" fill="#ffffff" stroke="#1e293b" stroke-width="3" stroke-linejoin="round" />
+    <rect x="82" y="24" width="16" height="6" fill="#ffffff" />
+    <text x="51" y="21" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="900" font-size="13" fill="#dc2626">SOBE AQUI!</text>
+  </g>
+
+  <!-- Title Banner Top Left -->
+  <g transform="translate(26, 26)" filter="url(#shadow)">
+    <rect x="0" y="0" width="272" height="66" rx="16" fill="#1e293b" stroke="#facc15" stroke-width="4" />
+    <text x="16" y="32" font-family="system-ui, sans-serif" font-weight="900" font-size="25" fill="#fde047">PICO MACACO</text>
+    <text x="16" y="53" font-family="system-ui, sans-serif" font-weight="800" font-size="14" fill="#86efac">🔑 A Chave da Banana • Co-op 1-6P</text>
+  </g>
+</svg>
