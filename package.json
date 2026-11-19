@@ -1,0 +1,31 @@
+{
+  "name": "1000-monkey-games",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Click Macacos — Portal arcade & monorepo de jogos Monkey Slop multiplayer para Web e Steam.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "sync:catalog": "node scripts/sync-catalog.mjs",
+    "dev": "node scripts/sync-catalog.mjs && npm --workspace apps/portal run dev",
+    "dev:game": "node scripts/dev-game.mjs",
+    "build": "node scripts/build-all.mjs",
+    "build:game": "node scripts/build-game.mjs",
+    "preview": "npx vite preview --outDir dist --port 4173 --strictPort",
+    "typecheck:sdk": "tsc --noEmit -p packages/monkey-sdk/tsconfig.json",
+    "typecheck:portal": "tsc --noEmit -p apps/portal/tsconfig.json"
+  },
+  "dependencies": {
+    "@monkey-slop/sdk": "*",
+    "peerjs": "^1.5.4",
+    "planck-js": "^1.0.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8"
+  }
+}

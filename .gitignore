@@ -1,0 +1,7 @@
+node_modules/
+dist/
+apps/portal/public/games-catalog.json
+apps/portal/public/thumbnails/
+*.local
+.DS_Store
+Thumbs.db
