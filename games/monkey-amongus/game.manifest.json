@@ -1,0 +1,29 @@
+{
+  "slug": "monkey-amongus",
+  "title": "Entre Macacos: Quem Roubou a Banana?",
+  "subtitle": "Dedução social na Nave Banana-1 com tarefas hilárias, sabotagens, vents e bots!",
+  "inspiredBy": "Among Us",
+  "description": "Embarque na estação espacial Nave Banana-1! Macacos astronautas cumprem tarefas absurdas (Fios de Cipó, Scanner de Calvície, Descascar Bananas) enquanto o Falso Primata sabota a luz e o reator, salta por tubulações e elimina tripulantes. Jogue Solo com Bots IA ou Online P2P com até 10 amigos!",
+  "category": "estrategia",
+  "tags": ["deducao-social", "among-us", "multiplayer", "impostor", "bots", "espaco"],
+  "emoji": "🚀",
+  "accentColor": "#ef4444",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop-versus",
+    "maxPlayers": 10,
+    "summary": "2 a 10 macacos online via P2P (PeerRoom) ou Solo com Bots IA inteligentes que patrulham, reportam corpos e acusam na reunião!"
+  },
+  "controls": [
+    "WASD / Setas: Mover o macaco astronauta",
+    "E / Espaço: Fazer Tarefa, Botão de Emergência ou Câmeras",
+    "R: Reportar corpo de banana caído",
+    "K: Eliminar tripulante (Impostor)",
+    "V: Entrar / pular em tubulações (Impostor)",
+    "S: Painel de Sabotagem (Luzes ou Reator)",
+    "M / Tab: Abrir ou fechar Minimapa"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
