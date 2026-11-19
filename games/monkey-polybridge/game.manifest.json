@@ -1,0 +1,27 @@
+{
+  "slug": "monkey-polybridge",
+  "title": "Ponte de Cipó & Gambiarra",
+  "subtitle": "Engenharia primata de altíssimo risco sobre rios de jacarés",
+  "inspiredBy": "Poly Bridge",
+  "description": "Construa pontes duvidosas usando tábuas, bambu, cipó elástico, aço de ferro-velho e molas de colchão velho! Passe carrinhos de banana, Kombis lotadas de macacos e caminhões-pipa de coco por 6 fases caóticas — sozinho ou em Co-op P2P construindo juntos em tempo real!",
+  "category": "fisica",
+  "tags": ["fisica", "ponte", "engenharia", "gambiarra", "coop", "ragdoll"],
+  "emoji": "🌉",
+  "accentColor": "#f59e0b",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop",
+    "maxPlayers": 4,
+    "summary": "Construam a mesma ponte juntos em tempo real e soltem os macacos para testar o desastre ao vivo!"
+  },
+  "controls": [
+    "Arrastar: Construir viga entre nós",
+    "Botão Direito / Borracha: Remover viga",
+    "1-5: Selecionar material (Tábua, Bambu, Cipó, Aço, Mola)",
+    "Espaço: Testar ponte / Voltar à construção",
+    "Ctrl+Z: Desfazer • G: Grid • S: Câmera lenta"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
