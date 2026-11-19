@@ -1,0 +1,28 @@
+{
+  "slug": "monkey-skate",
+  "title": "Tony Chimp: Skate Ragdoll",
+  "subtitle": "Manobras insanas e fraturas expostas no SUS!",
+  "inspiredBy": "Skate / Hall of Meat",
+  "description": "Mande combos absurdos de Kickflip da Banana, Banana Grab e Chimp Christ Air — ou aperte E para se ejetar de cara nos postes no modo Hall of Meat! Com pistas caóticas, carros na ladeira, física ragdoll articulada, raios-X hilários e multiplayer P2P com cascas de banana traíras.",
+  "category": "fisica",
+  "tags": ["skate", "ragdoll", "manobras", "hall-of-meat", "fisica", "multiplayer"],
+  "emoji": "🛹",
+  "accentColor": "#facc15",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop-versus",
+    "maxPlayers": 4,
+    "summary": "Andem juntos na mesma pista em tempo real, disputem Maior Combo e Maior Fratura ao vivo e joguem cascas de banana para derrubar os amigos!"
+  },
+  "controls": [
+    "A / D ou Setas: Remar, girar no ar e equilibrar no grind",
+    "Espaço (segurar e soltar): Carregar e mandar Ollie",
+    "J / K / L (no ar): Kickflip da Banana, Banana Grab, Chimp Christ Air",
+    "E: Ejetar Ragdoll (Hall of Meat!)",
+    "R: Levantar / Resetar no skate",
+    "B: Jogar Casca de Banana na pista (Multiplayer)"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
