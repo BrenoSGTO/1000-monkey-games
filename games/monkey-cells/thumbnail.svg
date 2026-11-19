@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f0c24" />
+      <stop offset="55%" stop-color="#1e163b" />
+      <stop offset="100%" stop-color="#2b1734" />
+    </linearGradient>
+    <radialGradient id="moonGlow" cx="72%" cy="32%" r="42%">
+      <stop offset="0%" stop-color="#facc15" stop-opacity="0.32" />
+      <stop offset="60%" stop-color="#f97316" stop-opacity="0.1" />
+      <stop offset="100%" stop-color="#0f0c24" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="bladeGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="65%" stop-color="#facc15" />
+      <stop offset="100%" stop-color="#ca8a04" />
+    </linearGradient>
+    <linearGradient id="capeGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4ade80" />
+      <stop offset="100%" stop-color="#15803d" />
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Dungeon Sky / Background -->
+  <rect width="640" height="360" fill="url(#bgGrad)" />
+  <rect width="640" height="360" fill="url(#moonGlow)" />
+
+  <!-- Distant Dungeon Pillars & Arches -->
+  <g fill="#15102c" opacity="0.85">
+    <rect x="35" y="20" width="38" height="300" rx="4" />
+    <rect x="560" y="15" width="42" height="310" rx="4" />
+    <path d="M70 90 Q170 20 270 90 L270 320 L235 320 L235 105 Q170 55 105 105 L105 320 L70 320 Z" />
+  </g>
+
+  <!-- Hanging Vines -->
+  <g stroke="#22c55e" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.55">
+    <path d="M120 0 Q135 55 110 110" />
+    <path d="M510 0 Q490 60 518 125" />
+    <path d="M310 0 Q300 35 316 70" />
+  </g>
+
+  <!-- Boss Silhouette (Gorilão CEO da Faria Lima) in background right -->
+  <g transform="translate(465, 190)" opacity="0.9">
+    <!-- Gorilla Suit Body -->
+    <path d="M-75 110 Q-85 -15 -35 -48 Q0 -62 35 -48 Q85 -15 75 110 Z" fill="#18182b" stroke="#fb7185" stroke-width="2.5" />
+    <!-- Giant Head -->
+    <ellipse cx="0" cy="-68" rx="42" ry="36" fill="#18182b" stroke="#fb7185" stroke-width="2.5" />
+    <!-- Glowing Evil Boss Sunglasses / Eyes -->
+    <rect x="-26" y="-82" width="22" height="11" rx="3" fill="#ef4444" filter="url(#glow)" />
+    <rect x="4" y="-82" width="22" height="11" rx="3" fill="#ef4444" filter="url(#glow)" />
+    <rect x="-4" y="-78" width="8" height="3" fill="#fb7185" />
+    <!-- Red Tie -->
+    <polygon points="0,-32 -11,-10 0,68 11,-10" fill="#ef4444" />
+    <!-- Briefcase -->
+    <rect x="46" y="25" width="54" height="40" rx="5" fill="#78350f" stroke="#facc15" stroke-width="2" />
+    <path d="M62 25 L62 16 L84 16 L84 25" fill="none" stroke="#facc15" stroke-width="3" />
+    <!-- Floating Stonks Down Arrow -->
+    <text x="-65" y="-110" fill="#fb7185" font-family="monospace" font-weight="900" font-size="14">IBOV -18% 📉</text>
+  </g>
+
+  <!-- Stone Dungeon Floor & Spikes -->
+  <rect x="0" y="294" width="640" height="66" fill="#1c192e" />
+  <rect x="0" y="294" width="640" height="6" fill="#475569" />
+  <g fill="#2d2648" stroke="#3b3360" stroke-width="2">
+    <rect x="18" y="308" width="70" height="24" rx="3" />
+    <rect x="98" y="308" width="90" height="24" rx="3" />
+    <rect x="198" y="308" width="80" height="24" rx="3" />
+    <rect x="288" y="308" width="96" height="24" rx="3" />
+    <rect x="394" y="308" width="84" height="24" rx="3" />
+  </g>
+  <!-- Spikes -->
+  <g fill="#cbd5e1" stroke="#64748b" stroke-width="2">
+    <polygon points="325,294 337,266 349,294" />
+    <polygon points="349,294 361,266 373,294" />
+    <polygon points="373,294 385,266 397,294" />
+  </g>
+
+  <!-- Slash Arc VFX -->
+  <path d="M235 120 Q345 145 315 245 Q300 180 220 155 Z" fill="#fef08a" opacity="0.85" filter="url(#glow)" />
+  <path d="M250 105 Q370 135 335 255" fill="none" stroke="#38bdf8" stroke-width="5" stroke-linecap="round" opacity="0.7" />
+
+  <!-- HERO: Hollow Chimp Knight -->
+  <g transform="translate(185, 212)">
+    <!-- Tail -->
+    <path d="M-26 32 Q-68 25 -62 -10 Q-56 -30 -40 -22" fill="none" stroke="#92400e" stroke-width="9" stroke-linecap="round" />
+
+    <!-- Banana Leaf Cape -->
+    <path d="M-12 -10 Q-78 4 -95 48 Q-58 55 -35 42 Q-20 62 -6 56 Z" fill="url(#capeGrad)" stroke="#14532d" stroke-width="3" />
+    <path d="M-22 6 L-72 34" stroke="#86efac" stroke-width="2.5" stroke-linecap="round" opacity="0.7" />
+
+    <!-- Body -->
+    <ellipse cx="0" cy="24" rx="26" ry="30" fill="#92400e" stroke="#451a03" stroke-width="3" />
+    <ellipse cx="4" cy="26" rx="16" ry="20" fill="#fde68a" opacity="0.85" />
+
+    <!-- Legs -->
+    <path d="M-12 48 L-20 78" stroke="#78350f" stroke-width="11" stroke-linecap="round" />
+    <path d="M12 48 L24 76" stroke="#78350f" stroke-width="11" stroke-linecap="round" />
+
+    <!-- Head -->
+    <circle cx="4" cy="-16" r="27" fill="#a16207" stroke="#451a03" stroke-width="3" />
+    <!-- Monkey Ears -->
+    <circle cx="-24" cy="-16" r="10" fill="#a16207" stroke="#451a03" stroke-width="3" />
+    <circle cx="-24" cy="-16" r="5" fill="#fcd34d" />
+    <circle cx="32" cy="-16" r="10" fill="#a16207" stroke="#451a03" stroke-width="3" />
+    <circle cx="32" cy="-16" r="5" fill="#fcd34d" />
+    <!-- Face Mask -->
+    <ellipse cx="6" cy="-10" rx="20" ry="16" fill="#fde68a" />
+
+    <!-- Goofy Cross-Eyed Expression -->
+    <circle cx="-3" cy="-15" r="7.5" fill="#ffffff" stroke="#1e293b" stroke-width="2" />
+    <circle cx="15" cy="-15" r="7.5" fill="#ffffff" stroke="#1e293b" stroke-width="2" />
+    <circle cx="0" cy="-14" r="3.2" fill="#0f172a" />
+    <circle cx="12" cy="-16" r="3.2" fill="#0f172a" />
+    <!-- Determined Grin -->
+    <path d="M-4 -2 Q7 6 18 -1" fill="none" stroke="#451a03" stroke-width="3" stroke-linecap="round" />
+
+    <!-- CRACKED COCONUT HELMET -->
+    <path d="M-24 -22 Q4 -56 32 -22 Z" fill="#5c3a21" stroke="#2d190c" stroke-width="3.5" />
+    <!-- Coconut Milk / White Rim -->
+    <path d="M-22 -22 Q4 -16 30 -22" fill="none" stroke="#fef3c7" stroke-width="4" stroke-linecap="round" />
+    <!-- Crack Line in Helmet -->
+    <path d="M6 -44 L2 -34 L9 -29 L3 -21" fill="none" stroke="#1c0d04" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+    <!-- Little Leaf Sprout on Top -->
+    <path d="M4 -43 Q14 -62 24 -50 Q12 -42 4 -43 Z" fill="#4ade80" stroke="#14532d" stroke-width="2" />
+
+    <!-- Sword Arm & SHARP BANANA SWORD -->
+    <g transform="translate(26, 8) rotate(-28)">
+      <!-- Banana Blade -->
+      <path d="M10 -8 Q52 -34 92 -14 Q56 14 10 6 Z" fill="url(#bladeGrad)" stroke="#713f12" stroke-width="3" filter="url(#glow)" />
+      <!-- Hilt -->
+      <rect x="-4" y="-11" width="12" height="22" rx="3" fill="#451a03" stroke="#facc15" stroke-width="2" />
+      <rect x="-14" y="-4" width="12" height="8" rx="3" fill="#78350f" />
+    </g>
+    <circle cx="24" cy="14" r="8" fill="#a16207" stroke="#451a03" stroke-width="2.5" />
+  </g>
+
+  <!-- Floating Bananas & Sparks -->
+  <g fill="#facc15" filter="url(#glow)">
+    <circle cx="285" cy="95" r="4" />
+    <circle cx="330" cy="160" r="3.5" />
+    <circle cx="95" cy="145" r="3" />
+    <circle cx="355" cy="240" r="4.5" />
+  </g>
+
+  <!-- Title Banner -->
+  <g transform="translate(24, 24)">
+    <rect x="0" y="0" width="322" height="64" rx="14" fill="rgba(15, 23, 42, 0.88)" stroke="#facc15" stroke-width="3" />
+    <text x="16" y="30" fill="#fef08a" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="23" letter-spacing="0.5">HOLLOW CHIMP</text>
+    <text x="16" y="51" fill="#4ade80" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="14" letter-spacing="1">MASMORRA DA BANANA ⚔️🍌</text>
+  </g>
+</svg>
