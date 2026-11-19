@@ -55,6 +55,10 @@ export class TdNetworkBridge {
     return !this.isInRoom() || this.room.localPlayer.isHost;
   }
 
+  getOtherPlayers(): PlayerProfile[] {
+    return this.room.getPlayers().filter((p) => p.id !== this.room.localPlayer.id);
+  }
+
   send(msg: TdNetMessage): void {
     if (!this.isInRoom()) return;
     this.room.send(msg.action, msg);

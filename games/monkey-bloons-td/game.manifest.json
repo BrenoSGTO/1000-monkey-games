@@ -1,26 +1,26 @@
 {
   "slug": "monkey-bloons-td",
   "title": "Macaco Estoura-Bexiga TD",
-  "subtitle": "Defenda a selva e a feira de bexigas zombeteiras e dirigíveis do Imposto de Renda!",
+  "subtitle": "Defenda a selva, a feira e a ilha de bexigas zombeteiras e dirigíveis do Imposto de Renda!",
   "inspiredBy": "Bloons TD",
-  "description": "Tower Defense 2D caótico com macacos vesgos, chineladas teleguiadas, canhões de coco podre, DJ de caixa JBL e chefões da Receita Federal. Jogue Solo ou em Co-op P2P enviando bananas ou trolando os amigos com bexigas surpresa!",
+  "description": "Tower Defense 2D caótico com 7 torres (incluindo Fazenda de Bananeira e Macaco Mago do Cipó), Habilidade Ativa Chuva de Bananas, 3 mapas (com 2 entradas!), Co-op P2P sincronizado, Duelo Versus estilo Bloons Battles e 2P Local!",
   "category": "estrategia",
-  "tags": ["tower-defense", "macacos", "coop", "bexigas", "estrategia", "caos"],
+  "tags": ["tower-defense", "macacos", "coop", "versus", "bexigas", "estrategia", "caos"],
   "emoji": "🎈",
   "accentColor": "#facc15",
   "multiplayer": {
     "supported": true,
     "mode": "coop-versus",
     "maxPlayers": 4,
-    "summary": "Co-op P2P para até 4 macacos: construam defesas juntos, mandem bananas ou trolem enviando bexigas surpresa!"
+    "summary": "Co-op P2P sincronizado, Duelo Versus (Bloons Battles com renda extra) para até 4 macacos, cursores ao vivo, ping no mapa e modo 2P Local no mesmo PC!"
   },
   "controls": [
-    "Clique na loja à direita e clique no mapa para posicionar um macaco",
-    "Teclas 1 a 5 selecionam rapidamente as torres",
-    "Clique em uma torre posicionada para dar upgrade, mudar alvo ou vender",
-    "Espaço inicia a próxima onda / ativa 2x de velocidade; Esc cancela seleção"
+    "Clique na loja à direita (ou teclas 1 a 7) e clique no mapa para posicionar (Shift+clique coloca várias)",
+    "Tecla Q ativa a Habilidade Chuva de Bananas Explosivas; P pinga um ponto no mapa para os amigos",
+    "Clique em uma torre posicionada para evoluir (U), mudar alvo (T) ou vender (Del)",
+    "Espaço inicia a próxima onda / alterna 2x; Tab troca turno no modo 2P Local; Esc cancela"
   ],
   "thumbnail": "thumbnail.svg",
   "status": "playable",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }

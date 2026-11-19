@@ -1,17 +1,21 @@
 import { BLOON_DEFS, CANVAS_HEIGHT, CANVAS_WIDTH, TOWER_DEFS, TOWER_RADIUS, TRACK_HALF_WIDTH } from './data';
-import { isValidTowerSpot, samplePathPosition } from './maps';
+import { getLaneLength, getMapLanes, isValidTowerSpot, samplePathPosition } from './maps';
 import type {
+  AbilityBomb,
   BloonInstance,
   FloatingText,
+  LightningArc,
   MapConfig,
+  MapPing,
   MapProp,
   Particle,
   PoisonCloud,
-  Projectile,
+  RemoteCursor,
   ShockwaveRing,
   SniperTracer,
   TowerInstance,
   TowerType,
+  Projectile,
 } from './types';
 
 export interface RenderState {
@@ -23,6 +27,10 @@ export interface RenderState {
   clouds: PoisonCloud[];
   rings: ShockwaveRing[];
   tracers: SniperTracer[];
+  lightningArcs: LightningArc[];
+  abilityBombs: AbilityBomb[];
+  pings: MapPing[];
+  remoteCursors: RemoteCursor[];
   particles: Particle[];
   floatingTexts: FloatingText[];
   selectedTowerId: string | null;
@@ -30,7 +38,7 @@ export interface RenderState {
   hoverPos: { x: number; y: number } | null;
   bananas: number;
   shakeAmount: number;
-  isCoop: boolean;
+  showOwners: boolean;
   bossBannerText: string | null;
 }
 
@@ -41,6 +49,10 @@ export function getTowerEffectiveRange(tower: TowerInstance): number {
   if (tower.type === 'dj') {
     if (tower.level >= 1) range *= 1.12;
     if (tower.level >= 2) range *= 1.1;
+  }
+  if (tower.type === 'mago') {
+    if (tower.level >= 1) range *= 1.14;
+    if (tower.level >= 3) range *= 1.1;
   }
   return range * tower.buffedRangeMultiplier;
 }
@@ -56,22 +68,27 @@ export function renderGameCanvas(ctx: CanvasRenderingContext2D, state: RenderSta
   }
 
   // 1. Background terrain
-  drawBackground(ctx, state.map);
+  drawBackground(ctx, state.map, state.time);
 
-  // 2. Track
-  drawTrack(ctx, state.map, state.time);
-
-  // 3. Props
+  // 2. Bridges (under track)
   for (const prop of state.map.props) {
-    drawProp(ctx, prop, state.time);
+    if (prop.kind === 'bridge') drawProp(ctx, prop, state.time);
   }
 
-  // 4. Poison clouds (ground level)
+  // 3. Track
+  drawTrack(ctx, state.map, state.time);
+
+  // 4. Props (above track edge)
+  for (const prop of state.map.props) {
+    if (prop.kind !== 'bridge') drawProp(ctx, prop, state.time);
+  }
+
+  // 5. Poison clouds (ground level)
   for (const cloud of state.clouds) {
     drawPoisonCloud(ctx, cloud, state.time);
   }
 
-  // 5. Shockwave rings (DJ & explosions)
+  // 6. Shockwave rings (DJ & explosions)
   for (const ring of state.rings) {
     ctx.save();
     ctx.globalAlpha = Math.max(0, ring.alpha);
@@ -83,13 +100,23 @@ export function renderGameCanvas(ctx: CanvasRenderingContext2D, state: RenderSta
     ctx.restore();
   }
 
-  // 6. Selected tower range & DJ buff links
+  // 7. Selected tower range
   const selectedTower = state.towers.find((t) => t.id === state.selectedTowerId) ?? null;
   if (selectedTower) {
     const r = getTowerEffectiveRange(selectedTower);
     ctx.save();
-    ctx.fillStyle = selectedTower.type === 'dj' ? 'rgba(192, 132, 252, 0.14)' : 'rgba(250, 204, 21, 0.13)';
-    ctx.strokeStyle = selectedTower.type === 'dj' ? '#c084fc' : '#facc15';
+    ctx.fillStyle =
+      selectedTower.type === 'dj'
+        ? 'rgba(192, 132, 252, 0.14)'
+        : selectedTower.type === 'mago'
+          ? 'rgba(34, 211, 238, 0.12)'
+          : 'rgba(250, 204, 21, 0.13)';
+    ctx.strokeStyle =
+      selectedTower.type === 'dj'
+        ? '#c084fc'
+        : selectedTower.type === 'mago'
+          ? '#22d3ee'
+          : '#facc15';
     ctx.lineWidth = 2;
     ctx.setLineDash([7, 5]);
     ctx.beginPath();
@@ -99,23 +126,23 @@ export function renderGameCanvas(ctx: CanvasRenderingContext2D, state: RenderSta
     ctx.restore();
   }
 
-  // 7. Placement preview ghost
+  // 8. Placement preview ghost
   if (state.placingType && state.hoverPos) {
     drawPlacementGhost(ctx, state, state.placingType, state.hoverPos.x, state.hoverPos.y);
   }
 
-  // 8. Towers
+  // 9. Towers
   for (const tower of state.towers) {
-    drawTower(ctx, tower, tower.id === state.selectedTowerId, state.isCoop, state.time);
+    drawTower(ctx, tower, tower.id === state.selectedTowerId, state.showOwners, state.time);
   }
 
-  // 9. Bloons (sorted by progress so front bloons & bosses layer nicely)
+  // 10. Bloons (sorted by progress so front bloons & bosses layer nicely)
   const sortedBloons = [...state.bloons].sort((a, b) => a.distance - b.distance);
   for (const bloon of sortedBloons) {
     drawBloon(ctx, bloon, state.time);
   }
 
-  // 10. Sniper tracers
+  // 11. Sniper tracers
   for (const tr of state.tracers) {
     ctx.save();
     ctx.globalAlpha = Math.min(1, tr.ttl * 4);
@@ -129,12 +156,22 @@ export function renderGameCanvas(ctx: CanvasRenderingContext2D, state: RenderSta
     ctx.restore();
   }
 
-  // 11. Projectiles
+  // 12. Lightning arcs (Mago)
+  for (const arc of state.lightningArcs) {
+    drawLightningArc(ctx, arc);
+  }
+
+  // 13. Projectiles
   for (const proj of state.projectiles) {
     drawProjectile(ctx, proj);
   }
 
-  // 12. Particles
+  // 14. Falling Ability Banana Bombs
+  for (const bomb of state.abilityBombs) {
+    drawAbilityBomb(ctx, bomb, state.time);
+  }
+
+  // 15. Particles
   for (const p of state.particles) {
     ctx.save();
     ctx.globalAlpha = Math.max(0, p.ttl / p.maxTtl);
@@ -145,7 +182,17 @@ export function renderGameCanvas(ctx: CanvasRenderingContext2D, state: RenderSta
     ctx.restore();
   }
 
-  // 13. Floating funny texts
+  // 16. Map Pings
+  for (const ping of state.pings) {
+    drawMapPing(ctx, ping);
+  }
+
+  // 17. Remote Cursors
+  for (const cursor of state.remoteCursors) {
+    drawRemoteCursor(ctx, cursor);
+  }
+
+  // 18. Floating funny texts
   for (const ft of state.floatingTexts) {
     ctx.save();
     const alpha = Math.min(1, (ft.ttl / ft.maxTtl) * 1.4);
@@ -160,31 +207,111 @@ export function renderGameCanvas(ctx: CanvasRenderingContext2D, state: RenderSta
     ctx.restore();
   }
 
-  // 14. Boss banner overlay on canvas top-center
+  // 19. Active Boss HUD Bar + Boss Banner
+  const activeBoss = state.bloons
+    .filter((b) => BLOON_DEFS[b.type].isBoss)
+    .sort((a, b) => b.maxHp - a.maxHp)[0];
+
   if (state.bossBannerText) {
     ctx.save();
     const pulse = 0.9 + Math.sin(state.time * 8) * 0.1;
-    ctx.fillStyle = 'rgba(127, 29, 29, 0.9)';
+    ctx.fillStyle = 'rgba(127, 29, 29, 0.92)';
     ctx.strokeStyle = '#facc15';
     ctx.lineWidth = 3;
     const bw = 560;
-    const bh = 38;
+    const bh = 36;
     const bx = (CANVAS_WIDTH - bw) / 2;
-    const by = 14;
+    const by = 12;
     roundRect(ctx, bx, by, bw, bh, 12);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = `rgba(254, 240, 138, ${pulse})`;
-    ctx.font = '900 15px system-ui, sans-serif';
+    ctx.font = '900 14px system-ui, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(state.bossBannerText, CANVAS_WIDTH / 2, by + 24);
+    ctx.fillText(state.bossBannerText, CANVAS_WIDTH / 2, by + 23);
     ctx.restore();
+  } else if (activeBoss) {
+    drawTopBossBar(ctx, activeBoss);
   }
 
   ctx.restore();
 }
 
-function drawBackground(ctx: CanvasRenderingContext2D, map: MapConfig): void {
+function drawTopBossBar(ctx: CanvasRenderingContext2D, boss: BloonInstance): void {
+  const def = BLOON_DEFS[boss.type];
+  const isZep = boss.type === 'zepelim';
+  const bw = 380;
+  const bh = 28;
+  const bx = (CANVAS_WIDTH - bw) / 2;
+  const by = 12;
+  const pct = Math.max(0, Math.min(1, boss.hp / Math.max(1, boss.maxHp)));
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+  ctx.strokeStyle = isZep ? '#f87171' : '#38bdf8';
+  ctx.lineWidth = 2.5;
+  roundRect(ctx, bx, by, bw, bh, 10);
+  ctx.fill();
+  ctx.stroke();
+
+  const barX = bx + 8;
+  const barY = by + 16;
+  const barW = bw - 16;
+  ctx.fillStyle = '#1e293b';
+  roundRect(ctx, barX, barY, barW, 8, 4);
+  ctx.fill();
+  if (pct > 0) {
+    ctx.fillStyle = isZep ? '#ef4444' : '#38bdf8';
+    roundRect(ctx, barX, barY, barW * pct, 8, 4);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = '#fef08a';
+  ctx.font = '900 11px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${def.emoji} ${def.name}`, bx + 10, by + 13);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillText(`${Math.max(0, Math.ceil(boss.hp))} / ${boss.maxHp} HP`, bx + bw - 10, by + 13);
+  ctx.restore();
+}
+
+function drawBackground(ctx: CanvasRenderingContext2D, map: MapConfig, time: number): void {
+  if (map.id === 'ilha') {
+    // Ocean waves
+    ctx.fillStyle = '#0369a1';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.strokeStyle = 'rgba(186, 230, 253, 0.16)';
+    ctx.lineWidth = 3;
+    for (let y = 30; y < CANVAS_HEIGHT; y += 56) {
+      ctx.beginPath();
+      for (let x = 0; x <= CANVAS_WIDTH; x += 40) {
+        const wy = y + Math.sin(x * 0.03 + time * 1.8 + y) * 5;
+        if (x === 0) ctx.moveTo(x, wy);
+        else ctx.lineTo(x, wy);
+      }
+      ctx.stroke();
+    }
+
+    // Sandy beach rim
+    ctx.fillStyle = '#fde68a';
+    roundRect(ctx, 26, 26, CANVAS_WIDTH - 52, CANVAS_HEIGHT - 52, 46);
+    ctx.fill();
+
+    // Lush island grass
+    ctx.fillStyle = '#166534';
+    roundRect(ctx, 48, 48, CANVAS_WIDTH - 96, CANVAS_HEIGHT - 96, 36);
+    ctx.fill();
+
+    // Central water channel under the bridge!
+    ctx.fillStyle = '#0284c7';
+    ctx.fillRect(520, 0, 120, CANVAS_HEIGHT);
+    ctx.fillStyle = 'rgba(253, 230, 138, 0.45)';
+    ctx.fillRect(512, 0, 8, CANVAS_HEIGHT);
+    ctx.fillRect(640, 0, 8, CANVAS_HEIGHT);
+    return;
+  }
+
   ctx.fillStyle = map.themeBg;
   ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
@@ -198,7 +325,6 @@ function drawBackground(ctx: CanvasRenderingContext2D, map: MapConfig): void {
     }
   }
 
-  // Subtle decorative grass tufts
   ctx.fillStyle = 'rgba(255,255,255,0.04)';
   for (let i = 0; i < 24; i++) {
     const px = ((i * 173) % (CANVAS_WIDTH - 40)) + 20;
@@ -210,56 +336,70 @@ function drawBackground(ctx: CanvasRenderingContext2D, map: MapConfig): void {
 }
 
 function drawTrack(ctx: CanvasRenderingContext2D, map: MapConfig, time: number): void {
-  const pts = map.waypoints;
-  if (pts.length < 2) return;
+  const lanes = getMapLanes(map);
 
-  ctx.save();
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
+  for (const pts of lanes) {
+    if (pts.length < 2) continue;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
-  // Drop shadow
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.28)';
-  ctx.lineWidth = TRACK_HALF_WIDTH * 2 + 12;
-  ctx.beginPath();
-  ctx.moveTo(pts[0].x, pts[0].y + 4);
-  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y + 4);
-  ctx.stroke();
+    // Drop shadow
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.28)';
+    ctx.lineWidth = TRACK_HALF_WIDTH * 2 + 12;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y + 4);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y + 4);
+    ctx.stroke();
 
-  // Outer curb
-  ctx.strokeStyle = map.roadOuter;
-  ctx.lineWidth = TRACK_HALF_WIDTH * 2 + 6;
-  ctx.beginPath();
-  ctx.moveTo(pts[0].x, pts[0].y);
-  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-  ctx.stroke();
+    // Outer curb
+    ctx.strokeStyle = map.roadOuter;
+    ctx.lineWidth = TRACK_HALF_WIDTH * 2 + 6;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.stroke();
+    ctx.restore();
+  }
 
-  // Inner surface
-  ctx.strokeStyle = map.roadInner;
-  ctx.lineWidth = TRACK_HALF_WIDTH * 2 - 6;
-  ctx.beginPath();
-  ctx.moveTo(pts[0].x, pts[0].y);
-  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-  ctx.stroke();
+  // Inner surface & dashes over all lanes so junctions blend seamlessly
+  for (const pts of lanes) {
+    if (pts.length < 2) continue;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
-  // Animated direction dashes
-  ctx.strokeStyle = map.roadStripe;
-  ctx.globalAlpha = 0.38;
-  ctx.lineWidth = 3;
-  ctx.setLineDash([14, 18]);
-  ctx.lineDashOffset = -time * 24;
-  ctx.beginPath();
-  ctx.moveTo(pts[0].x, pts[0].y);
-  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-  ctx.stroke();
-  ctx.restore();
+    ctx.strokeStyle = map.roadInner;
+    ctx.lineWidth = TRACK_HALF_WIDTH * 2 - 6;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.stroke();
+
+    ctx.strokeStyle = map.roadStripe;
+    ctx.globalAlpha = 0.38;
+    ctx.lineWidth = 3;
+    ctx.setLineDash([14, 18]);
+    ctx.lineDashOffset = -time * 24;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.stroke();
+    ctx.restore();
+  }
 
   // Entry & Exit markers
-  const start = samplePathPosition(map, 28);
-  drawTrackSign(ctx, Math.max(48, start.x + 12), start.y - 34, 'ENTRADA 🎈', '#ef4444');
+  lanes.forEach((_, laneIdx) => {
+    const start = samplePathPosition(map, 42, laneIdx);
+    const label = lanes.length > 1 ? `ENTRADA ${laneIdx + 1} 🎈` : 'ENTRADA 🎈';
+    const offsetY = laneIdx === 1 ? 34 : -34;
+    drawTrackSign(ctx, Math.max(58, start.x + 12), start.y + offsetY, label, '#ef4444');
+  });
 
-  const exit = samplePathPosition(map, 99999);
-  const ex = Math.max(60, Math.min(CANVAS_WIDTH - 68, exit.x - 16));
-  const ey = Math.max(36, Math.min(CANVAS_HEIGHT - 24, exit.y + 34));
+  const lane0Len = getLaneLength(map, 0);
+  const exit = samplePathPosition(map, lane0Len - 38, 0);
+  const ex = Math.max(66, Math.min(CANVAS_WIDTH - 64, exit.x - 10));
+  const ey = Math.max(76, Math.min(CANVAS_HEIGHT - 26, exit.y - 34));
   drawTrackSign(ctx, ex, ey, 'BANANAL 🍌', '#facc15', '#0f172a');
 }
 
@@ -293,15 +433,70 @@ function drawProp(ctx: CanvasRenderingContext2D, prop: MapProp, time: number): v
   ctx.scale(s, s);
 
   switch (prop.kind) {
+    case 'bridge': {
+      ctx.fillStyle = '#78350f';
+      ctx.strokeStyle = '#451a03';
+      ctx.lineWidth = 3;
+      roundRect(ctx, -90, -38, 180, 76, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = '#92400e';
+      ctx.lineWidth = 2;
+      for (let x = -78; x <= 78; x += 16) {
+        ctx.beginPath();
+        ctx.moveTo(x, -36);
+        ctx.lineTo(x, 36);
+        ctx.stroke();
+      }
+      if (prop.label) {
+        ctx.fillStyle = '#fef08a';
+        ctx.font = '900 9px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(prop.label, 0, -42);
+      }
+      break;
+    }
+    case 'palm': {
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.beginPath();
+      ctx.ellipse(4, 10, 20, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 7;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, 10);
+      ctx.quadraticCurveTo(6, -4, 0, -14);
+      ctx.stroke();
+      const sway = Math.sin(time * 2 + prop.x) * 0.08;
+      ctx.save();
+      ctx.translate(0, -14);
+      ctx.rotate(sway);
+      for (let i = 0; i < 5; i++) {
+        ctx.rotate((Math.PI * 2) / 5);
+        ctx.fillStyle = i % 2 === 0 ? '#16a34a' : '#22c55e';
+        ctx.strokeStyle = '#052e16';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.ellipse(12, 0, 13, 5, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#713f12';
+      ctx.beginPath();
+      ctx.arc(-3, 3, 3.5, 0, Math.PI * 2);
+      ctx.arc(3, 3, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
     case 'tree': {
       ctx.fillStyle = 'rgba(0,0,0,0.22)';
       ctx.beginPath();
       ctx.ellipse(4, 8, 22, 14, 0, 0, Math.PI * 2);
       ctx.fill();
-      // Trunk
       ctx.fillStyle = '#78350f';
       ctx.fillRect(-5, -2, 10, 14);
-      // Canopy
       const sway = Math.sin(time * 1.5 + prop.x) * 1.5;
       ctx.fillStyle = '#15803d';
       ctx.strokeStyle = '#052e16';
@@ -335,7 +530,7 @@ function drawProp(ctx: CanvasRenderingContext2D, prop: MapProp, time: number): v
       ctx.fillStyle = '#fde047';
       ctx.strokeStyle = '#0f172a';
       ctx.lineWidth = 2;
-      roundRect(ctx, -34, -12, 68, 20, 5);
+      roundRect(ctx, -36, -12, 72, 20, 5);
       ctx.fill();
       ctx.stroke();
       ctx.fillStyle = '#0f172a';
@@ -354,7 +549,6 @@ function drawProp(ctx: CanvasRenderingContext2D, prop: MapProp, time: number): v
       roundRect(ctx, -30, -20, 60, 36, 6);
       ctx.fill();
       ctx.stroke();
-      // Stripes
       ctx.fillStyle = 'rgba(255,255,255,0.45)';
       for (let x = -22; x < 24; x += 14) {
         ctx.fillRect(x, -18, 6, 32);
@@ -381,7 +575,6 @@ function drawProp(ctx: CanvasRenderingContext2D, prop: MapProp, time: number): v
       ctx.moveTo(12, -12);
       ctx.lineTo(-12, 12);
       ctx.stroke();
-      // Banana peeking
       ctx.fillStyle = '#fde047';
       ctx.beginPath();
       ctx.arc(0, -13, 6, Math.PI, 0);
@@ -413,7 +606,6 @@ function drawPoisonCloud(ctx: CanvasRenderingContext2D, cloud: PoisonCloud, time
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Bubbles
   ctx.fillStyle = '#bbf7d0';
   for (let i = 0; i < 4; i++) {
     const ang = time * 1.8 + i * 1.6;
@@ -440,17 +632,19 @@ function drawPlacementGhost(
 
   ctx.save();
   const displayRange = Math.min(def.range, 900);
-  ctx.fillStyle = ok ? 'rgba(74, 222, 128, 0.16)' : 'rgba(239, 68, 68, 0.2)';
+  ctx.fillStyle = ok ? 'rgba(74, 222, 128, 0.18)' : 'rgba(239, 68, 68, 0.24)';
   ctx.strokeStyle = ok ? '#4ade80' : '#ef4444';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.5;
+  ctx.setLineDash([8, 6]);
   ctx.beginPath();
   ctx.arc(x, y, displayRange, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+  ctx.setLineDash([]);
 
   ctx.beginPath();
   ctx.arc(x, y, TOWER_RADIUS, 0, Math.PI * 2);
-  ctx.fillStyle = ok ? 'rgba(250, 204, 21, 0.45)' : 'rgba(239, 68, 68, 0.5)';
+  ctx.fillStyle = ok ? 'rgba(74, 222, 128, 0.55)' : 'rgba(239, 68, 68, 0.55)';
   ctx.fill();
   ctx.stroke();
 
@@ -459,15 +653,21 @@ function drawPlacementGhost(
   ctx.textBaseline = 'middle';
   ctx.fillText(def.emoji, x, y);
 
-  if (!ok) {
-    const msg = !canAfford ? `Falta ${def.cost - state.bananas} 🍌` : (valid.reason ?? 'Inválido');
-    ctx.font = '800 11px system-ui, sans-serif';
-    ctx.fillStyle = '#fecaca';
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 3;
-    ctx.strokeText(msg, x, y - 30);
-    ctx.fillText(msg, x, y - 30);
-  }
+  const msg = !canAfford
+    ? `❌ Falta ${def.cost - state.bananas} 🍌`
+    : !valid.ok
+      ? `❌ ${valid.reason ?? 'Inválido'}`
+      : '✅ Clique p/ colocar (Shift = vários)';
+  ctx.font = '800 11px system-ui, sans-serif';
+  const tw = ctx.measureText(msg).width + 14;
+  ctx.fillStyle = ok ? 'rgba(6, 78, 59, 0.92)' : 'rgba(127, 29, 29, 0.92)';
+  ctx.strokeStyle = ok ? '#4ade80' : '#fca5a5';
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, x - tw / 2, y - 42, tw, 20, 6);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = ok ? '#dcfce7' : '#fecaca';
+  ctx.fillText(msg, x, y - 32);
   ctx.restore();
 }
 
@@ -475,13 +675,12 @@ function drawTower(
   ctx: CanvasRenderingContext2D,
   tower: TowerInstance,
   isSelected: boolean,
-  isCoop: boolean,
+  showOwners: boolean,
   time: number,
 ): void {
   ctx.save();
   ctx.translate(tower.x, tower.y);
 
-  // Co-op owner ring or selection ring
   if (isSelected) {
     ctx.strokeStyle = '#fde047';
     ctx.lineWidth = 3.5;
@@ -490,7 +689,7 @@ function drawTower(
     ctx.stroke();
   }
 
-  if (isCoop) {
+  if (showOwners) {
     ctx.strokeStyle = tower.ownerColor;
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -498,8 +697,7 @@ function drawTower(
     ctx.stroke();
   }
 
-  // Buff aura from DJ JBL
-  if (tower.buffedMultiplier > 1.01 && tower.type !== 'dj') {
+  if (tower.buffedMultiplier > 1.01 && tower.type !== 'dj' && tower.type !== 'fazenda') {
     const pulse = 0.55 + Math.sin(time * 7 + tower.x) * 0.25;
     ctx.strokeStyle = `rgba(192, 132, 252, ${pulse})`;
     ctx.lineWidth = 2.5;
@@ -508,17 +706,20 @@ function drawTower(
     ctx.stroke();
   }
 
-  // Drop shadow
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.beginPath();
   ctx.ellipse(2, 6, 18, 14, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Rotated monkey body/weapon
   ctx.save();
   const kick = tower.recoil * 4;
-  ctx.rotate(tower.angle);
-  ctx.translate(-kick, 0);
+  if (tower.type !== 'fazenda') {
+    ctx.rotate(tower.angle);
+    ctx.translate(-kick, 0);
+  } else {
+    const bob = 1 + tower.recoil * 0.14;
+    ctx.scale(bob, bob);
+  }
 
   if (tower.type === 'banana') {
     drawBananaMonkey(ctx, tower.level, time);
@@ -530,10 +731,13 @@ function drawTower(
     drawCocoCannonMonkey(ctx, tower.level);
   } else if (tower.type === 'dj') {
     drawDjMonkey(ctx, tower.level, time);
+  } else if (tower.type === 'fazenda') {
+    drawFarmTower(ctx, tower.level, time);
+  } else if (tower.type === 'mago') {
+    drawMagoMonkey(ctx, tower.level, time);
   }
   ctx.restore();
 
-  // Upgrade stars below tower
   if (tower.level > 0) {
     for (let i = 0; i < tower.level; i++) {
       const sx = (i - (tower.level - 1) / 2) * 11;
@@ -547,8 +751,7 @@ function drawTower(
     }
   }
 
-  // Co-op owner name tag
-  if (isCoop) {
+  if (showOwners) {
     ctx.font = '800 10px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.lineWidth = 3;
@@ -569,7 +772,6 @@ function drawMonkeyBaseHead(
   vesgo: boolean,
   baldShiny = false,
 ): void {
-  // Ears
   ctx.fillStyle = furColor;
   ctx.strokeStyle = '#451a03';
   ctx.lineWidth = 2;
@@ -585,14 +787,12 @@ function drawMonkeyBaseHead(
   ctx.arc(0, 16, 3.2, 0, Math.PI * 2);
   ctx.fill();
 
-  // Head
   ctx.fillStyle = furColor;
   ctx.beginPath();
   ctx.arc(0, 0, 15, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
-  // Muzzle/Face
   ctx.fillStyle = faceColor;
   ctx.beginPath();
   ctx.ellipse(5, 0, 9, 10, 0, 0, Math.PI * 2);
@@ -605,7 +805,6 @@ function drawMonkeyBaseHead(
     ctx.fill();
   }
 
-  // Eyes
   ctx.fillStyle = '#fff';
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 1.2;
@@ -615,7 +814,6 @@ function drawMonkeyBaseHead(
   ctx.fill();
   ctx.stroke();
 
-  // Pupils (vesgo = crossed!)
   ctx.fillStyle = '#0f172a';
   ctx.beginPath();
   if (vesgo) {
@@ -641,7 +839,6 @@ function drawMonkeyBaseHead(
 
 function drawBananaMonkey(ctx: CanvasRenderingContext2D, level: number, time: number): void {
   const isCalvoFurioso = level >= 3;
-  // Held banana
   ctx.fillStyle = isCalvoFurioso ? '#fb923c' : '#fde047';
   ctx.strokeStyle = '#854d0e';
   ctx.lineWidth = 2;
@@ -659,7 +856,6 @@ function drawBananaMonkey(ctx: CanvasRenderingContext2D, level: number, time: nu
     isCalvoFurioso,
   );
 
-  // Level 1+: yellow bandana; Lv3: steam puffs
   if (level >= 1 && level < 3) {
     ctx.fillStyle = level === 2 ? '#22c55e' : '#facc15';
     ctx.fillRect(-10, -13, 7, 26);
@@ -675,7 +871,6 @@ function drawBananaMonkey(ctx: CanvasRenderingContext2D, level: number, time: nu
 }
 
 function drawHavaianasMonkey(ctx: CanvasRenderingContext2D, level: number): void {
-  // Flip-flop in hand
   ctx.save();
   ctx.translate(16, 9);
   ctx.rotate(0.4);
@@ -689,25 +884,21 @@ function drawHavaianasMonkey(ctx: CanvasRenderingContext2D, level: number): void
 
   drawMonkeyBaseHead(ctx, '#92400e', '#fed7aa', level >= 2, false);
 
-  // Headband
   ctx.fillStyle = level >= 2 ? '#38bdf8' : '#0284c7';
   ctx.fillRect(-10, -13, 6, 26);
 }
 
 function drawSniperMonkey(ctx: CanvasRenderingContext2D, level: number): void {
-  // Long sniper rifle
   ctx.fillStyle = '#1e293b';
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 1.5;
   ctx.fillRect(4, 4, 24, 5);
   ctx.strokeRect(4, 4, 24, 5);
   if (level >= 1) {
-    // PET bottle scope!
     ctx.fillStyle = '#38bdf8';
     ctx.fillRect(8, 1, 9, 4);
   }
   if (level >= 3) {
-    // Red laser dot
     ctx.fillStyle = '#ef4444';
     ctx.beginPath();
     ctx.arc(29, 6.5, 2.5, 0, Math.PI * 2);
@@ -716,7 +907,6 @@ function drawSniperMonkey(ctx: CanvasRenderingContext2D, level: number): void {
 
   drawMonkeyBaseHead(ctx, '#78350f', '#fde68a', false, true);
 
-  // Camo beret
   ctx.fillStyle = level >= 2 ? '#dc2626' : '#4d7c0f';
   ctx.strokeStyle = '#1a2e05';
   ctx.lineWidth = 1.8;
@@ -727,7 +917,6 @@ function drawSniperMonkey(ctx: CanvasRenderingContext2D, level: number): void {
 }
 
 function drawCocoCannonMonkey(ctx: CanvasRenderingContext2D, level: number): void {
-  // Cannon barrel
   ctx.fillStyle = level >= 3 ? '#14532d' : '#1e293b';
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 2.5;
@@ -735,11 +924,9 @@ function drawCocoCannonMonkey(ctx: CanvasRenderingContext2D, level: number): voi
   ctx.fill();
   ctx.stroke();
 
-  // Toxic green rim
   ctx.fillStyle = '#4ade80';
   ctx.fillRect(21, -7, 4, 14);
 
-  // Operator monkey behind cannon
   ctx.save();
   ctx.translate(-6, 0);
   ctx.scale(0.82, 0.82);
@@ -748,7 +935,6 @@ function drawCocoCannonMonkey(ctx: CanvasRenderingContext2D, level: number): voi
 }
 
 function drawDjMonkey(ctx: CanvasRenderingContext2D, level: number, time: number): void {
-  // JBL Boombox speaker in front
   const bounce = 1 + Math.sin(time * 12) * 0.08;
   ctx.save();
   ctx.translate(12, 0);
@@ -759,7 +945,6 @@ function drawDjMonkey(ctx: CanvasRenderingContext2D, level: number, time: number
   roundRect(ctx, -6, -15, 14, 30, 5);
   ctx.fill();
   ctx.stroke();
-  // Speaker cones
   ctx.fillStyle = '#a855f7';
   ctx.beginPath();
   ctx.arc(1, -7, 4.5, 0, Math.PI * 2);
@@ -771,7 +956,6 @@ function drawDjMonkey(ctx: CanvasRenderingContext2D, level: number, time: number
   ctx.translate(-5, 0);
   ctx.scale(0.9, 0.9);
   drawMonkeyBaseHead(ctx, '#7c2d12', '#fed7aa', false, false);
-  // Headphones
   ctx.strokeStyle = '#c084fc';
   ctx.lineWidth = 3.5;
   ctx.beginPath();
@@ -781,6 +965,93 @@ function drawDjMonkey(ctx: CanvasRenderingContext2D, level: number, time: number
   ctx.fillRect(-3, -17, 7, 5);
   ctx.fillRect(-3, 12, 7, 5);
   ctx.restore();
+}
+
+function drawFarmTower(ctx: CanvasRenderingContext2D, level: number, time: number): void {
+  // Base wooden crate / bank foundation
+  ctx.fillStyle = level >= 3 ? '#eab308' : level >= 2 ? '#15803d' : '#92400e';
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 2.2;
+  roundRect(ctx, -16, -13, 32, 26, 6);
+  ctx.fill();
+  ctx.stroke();
+
+  if (level >= 3) {
+    // Banana Central Bank roof
+    ctx.fillStyle = '#fef08a';
+    ctx.font = '900 10px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('BANCO', 0, 10);
+  }
+
+  // Banana tree leaves fanning out
+  const sway = Math.sin(time * 2.5) * 0.08;
+  ctx.save();
+  ctx.translate(0, -4);
+  ctx.rotate(sway);
+  for (let i = 0; i < 4; i++) {
+    ctx.save();
+    ctx.rotate((i * Math.PI) / 2 + 0.35);
+    ctx.fillStyle = level >= 1 ? '#4ade80' : '#22c55e';
+    ctx.strokeStyle = '#052e16';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.ellipse(9, 0, 10, 4.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // Golden bananas bunch in center
+  ctx.fillStyle = '#fde047';
+  ctx.strokeStyle = '#854d0e';
+  ctx.lineWidth = 1.6;
+  for (const bx of [-5, 0, 5]) {
+    ctx.beginPath();
+    ctx.arc(bx, -2, 4.5, 0.2, Math.PI - 0.2);
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
+function drawMagoMonkey(ctx: CanvasRenderingContext2D, level: number, time: number): void {
+  // Lightning vine staff
+  ctx.strokeStyle = '#78350f';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(4, 10);
+  ctx.lineTo(24, 10);
+  ctx.stroke();
+
+  // Glowing orb on staff tip
+  const orbPulse = 4.5 + Math.sin(time * 10) * 1.2;
+  ctx.fillStyle = level >= 3 ? '#facc15' : '#22d3ee';
+  ctx.strokeStyle = '#083344';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(24, 10, orbPulse, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  drawMonkeyBaseHead(
+    ctx,
+    level >= 3 ? '#312e81' : '#6d28d9',
+    '#fde68a',
+    level >= 2,
+    false,
+  );
+
+  // Leaf / Vine shaman crown
+  ctx.strokeStyle = '#4ade80';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(0, 0, 14, Math.PI * 0.6, Math.PI * 1.4);
+  ctx.stroke();
+  ctx.fillStyle = '#22d3ee';
+  ctx.beginPath();
+  ctx.arc(-8, 0, 3.5, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function drawBloon(ctx: CanvasRenderingContext2D, bloon: BloonInstance, time: number): void {
@@ -795,7 +1066,6 @@ function drawBloon(ctx: CanvasRenderingContext2D, bloon: BloonInstance, time: nu
     return;
   }
 
-  // String
   ctx.strokeStyle = '#e2e8f0';
   ctx.lineWidth = 1.6;
   ctx.beginPath();
@@ -803,7 +1073,6 @@ function drawBloon(ctx: CanvasRenderingContext2D, bloon: BloonInstance, time: nu
   ctx.quadraticCurveTo(Math.sin(time * 6 + bloon.wobbleSeed) * 4, def.radius + 9, 0, def.radius + 16);
   ctx.stroke();
 
-  // Body
   ctx.fillStyle = bloon.hitFlash > 0 ? '#ffffff' : def.color;
   ctx.strokeStyle = def.outline;
   ctx.lineWidth = 2.4;
@@ -812,7 +1081,6 @@ function drawBloon(ctx: CanvasRenderingContext2D, bloon: BloonInstance, time: nu
   ctx.fill();
   ctx.stroke();
 
-  // Camo pattern
   if (def.isCamo && !bloon.camoStripped) {
     ctx.fillStyle = '#365314';
     ctx.beginPath();
@@ -821,7 +1089,6 @@ function drawBloon(ctx: CanvasRenderingContext2D, bloon: BloonInstance, time: nu
     ctx.fill();
   }
 
-  // Lead rivets & metallic shine
   if (def.isLead) {
     ctx.fillStyle = '#cbd5e1';
     ctx.beginPath();
@@ -831,14 +1098,12 @@ function drawBloon(ctx: CanvasRenderingContext2D, bloon: BloonInstance, time: nu
     ctx.arc(7, 7, 2.5, 0, Math.PI * 2);
     ctx.fill();
   } else {
-    // Glossy highlight
     ctx.fillStyle = 'rgba(255,255,255,0.45)';
     ctx.beginPath();
     ctx.ellipse(-def.radius * 0.3, -def.radius * 0.42, 3.2, 5.2, -0.3, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Slow frost/bass tint
   if (bloon.slowTimer > 0) {
     ctx.strokeStyle = '#c084fc';
     ctx.lineWidth = 2;
@@ -847,9 +1112,7 @@ function drawBloon(ctx: CanvasRenderingContext2D, bloon: BloonInstance, time: nu
     ctx.stroke();
   }
 
-  // Mocking face!
   if (def.isCamo && !bloon.camoStripped) {
-    // Cool dark sunglasses
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(-10, -5, 8, 5);
     ctx.fillRect(2, -5, 8, 5);
@@ -867,14 +1130,12 @@ function drawBloon(ctx: CanvasRenderingContext2D, bloon: BloonInstance, time: nu
     ctx.fill();
   }
 
-  // Cheeky grin
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 1.8;
   ctx.beginPath();
   ctx.arc(0, 3, 4.5, 0.15, Math.PI - 0.15);
   ctx.stroke();
 
-  // Troll badge
   if (bloon.isTroll) {
     ctx.font = '11px system-ui, sans-serif';
     ctx.textAlign = 'center';
@@ -888,6 +1149,9 @@ function drawBossBloon(ctx: CanvasRenderingContext2D, bloon: BloonInstance, time
   const isZep = bloon.type === 'zepelim';
   const rx = isZep ? 50 : 38;
   const ry = isZep ? 28 : 22;
+
+  ctx.save();
+  ctx.rotate(bloon.angle || 0);
 
   // Tail fins
   ctx.fillStyle = isZep ? '#facc15' : '#ef4444';
@@ -935,7 +1199,6 @@ function drawBossBloon(ctx: CanvasRenderingContext2D, bloon: BloonInstance, time
   ctx.arc(rx - 12, -7, 2.2, 0, Math.PI * 2);
   ctx.fill();
 
-  // Spinning propeller on Zepelim
   if (isZep) {
     const spin = Math.sin(time * 28) * 10;
     ctx.strokeStyle = '#fde047';
@@ -945,18 +1208,154 @@ function drawBossBloon(ctx: CanvasRenderingContext2D, bloon: BloonInstance, time
     ctx.lineTo(-rx - 12, spin);
     ctx.stroke();
   }
+  ctx.restore();
 
-  // Boss HP Bar
-  const hpW = isZep ? 88 : 66;
-  const pct = Math.max(0, Math.min(1, bloon.hp / bloon.maxHp));
+  // Unrotated crisp Boss HP Bar with numeric HP
+  const hpW = isZep ? 96 : 74;
+  const pct = Math.max(0, Math.min(1, bloon.hp / Math.max(1, bloon.maxHp)));
   ctx.fillStyle = '#0f172a';
-  roundRect(ctx, -hpW / 2, -ry - 16, hpW, 9, 4);
+  roundRect(ctx, -hpW / 2, -ry - 22, hpW, 13, 4);
   ctx.fill();
   ctx.fillStyle = isZep ? '#facc15' : '#4ade80';
   if (pct > 0) {
-    roundRect(ctx, -hpW / 2 + 1.5, -ry - 14.5, (hpW - 3) * pct, 6, 3);
+    roundRect(ctx, -hpW / 2 + 1.5, -ry - 20.5, (hpW - 3) * pct, 10, 3);
     ctx.fill();
   }
+  ctx.fillStyle = '#0f172a';
+  ctx.font = '900 8px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${Math.max(0, Math.ceil(bloon.hp))}/${bossSafeMax(bloon)}`, 0, -ry - 12.5);
+}
+
+function bossSafeMax(b: BloonInstance): number {
+  return Math.max(1, b.maxHp);
+}
+
+function drawLightningArc(ctx: CanvasRenderingContext2D, arc: LightningArc): void {
+  if (arc.points.length < 2) return;
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, arc.ttl / arc.maxTtl);
+  ctx.strokeStyle = arc.color;
+  ctx.lineWidth = 3.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(arc.points[0].x, arc.points[0].y);
+  for (let i = 1; i < arc.points.length; i++) {
+    const prev = arc.points[i - 1];
+    const curr = arc.points[i];
+    const mx = (prev.x + curr.x) / 2 + (Math.random() - 0.5) * 14;
+    const my = (prev.y + curr.y) / 2 + (Math.random() - 0.5) * 14;
+    ctx.lineTo(mx, my);
+    ctx.lineTo(curr.x, curr.y);
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawAbilityBomb(ctx: CanvasRenderingContext2D, bomb: AbilityBomb, time: number): void {
+  ctx.save();
+  // Target reticle on ground
+  ctx.strokeStyle = 'rgba(250, 204, 21, 0.7)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.arc(bomb.x, bomb.targetY, bomb.radius * 0.45, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Falling banana bomb
+  ctx.translate(bomb.x, bomb.y);
+  ctx.rotate(time * 12);
+  ctx.fillStyle = '#facc15';
+  ctx.strokeStyle = '#dc2626';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, 11, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.font = '14px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🍌', 0, 0);
+  ctx.restore();
+}
+
+function drawMapPing(ctx: CanvasRenderingContext2D, ping: MapPing): void {
+  const progress = 1 - ping.ttl / ping.maxTtl;
+  const r = 10 + (progress * 48) % 36;
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, ping.ttl * 1.4));
+  ctx.strokeStyle = ping.color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(ping.x, ping.y, r, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.fillStyle = ping.color;
+  ctx.beginPath();
+  ctx.arc(ping.x, ping.y, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  const label = `📍 ${ping.name}`;
+  ctx.font = '900 11px system-ui, sans-serif';
+  const tw = ctx.measureText(label).width + 12;
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+  ctx.strokeStyle = ping.color;
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, ping.x - tw / 2, ping.y - 34, tw, 18, 6);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.fillText(label, ping.x, ping.y - 21);
+  ctx.restore();
+}
+
+function drawRemoteCursor(ctx: CanvasRenderingContext2D, cursor: RemoteCursor): void {
+  ctx.save();
+  ctx.translate(cursor.x, cursor.y);
+
+  if (cursor.placingType) {
+    const def = TOWER_DEFS[cursor.placingType];
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = cursor.color;
+    ctx.beginPath();
+    ctx.arc(0, 0, TOWER_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = '16px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(def.emoji, 0, 0);
+    ctx.globalAlpha = 1;
+  }
+
+  // Pointer triangle
+  ctx.fillStyle = cursor.color;
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(14, 7);
+  ctx.lineTo(7, 9);
+  ctx.lineTo(5, 16);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.font = '800 10px system-ui, sans-serif';
+  const w = ctx.measureText(cursor.name).width + 10;
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+  roundRect(ctx, 12, 12, w, 16, 5);
+  ctx.fill();
+  ctx.fillStyle = cursor.color;
+  ctx.textAlign = 'left';
+  ctx.fillText(cursor.name, 17, 23);
+  ctx.restore();
 }
 
 function drawProjectile(ctx: CanvasRenderingContext2D, proj: Projectile): void {
