@@ -3,23 +3,24 @@
   "title": "Macacos Pistola",
   "subtitle": "Estilingue de Destruição em Massa",
   "inspiredBy": "Angry Birds",
-  "description": "Lance Macacos Normal, Triplo, Bomba de Coco, Gorila Tank e Bumerangue de um estilingue gigante de cipó contra fortalezas de vidro, madeira, pedra e barris de TNT cheias de Porcos Faria Limers e Tatus Ladrões de Banana!",
+  "description": "Lance Macacos Pistola, Triplo, Bomba de Coco, Gorila Tank, Bumerangue e Bombardeiro Ovo-de-Coco de um estilingue gigante contra fortalezas de vidro, madeira, pedra e TNT cheias de Porcos Faria Limers!",
   "category": "fisica",
-  "tags": ["estilingue", "destruicao", "fisica", "box2d", "co-op", "versus"],
+  "tags": ["estilingue", "destruicao", "fisica", "box2d", "co-op", "versus", "hotseat"],
   "emoji": "🎯",
   "accentColor": "#eab308",
   "multiplayer": {
     "supported": true,
     "mode": "coop-versus",
-    "maxPlayers": 2,
-    "summary": "Co-op de Turnos sincronizado (veja o amigo mirar!) ou Duelo de Pontuação na mesma fortaleza"
+    "maxPlayers": 4,
+    "summary": "Co-op de Turnos até 4 jogadores, Duelo de Pontuação P2P e Modo 2P Local (Hotseat)"
   },
   "controls": [
     "Arrastar estilingue: mirar e lançar",
     "Clique no ar ou Espaço: ativar poder do macaco",
+    "N ou Espaço (após colidir): pular para próximo macaco",
     "Arrastar cenário / Scroll: câmera e zoom"
   ],
   "thumbnail": "thumbnail.svg",
   "status": "playable",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }

@@ -1,4 +1,5 @@
 import { monkeyAudio } from '@monkey-slop/sdk';
+import type { MonkeyKind, TauntSoundKind } from './types';
 
 class AngryMonkeysAudio {
   private ctx: AudioContext | null = null;
@@ -47,7 +48,7 @@ class AngryMonkeysAudio {
     monkeyAudio.play('screech', 0.16);
   }
 
-  playPower(kind: 'normal' | 'triple' | 'bomb' | 'tank' | 'boomerang'): void {
+  playPower(kind: MonkeyKind): void {
     switch (kind) {
       case 'normal':
         monkeyAudio.play('rage', 0.25);
@@ -57,7 +58,8 @@ class AngryMonkeysAudio {
         this.playChirp(680, 1280, 0.11);
         break;
       case 'bomb':
-        monkeyAudio.play('explosion', 0.42);
+        // Fuse ignition chirp; executeExplosion plays the actual boom
+        this.playChirp(320, 920, 0.09);
         break;
       case 'tank':
         this.playChirp(420, 75, 0.22);
@@ -65,7 +67,26 @@ class AngryMonkeysAudio {
       case 'boomerang':
         this.playWhoosh();
         break;
+      case 'bomber':
+        // Egg/coconut drop whistle + upward pop
+        monkeyAudio.play('boing', 0.22);
+        this.playChirp(860, 260, 0.22);
+        break;
     }
+  }
+
+  playExplosion(): void {
+    monkeyAudio.play('explosion', 0.44);
+  }
+
+  playTaunt(sound: TauntSoundKind = 'screech'): void {
+    monkeyAudio.play(sound, 0.28);
+  }
+
+  playTurnBell(): void {
+    const ctx = this.getCtx();
+    if (!ctx) return;
+    this.tone(ctx, 'triangle', 523.25, 659.25, 0.12, 0.14);
   }
 
   playImpact(material: 'glass' | 'wood' | 'stone' | 'tnt', intensity: number): void {
@@ -89,7 +110,7 @@ class AngryMonkeysAudio {
 
   playBreak(material: 'glass' | 'wood' | 'stone' | 'tnt'): void {
     if (material === 'tnt') {
-      monkeyAudio.play('explosion', 0.45);
+      // executeExplosion plays the boom without double triggering
       return;
     }
     const ctx = this.getCtx();

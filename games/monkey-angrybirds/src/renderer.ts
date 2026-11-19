@@ -15,6 +15,7 @@ export interface AimVisualState {
   pullY: number;
   loadedMonkey: MonkeyKind | null;
   trajectory: { x: number; y: number }[];
+  ghostTrajectory?: { x: number; y: number }[];
   aimerName?: string;
   aimerColor?: string;
 }
@@ -84,22 +85,40 @@ export class GameRenderer {
     // Waiting Monkeys Queue behind slingshot
     this.drawWaitingQueue(ctx, waitingQueue, time);
 
-    // Trajectory dots
+    // Previous shot ghost trajectory (classic Angry Birds calibration aid!)
+    if (aim.ghostTrajectory && aim.ghostTrajectory.length > 1) {
+      ctx.save();
+      for (let i = 0; i < aim.ghostTrajectory.length; i++) {
+        const pt = aim.ghostTrajectory[i];
+        const fade = Math.max(0.14, 0.42 * (1 - i / aim.ghostTrajectory.length));
+        ctx.fillStyle = `rgba(255, 255, 255, ${fade})`;
+        ctx.strokeStyle = `rgba(15, 23, 42, ${fade * 0.65})`;
+        ctx.lineWidth = 0.025;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 0.075, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // Live aiming trajectory dots
     if (aim.isAiming && aim.trajectory.length > 0) {
+      ctx.save();
       for (let i = 0; i < aim.trajectory.length; i++) {
         const pt = aim.trajectory[i];
-        const alpha = Math.max(0.18, 1 - i / aim.trajectory.length);
+        const alpha = Math.max(0.22, 1 - i / aim.trajectory.length);
         const r = 0.11 * (1 - (i / aim.trajectory.length) * 0.45);
-        ctx.fillStyle = aim.aimerColor
-          ? `rgba(255,255,255,${alpha})`
-          : `rgba(255,255,255,${alpha})`;
-        ctx.strokeStyle = `rgba(15,23,42,${alpha * 0.85})`;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = aim.aimerColor || '#ffffff';
+        ctx.strokeStyle = 'rgba(15,23,42,0.88)';
         ctx.lineWidth = 0.04;
         ctx.beginPath();
         ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
       }
+      ctx.restore();
     }
 
     // Loaded Monkey in slingshot
@@ -126,6 +145,7 @@ export class GameRenderer {
           `🎯 ${aim.aimerName}`,
           aim.aimerColor || '#fde047',
           14,
+          cam.zoom,
         );
       }
     }
@@ -140,7 +160,14 @@ export class GameRenderer {
 
     // Enemies
     for (const enemy of physics.enemies) {
-      this.drawEnemy(ctx, enemy, time);
+      this.drawEnemy(ctx, enemy, time, cam.zoom);
+    }
+
+    // Dropped Coconut Bombs
+    for (const coconut of physics.coconuts) {
+      if (coconut.destroyed) continue;
+      const pos = coconut.body.getPosition();
+      this.drawCoconutBomb(ctx, pos.x, pos.y, coconut.radius, coconut.body.getAngle(), time);
     }
 
     // Flying Monkeys & Trails
@@ -208,6 +235,8 @@ export class GameRenderer {
         ctx.arc(0, 0, p.size * 1.4, 0.2, Math.PI - 0.2);
         ctx.stroke();
         ctx.fill();
+      } else if (p.shape === 'confetti') {
+        ctx.fillRect(-p.size, -p.size * 0.45, p.size * 2, p.size * 0.9);
       } else {
         ctx.fillRect(-p.size, -p.size * 0.55, p.size * 2, p.size * 1.1);
       }
@@ -219,7 +248,15 @@ export class GameRenderer {
       const alpha = Math.max(0, 1 - ft.life / ft.maxLife);
       ctx.save();
       ctx.globalAlpha = alpha;
-      this.drawWorldLabel(ctx, ft.x, ft.y, ft.text, ft.color, Math.round(18 * ft.scale));
+      this.drawWorldLabel(
+        ctx,
+        ft.x,
+        ft.y,
+        ft.text,
+        ft.color,
+        Math.round(18 * ft.scale),
+        cam.zoom,
+      );
       ctx.restore();
     }
 
@@ -612,6 +649,23 @@ export class GameRenderer {
       ctx.arc(0, r * 0.9, r * 0.48, 0, Math.PI);
       ctx.fill();
       ctx.stroke();
+    } else if (kind === 'bomber') {
+      // Aviator cap & goggles strap + carried coconut bomb
+      ctx.fillStyle = '#78350f';
+      ctx.beginPath();
+      ctx.arc(0, r * 0.15, r * 0.98, 0.15, Math.PI - 0.15);
+      ctx.fill();
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(-r * 0.92, -r * 0.72, r * 1.84, r * 0.24);
+      if (!powerUsed) {
+        ctx.fillStyle = '#5c3317';
+        ctx.strokeStyle = '#fb923c';
+        ctx.lineWidth = 0.04;
+        ctx.beginPath();
+        ctx.arc(0, -r * 0.95, r * 0.42, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
     }
 
     // Muzzle / face patch
@@ -637,6 +691,17 @@ export class GameRenderer {
       ctx.arc(side * eyeX - side * r * 0.05, eyeY + (side > 0 ? 0.03 : -0.02), r * 0.095, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#ffffff';
+    }
+
+    // Bomber aviator goggles rim
+    if (kind === 'bomber') {
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 0.06;
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.arc(side * eyeX, eyeY, r * 0.28, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
 
     // Angry V-eyebrows
@@ -667,7 +732,63 @@ export class GameRenderer {
     ctx.restore();
   }
 
-  private drawEnemy(ctx: CanvasRenderingContext2D, enemy: EnemyEntity, time: number): void {
+  private drawCoconutBomb(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    r: number,
+    angle: number,
+    time: number,
+  ): void {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+
+    // Glow aura
+    ctx.strokeStyle = 'rgba(249, 115, 22, 0.75)';
+    ctx.lineWidth = 0.07;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.24, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Coconut shell
+    ctx.fillStyle = '#451a03';
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 0.06;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Three coconut dots
+    ctx.fillStyle = '#1c1917';
+    ctx.beginPath();
+    ctx.arc(-r * 0.22, r * 0.15, r * 0.12, 0, Math.PI * 2);
+    ctx.arc(r * 0.2, r * 0.18, r * 0.12, 0, Math.PI * 2);
+    ctx.arc(0, -r * 0.12, r * 0.13, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Lit fuse spark
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 0.07;
+    ctx.beginPath();
+    ctx.moveTo(0, r * 0.9);
+    ctx.lineTo(r * 0.35, r * 1.32);
+    ctx.stroke();
+    ctx.fillStyle = time % 0.16 < 0.08 ? '#fde047' : '#fb923c';
+    ctx.beginPath();
+    ctx.arc(r * 0.35, r * 1.32, 0.12, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  private drawEnemy(
+    ctx: CanvasRenderingContext2D,
+    enemy: EnemyEntity,
+    time: number,
+    camZoom: number,
+  ): void {
     const pos = enemy.body.getPosition();
     const r = enemy.radius;
     const angle = enemy.body.getAngle();
@@ -677,12 +798,12 @@ export class GameRenderer {
     ctx.translate(pos.x, pos.y);
     ctx.rotate(angle);
 
-    this.drawEnemyFace(ctx, enemy.enemyKind, r, scared, time);
+    this.drawEnemyFace(ctx, enemy.enemyKind, r, scared, enemy.helmetLost, time);
 
     ctx.restore();
 
     if (enemy.scaredTimer > 0) {
-      this.drawWorldLabel(ctx, pos.x, pos.y + r + 0.52, 'SOCORRO!', '#fecdd3', 12);
+      this.drawWorldLabel(ctx, pos.x, pos.y + r + 0.56, 'SOCORRO!', '#fecdd3', 12, camZoom);
     }
   }
 
@@ -691,10 +812,12 @@ export class GameRenderer {
     kind: EnemyKind,
     r: number,
     scared: boolean,
+    helmetLost: boolean,
     time: number,
   ): void {
     const isTatu = kind === 'tatu';
-    const isBoss = kind === 'boss_porco';
+    const isBoss = kind === 'boss_porco' || kind === 'boss_helmet';
+    const isHelmetBoss = kind === 'boss_helmet';
 
     // Ears
     ctx.fillStyle = isTatu ? '#a16207' : '#84cc16';
@@ -736,8 +859,25 @@ export class GameRenderer {
       ctx.fillRect(-r * 0.08, -r * 0.92, r * 0.16, r * 0.45);
     }
 
-    // Boss crown / hat
-    if (isBoss) {
+    // Boss crown or Faria Lima Construction Hard-Hat!
+    if (isHelmetBoss && !helmetLost) {
+      // Golden/Yellow executive construction hard-hat
+      ctx.fillStyle = '#facc15';
+      ctx.strokeStyle = '#854d0e';
+      ctx.lineWidth = 0.06;
+      ctx.beginPath();
+      ctx.arc(0, r * 0.36, r * 0.92, 0, Math.PI);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // Hard-hat brim
+      ctx.fillStyle = '#eab308';
+      ctx.fillRect(-r * 1.06, r * 0.32, r * 2.12, r * 0.16);
+      ctx.strokeRect(-r * 1.06, r * 0.32, r * 2.12, r * 0.16);
+      // Center ridge
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(-r * 0.14, r * 0.48, r * 0.28, r * 0.72);
+    } else if (kind === 'boss_porco') {
       ctx.fillStyle = '#facc15';
       ctx.strokeStyle = '#854d0e';
       ctx.lineWidth = 0.05;
@@ -753,8 +893,8 @@ export class GameRenderer {
     }
 
     // Eyes
-    const jitter = scared ? Math.sin(time * 45) * 0.04 : 0;
-    const eyeR = scared ? r * 0.25 : r * 0.21;
+    const jitter = scared ? Math.sin(time * 48) * 0.045 : 0;
+    const eyeR = scared ? r * 0.26 : r * 0.21;
     for (const side of [-1, 1]) {
       ctx.fillStyle = '#ffffff';
       ctx.strokeStyle = '#0f172a';
@@ -766,7 +906,32 @@ export class GameRenderer {
 
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
-      ctx.arc(side * r * 0.36 + jitter, r * 0.1, eyeR * 0.42, 0, Math.PI * 2);
+      ctx.arc(
+        side * r * 0.36 + jitter,
+        r * 0.1,
+        scared ? eyeR * 0.32 : eyeR * 0.42,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+    }
+
+    // Scared eyebrows & sweat drop
+    if (scared) {
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 0.06;
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.56, r * 0.38);
+      ctx.lineTo(-r * 0.18, r * 0.48);
+      ctx.moveTo(r * 0.56, r * 0.38);
+      ctx.lineTo(r * 0.18, r * 0.48);
+      ctx.stroke();
+
+      // Animated blue sweat drop
+      const dropY = r * 0.58 - ((time * 1.6) % 0.22);
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(-r * 0.64, dropY, r * 0.11, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -798,7 +963,7 @@ export class GameRenderer {
     if (scared) {
       ctx.fillStyle = '#7f1d1d';
       ctx.beginPath();
-      ctx.ellipse(0, -r * 0.5, r * 0.2, r * 0.16, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, -r * 0.5, r * 0.22, r * 0.18, 0, 0, Math.PI * 2);
       ctx.fill();
     } else {
       ctx.strokeStyle = '#0f172a';
@@ -816,11 +981,12 @@ export class GameRenderer {
     text: string,
     color: string,
     pxSize: number,
+    camZoom: number,
   ): void {
     ctx.save();
     ctx.translate(wx, wy);
-    // Counteract world Y-flip and zoom
-    const inv = 1 / 36;
+    // Counteract world Y-flip using live camera zoom so text stays crisp at all zoom levels
+    const inv = 1 / Math.max(18, camZoom);
     ctx.scale(inv, -inv);
     ctx.font = `900 ${pxSize}px system-ui, -apple-system, sans-serif`;
     ctx.textAlign = 'center';

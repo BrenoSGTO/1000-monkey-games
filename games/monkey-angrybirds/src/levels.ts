@@ -214,29 +214,29 @@ function buildLevel4(): LevelDef {
   const blocks: LevelBlockDef[] = [];
   const enemies: LevelEnemyDef[] = [];
 
-  // Chain reaction TNT castle
+  // Chain reaction TNT castle (seamless adjacent roofs)
   const y1 = addBay(blocks, enemies, {
-    cx: 18.2,
+    cx: 18.3,
     baseY: 0,
-    width: 2.4,
+    width: 2.65,
     height: 2.0,
     pillarMat: 'wood',
     roofMat: 'wood',
     tnt: true,
   });
   const y2 = addBay(blocks, enemies, {
-    cx: 21.2,
+    cx: 21.1,
     baseY: 0,
-    width: 2.5,
+    width: 2.65,
     height: 2.0,
     pillarMat: 'glass',
     roofMat: 'wood',
     enemy: 'porco',
   });
   const y3 = addBay(blocks, enemies, {
-    cx: 24.2,
+    cx: 23.9,
     baseY: 0,
-    width: 2.4,
+    width: 2.65,
     height: 2.0,
     pillarMat: 'wood',
     roofMat: 'wood',
@@ -246,23 +246,23 @@ function buildLevel4(): LevelDef {
   const yMid1 = addBay(blocks, enemies, {
     cx: 19.7,
     baseY: Math.max(y1, y2),
-    width: 2.5,
+    width: 2.6,
     height: 1.8,
     pillarMat: 'glass',
     roofMat: 'wood',
     enemy: 'tatu',
   });
   addBay(blocks, enemies, {
-    cx: 22.7,
+    cx: 22.5,
     baseY: Math.max(y2, y3),
-    width: 2.5,
+    width: 2.6,
     height: 1.8,
     pillarMat: 'glass',
     roofMat: 'wood',
     enemy: 'porco',
   });
   addTnt(blocks, 19.7, yMid1);
-  addEnemy(enemies, 'porco', 22.7, Math.max(y2, y3) + 1.8 + 0.38);
+  addEnemy(enemies, 'porco', 22.5, Math.max(y2, y3) + 1.8 + 0.38);
 
   return {
     id: 4,
@@ -402,11 +402,11 @@ function buildLevel7(): LevelDef {
   const blocks: LevelBlockDef[] = [];
   const enemies: LevelEnemyDef[] = [];
 
-  // Stepped pyramid with TNT core
+  // Stepped pyramid with TNT core & seamless roofs
   const y1 = addBay(blocks, enemies, {
-    cx: 18.0,
+    cx: 18.2,
     baseY: 0,
-    width: 2.4,
+    width: 2.65,
     height: 1.9,
     pillarMat: 'stone',
     roofMat: 'wood',
@@ -415,16 +415,16 @@ function buildLevel7(): LevelDef {
   const y2 = addBay(blocks, enemies, {
     cx: 21.0,
     baseY: 0,
-    width: 2.6,
+    width: 2.65,
     height: 1.9,
     pillarMat: 'wood',
     roofMat: 'wood',
     tnt: true,
   });
   const y3 = addBay(blocks, enemies, {
-    cx: 24.0,
+    cx: 23.8,
     baseY: 0,
-    width: 2.4,
+    width: 2.65,
     height: 1.9,
     pillarMat: 'stone',
     roofMat: 'wood',
@@ -432,18 +432,18 @@ function buildLevel7(): LevelDef {
   });
 
   const m1 = addBay(blocks, enemies, {
-    cx: 19.5,
+    cx: 19.6,
     baseY: Math.max(y1, y2),
-    width: 2.5,
+    width: 2.65,
     height: 1.8,
     pillarMat: 'wood',
     roofMat: 'stone',
     enemy: 'tatu',
   });
   const m2 = addBay(blocks, enemies, {
-    cx: 22.5,
+    cx: 22.4,
     baseY: Math.max(y2, y3),
-    width: 2.5,
+    width: 2.65,
     height: 1.8,
     pillarMat: 'wood',
     roofMat: 'stone',
@@ -453,7 +453,7 @@ function buildLevel7(): LevelDef {
   addBay(blocks, enemies, {
     cx: 21.0,
     baseY: Math.max(m1, m2),
-    width: 2.3,
+    width: 2.4,
     height: 1.7,
     pillarMat: 'glass',
     roofMat: 'glass',
@@ -476,7 +476,7 @@ function buildLevel8(): LevelDef {
   const blocks: LevelBlockDef[] = [];
   const enemies: LevelEnemyDef[] = [];
 
-  // Epic Final Boss Fortress
+  // Pig CEO Fortress
   const yL = addBay(blocks, enemies, {
     cx: 17.8,
     baseY: 0,
@@ -530,12 +530,249 @@ function buildLevel8(): LevelDef {
   return {
     id: 8,
     name: 'Fortaleza do Porco CEO',
-    subtitle: 'CHEFE FINAL: Acabe com o monopólio das bananas!',
+    subtitle: 'Acabe com o monopólio das bananas!',
     theme: 'faria-lima',
     monkeys: ['bomb', 'tank', 'triple', 'boomerang', 'bomb'],
     blocks,
     enemies,
     starThresholds: [42000, 64000, 82000],
+  };
+}
+
+function buildLevel9(): LevelDef {
+  const blocks: LevelBlockDef[] = [];
+  const enemies: LevelEnemyDef[] = [];
+
+  // Showcase for Bomber Monkey (Ovo-de-Coco)!
+  // Low stone shield in front + recessed roofed bunkers begging for aerial coconut drop
+  addBox(blocks, 'stone', 15.6, 0, 1.0, 1.35);
+  addBox(blocks, 'stone', 15.6, 1.35, 0.95, 1.15);
+
+  // Bunker 1 (TNT + Porco)
+  const b1 = addBay(blocks, enemies, {
+    cx: 18.4,
+    baseY: 0,
+    width: 2.7,
+    height: 2.0,
+    pillarMat: 'stone',
+    roofMat: 'wood',
+    enemy: 'porco',
+  });
+  addTnt(blocks, 18.4, b1);
+
+  // Bunker 2 (Tatu under glass skylight)
+  const b2 = addBay(blocks, enemies, {
+    cx: 21.5,
+    baseY: 0,
+    width: 2.7,
+    height: 2.0,
+    pillarMat: 'stone',
+    roofMat: 'glass',
+    enemy: 'tatu',
+  });
+  addBox(blocks, 'glass', 21.5, b2, 0.85, 0.85);
+
+  // High rear watchtower for the Bomber's upward recoil hit!
+  const t1 = addBay(blocks, enemies, {
+    cx: 25.0,
+    baseY: 0,
+    width: 2.6,
+    height: 2.1,
+    pillarMat: 'wood',
+    roofMat: 'wood',
+    enemy: 'porco',
+  });
+  const t2 = addBay(blocks, enemies, {
+    cx: 25.0,
+    baseY: t1,
+    width: 2.3,
+    height: 1.85,
+    pillarMat: 'glass',
+    roofMat: 'wood',
+    enemy: 'porco',
+  });
+  addEnemy(enemies, 'tatu', 25.0, t2);
+
+  return {
+    id: 9,
+    name: 'Esquadrilha do Coco',
+    subtitle: 'Solte o Ovo-de-Coco de cima e acerte a torre na subida!',
+    theme: 'jungle',
+    monkeys: ['bomber', 'bomber', 'triple', 'boomerang'],
+    blocks,
+    enemies,
+    starThresholds: [34000, 52000, 70000],
+  };
+}
+
+function buildLevel10(): LevelDef {
+  const blocks: LevelBlockDef[] = [];
+  const enemies: LevelEnemyDef[] = [];
+
+  // Twin corporate towers with suspended TNT skybridge
+  const l1 = addBay(blocks, enemies, {
+    cx: 18.0,
+    baseY: 0,
+    width: 2.75,
+    height: 2.05,
+    pillarMat: 'stone',
+    roofMat: 'wood',
+    enemy: 'tatu',
+  });
+  const l2 = addBay(blocks, enemies, {
+    cx: 18.0,
+    baseY: l1,
+    width: 2.5,
+    height: 1.8,
+    pillarMat: 'glass',
+    roofMat: 'wood',
+    enemy: 'porco',
+  });
+
+  const r1 = addBay(blocks, enemies, {
+    cx: 24.4,
+    baseY: 0,
+    width: 2.75,
+    height: 2.05,
+    pillarMat: 'stone',
+    roofMat: 'wood',
+    enemy: 'tatu',
+  });
+  const r2 = addBay(blocks, enemies, {
+    cx: 24.4,
+    baseY: r1,
+    width: 2.5,
+    height: 1.8,
+    pillarMat: 'glass',
+    roofMat: 'wood',
+    enemy: 'porco',
+  });
+
+  // Central ground vault + skybridge
+  const midBase = addBay(blocks, enemies, {
+    cx: 21.2,
+    baseY: 0,
+    width: 2.6,
+    height: 2.05,
+    pillarMat: 'wood',
+    roofMat: 'wood',
+    tnt: true,
+  });
+  const midTop = addBeam(blocks, 'wood', 21.2, Math.max(l1, midBase, r1), 3.7, 0.38);
+  addBay(blocks, enemies, {
+    cx: 21.2,
+    baseY: midTop,
+    width: 2.4,
+    height: 1.7,
+    pillarMat: 'glass',
+    roofMat: 'glass',
+    enemy: 'porco',
+  });
+  addTnt(blocks, 18.0, l2);
+  addEnemy(enemies, 'porco', 24.4, r2);
+
+  return {
+    id: 10,
+    name: 'Torre do Pix Quebrado',
+    subtitle: 'Duas torres gêmeas e uma ponte de TNT no meio!',
+    theme: 'volcano',
+    monkeys: ['triple', 'bomber', 'boomerang', 'tank', 'normal'],
+    blocks,
+    enemies,
+    starThresholds: [40000, 62000, 82000],
+  };
+}
+
+function buildLevel11(): LevelDef {
+  const blocks: LevelBlockDef[] = [];
+  const enemies: LevelEnemyDef[] = [];
+
+  // BOSS FINAL: Condomínio Faria Lima com Porco CEO de Capacete!
+  // Front armored gatehouse
+  addBox(blocks, 'stone', 15.8, 0, 1.0, 1.25);
+  addBox(blocks, 'stone', 15.8, 1.25, 0.95, 1.25);
+  addBox(blocks, 'glass', 15.8, 2.5, 0.85, 0.85);
+
+  // Left Wing (Security Tatu + TNT)
+  const wL1 = addBay(blocks, enemies, {
+    cx: 18.4,
+    baseY: 0,
+    width: 2.65,
+    height: 2.15,
+    pillarMat: 'stone',
+    roofMat: 'stone',
+    enemy: 'tatu',
+  });
+  const wL2 = addBay(blocks, enemies, {
+    cx: 18.4,
+    baseY: wL1,
+    width: 2.4,
+    height: 1.75,
+    pillarMat: 'glass',
+    roofMat: 'wood',
+    tnt: true,
+  });
+  addEnemy(enemies, 'porco', 18.4, wL2);
+
+  // Center Penthouse (Porco CEO de Capacete!)
+  const c1 = addBay(blocks, enemies, {
+    cx: 21.8,
+    baseY: 0,
+    width: 3.3,
+    height: 2.3,
+    pillarMat: 'stone',
+    roofMat: 'wood',
+    tnt: true,
+  });
+  const c2 = addBay(blocks, enemies, {
+    cx: 21.8,
+    baseY: c1,
+    width: 3.1,
+    height: 2.3,
+    pillarMat: 'stone',
+    roofMat: 'wood',
+    enemy: 'boss_helmet',
+  });
+  addBay(blocks, enemies, {
+    cx: 21.8,
+    baseY: c2,
+    width: 2.4,
+    height: 1.55,
+    pillarMat: 'glass',
+    roofMat: 'glass',
+    enemy: 'porco',
+  });
+
+  // Right Wing (Executive Lounge)
+  const wR1 = addBay(blocks, enemies, {
+    cx: 25.2,
+    baseY: 0,
+    width: 2.65,
+    height: 2.15,
+    pillarMat: 'stone',
+    roofMat: 'stone',
+    enemy: 'tatu',
+  });
+  const wR2 = addBay(blocks, enemies, {
+    cx: 25.2,
+    baseY: wR1,
+    width: 2.4,
+    height: 1.75,
+    pillarMat: 'glass',
+    roofMat: 'wood',
+    enemy: 'porco',
+  });
+  addTnt(blocks, 25.2, wR2);
+
+  return {
+    id: 11,
+    name: 'Condomínio Faria Lima',
+    subtitle: 'CHEFE SUPREMO: Derrube o Porco CEO de Capacete!',
+    theme: 'faria-lima',
+    monkeys: ['bomber', 'tank', 'boomerang', 'triple', 'bomb', 'bomber'],
+    blocks,
+    enemies,
+    starThresholds: [54000, 82000, 108000],
   };
 }
 
@@ -548,6 +785,9 @@ export const HANDCRAFTED_LEVELS: LevelDef[] = [
   buildLevel6(),
   buildLevel7(),
   buildLevel8(),
+  buildLevel9(),
+  buildLevel10(),
+  buildLevel11(),
 ];
 
 function mulberry32(seed: number): () => number {
@@ -569,32 +809,41 @@ export function generateInfiniteLevel(wave: number, seed: number): LevelDef {
   const themes: LevelDef['theme'][] = ['jungle', 'faria-lima', 'volcano'];
   const theme = themes[(wave - 1) % themes.length];
   const materials: MaterialKind[] = ['glass', 'wood', 'stone'];
+  const matRank = (m: MaterialKind): number => (m === 'glass' ? 0 : m === 'wood' ? 1 : 2);
 
   const bayCount = Math.min(4, 2 + Math.floor((wave + 1) / 2));
   const startX = 17.4;
   const stepX = 3.1;
 
-  const pickMat = (biasStone = 0): MaterialKind => {
+  const pickMat = (maxRank: number, biasStone = 0): MaterialKind => {
     const r = rng() + biasStone;
-    if (r < 0.34) return 'glass';
-    if (r < 0.72) return 'wood';
-    return 'stone';
+    let chosen: MaterialKind = r < 0.34 ? 'glass' : r < 0.72 ? 'wood' : 'stone';
+    if (matRank(chosen) > maxRank) {
+      chosen = materials[Math.max(0, Math.min(2, maxRank))];
+    }
+    return chosen;
   };
 
   for (let i = 0; i < bayCount; i++) {
     const cx = startX + i * stepX;
     const floors = 1 + Math.floor(rng() * Math.min(3, 1 + Math.floor(wave / 2)));
     let curY = 0;
+    let maxAllowedRank = 2;
 
     for (let f = 0; f < floors; f++) {
-      const pMat = pickMat(f === 0 ? 0.15 : -0.1);
-      const rMat = pickMat(0);
+      // Never stack heavy stone over fragile glass!
+      const pMat = pickMat(maxAllowedRank, f === 0 ? 0.15 : -0.1);
+      const rMat = pickMat(matRank(pMat), 0);
+      maxAllowedRank = Math.min(matRank(pMat), matRank(rMat));
+
       const isBoss = wave % 3 === 0 && i === Math.floor(bayCount / 2) && f === 0;
       const putTnt = !isBoss && rng() < 0.24;
       const enemyKind: EnemyKind | undefined = putTnt
         ? undefined
         : isBoss
-          ? 'boss_porco'
+          ? wave % 6 === 0
+            ? 'boss_helmet'
+            : 'boss_porco'
           : rng() < 0.36
             ? 'tatu'
             : 'porco';
@@ -626,10 +875,13 @@ export function generateInfiniteLevel(wave: number, seed: number): LevelDef {
   if (wave >= 2 && rng() < 0.55) {
     const shieldMat = materials[Math.floor(rng() * materials.length)];
     addBox(blocks, shieldMat, 15.2, 0, 0.95, 1.2);
-    if (rng() < 0.5) addBox(blocks, shieldMat, 15.2, 1.2, 0.95, 1.2);
+    if (rng() < 0.5) {
+      const topMat = pickMat(matRank(shieldMat));
+      addBox(blocks, topMat, 15.2, 1.2, 0.95, 1.2);
+    }
   }
 
-  const allKinds: MonkeyKind[] = ['normal', 'triple', 'bomb', 'tank', 'boomerang'];
+  const allKinds: MonkeyKind[] = ['normal', 'triple', 'bomb', 'tank', 'boomerang', 'bomber'];
   const monkeyCount = Math.min(6, Math.max(4, enemies.length + 1));
   const monkeys: MonkeyKind[] = [];
   for (let i = 0; i < monkeyCount; i++) {
