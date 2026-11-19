@@ -1,28 +1,28 @@
 {
   "slug": "monkey-cells",
   "title": "Hollow Chimp: Masmorra da Banana",
-  "subtitle": "Roguelite de ação e plataforma com Pogo, Frigideira e Gorilão CEO!",
+  "subtitle": "Roguelite de ação e plataforma com Parry, 6 Armas, Mini-Boss e Arena PvP!",
   "inspiredBy": "Dead Cells & Hollow Knight",
-  "description": "Encarne o Macaco Cavaleiro de capacete de coco e capa de folha de bananeira! Domine wall-jump, esquiva com iframe, pogo-jump em espinhos e inimigos, encha seu Potássio para comer bananas e derrote o Gorilão de Terno (CEO da Faria Lima) — sozinho ou em Co-op P2P com Empurrão Amigo!",
+  "description": "Encarne o Macaco Cavaleiro de capacete de coco! Domine wall-jump, esquiva com iframe, pogo-jump, Parry de projéteis e 6 armas (incluindo Vassoura Elétrica e Bazuca de Cacho de Banana) contra o Gerente de RH Babuíno e o Gorilão CEO — Solo, Co-op P2P ou Arena Bananada PvP (2P Local, Bot ou Online)!",
   "category": "acao",
-  "tags": ["roguelite", "metroidvania", "plataforma", "boss-fight", "coop", "pogo"],
+  "tags": ["roguelite", "metroidvania", "plataforma", "boss-fight", "coop", "pvp", "pogo"],
   "emoji": "⚔️",
   "accentColor": "#facc15",
   "multiplayer": {
     "supported": true,
     "mode": "coop",
     "maxPlayers": 4,
-    "summary": "Co-op P2P para 2 a 4 macacos na masmorra com dano sincronizado, Revive na Bananada e toggle de Empurrão Amigo!"
+    "summary": "Co-op P2P de 2 a 4 macacos na masmorra (Revive na Bananada + Empurrão Amigo) e modo Arena Bananada PvP (2P Local no mesmo teclado, Bot ou Online)!"
   },
   "controls": [
-    "A / D ou Setas: Correr e deslizar na parede",
-    "W / Espaço: Pulo, Pulo Duplo e Wall-Jump",
-    "Shift / K: Esquiva / Rolamento com invencibilidade",
-    "J / Z / Clique: Atacar (S + J no ar = Pogo-Jump!)",
+    "A / D (ou Setas): Mover e deslizar na parede",
+    "W / Espaço: Pulo, Pulo Duplo e Wall-Jump (S + Espaço desce plataforma)",
+    "Shift / K: Esquiva com invencibilidade",
+    "J / Z / Clique: Atacar e Parry em projéteis (S + J no ar = Pogo-Jump!)",
     "Segurar Q / F: Comer Banana e curar HP (gasta Potássio)",
-    "E: Abrir baús, trocar arma e entrar no portal"
+    "E: Abrir baús, trocar arma e entrar no portal | 2P Arena: P1 (WASD+F/G/Q/E) vs P2 (Setas+K/L/M/Enter)"
   ],
   "thumbnail": "thumbnail.svg",
   "status": "playable",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
