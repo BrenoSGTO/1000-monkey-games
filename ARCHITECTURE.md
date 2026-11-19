@@ -57,7 +57,9 @@ Cada agente trabalha em uma branch própria `game/<slug>` a partir de `origin/ma
 
 ---
 
-## 3. Catálogo Oficial dos 8 Jogos Orquestrados
+## 3. Catálogo Oficial dos Jogos Orquestrados
+
+### Wave 1 — Coleção Original (Jogáveis)
 
 | # | Slug | Título Monkey Slop | Inspiração | Branch |
 |---|---|---|---|---|
@@ -70,3 +72,12 @@ Cada agente trabalha em uma branch própria `game/<slug>` a partir de `origin/ma
 | 6 | `monkey-cells` | Hollow Chimp: Masmorra da Banana | Dead Cells / Hollow Knight | `game/monkey-cells` |
 | 7 | `monkey-dash` | Chimp Dash: Surto Rítmico | Geometry Dash | `game/monkey-dash` |
 | 8 | `monkey-angrybirds` | Macacos Pistola | Angry Birds | `game/monkey-angrybirds` |
+
+### Wave 2 — Novos Party & Life-Sim Games (Em Desenvolvimento via PRs)
+
+| # | Slug | Título Monkey Slop | Inspiração | Branch |
+|---|---|---|---|---|
+| 9 | `monkey-pico-park` | Pico Macaco: A Chave da Banana | Pico Park | `game/monkey-pico-park` |
+| 10 | `monkey-overcooked` | Macaco na Chapa: Cozinha do Caos | Overcooked | `game/monkey-overcooked` |
+| 11 | `monkey-amongus` | Entre Macacos: Quem Roubou a Banana? | Among Us | `game/monkey-amongus` |
+| 12 | `monkey-sims` | Os Macacos: Vida na Árvore | The Sims | `game/monkey-sims` |
