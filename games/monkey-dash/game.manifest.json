@@ -1,0 +1,27 @@
+{
+  "slug": "monkey-dash",
+  "title": "Chimp Dash: Surto Rítmico",
+  "subtitle": "Runner rítmico neon de 1 botão com Macaco Vesgo, Nave Banana & Wave!",
+  "inspiredBy": "Geometry Dash",
+  "description": "Pule espinhos de coco, pilote a Nave Banana Foguete e surfe na Onda Surtada ao som de batidas synth sintetizadas ao vivo no BPM exato! 4 fases oficiais (de Selva Tranquila até MACACO DEMÔNIO), Modo Prática com checkpoints, Mini Editor de fases com código compartilhável e corrida P2P ao vivo com Buzina de Macaco (B)!",
+  "category": "ritmo",
+  "tags": ["ritmo", "1-botão", "neon", "plataforma", "editor", "multiplayer"],
+  "emoji": "⚡",
+  "accentColor": "#22d3ee",
+  "multiplayer": {
+    "supported": true,
+    "mode": "versus",
+    "maxPlayers": 8,
+    "summary": "Corrida ao vivo na mesma pista para 2-8 macacos, explosões em tempo real, placar de % e Buzina de Macaco (tecla B) para desconcentrar os amigos!"
+  },
+  "controls": [
+    "Espaço / Clique / Seta Cima / Toque: Pular (Cubo), Voar (Nave), Zigue-zague (Wave)",
+    "P: Ativar / Desativar Modo Prática",
+    "Z: Colocar Checkpoint Manual (no Modo Prática)",
+    "B: Buzina de Macaco (Multiplayer Online)",
+    "R: Reinício instantâneo"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
