@@ -1,0 +1,26 @@
+{
+  "slug": "monkey-motorways",
+  "title": "Mini Macacoways",
+  "subtitle": "Caos Minimalista no Trânsito da Selva",
+  "inspiredBy": "Mini Motorways",
+  "description": "Ligue casinhas de macaco aos mercados de banana desenhando ruas, pontes de bambu, semáforos, rotatórias e vias expressas de cipó antes que o engarrafamento vire guerra de coco!",
+  "category": "estrategia",
+  "tags": ["transito", "minimalista", "estrategia", "co-op"],
+  "emoji": "🛣️",
+  "accentColor": "#f97316",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop",
+    "maxPlayers": 4,
+    "summary": "Despachantes simultâneos desenhando ruas, pontes e cipós no mesmo mapa"
+  },
+  "controls": [
+    "Botão esquerdo (arrastar): desenhar estrada / conectar ferramenta",
+    "Botão direito (clicar/arrastar): apagar estrada ou remover item",
+    "1-5: trocar ferramenta (Estrada, Semáforo, Rotatória, Cipó, Borracha)",
+    "Espaço: pausar • F: velocidade 1x / 2x • N: modo Dia / Noite"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
