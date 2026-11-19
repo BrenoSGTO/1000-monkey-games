@@ -2,12 +2,13 @@ import {
   COLOR_UNLOCK_ORDER,
   DAY_DURATION_SEC,
   DAYS_PER_WEEK,
+  DELIVERY_MILESTONES,
   GRID_COLS,
   GRID_ROWS,
   MARKET_NAMES,
   MONKEY_COLORS,
+  RAGE_BUBBLES,
   RAGE_EMOJIS,
-  RAGE_QUIPS,
   UPGRADE_POOL,
 } from './constants';
 import { gameAudio } from './audio';
@@ -21,7 +22,9 @@ import {
   type BuildingLookup,
 } from './roadNetwork';
 import type {
+  BuildHistoryEvent,
   Car,
+  DynamicTickSnapshot,
   FloatingText,
   GameSnapshot,
   GridCoord,
@@ -29,10 +32,14 @@ import type {
   Inventory,
   MapDefinition,
   MapId,
+  MapPing,
   Market,
   MonkeyColor,
+  NetActor,
+  NetMessage,
   Particle,
   PathStep,
+  PlayerContribution,
   SimSpeed,
   UpgradeOption,
 } from './types';
@@ -43,11 +50,20 @@ function nextId(prefix: string): string {
   return `${prefix}-${uidCounter.toString(36)}`;
 }
 
+function wrapAngleDiff(diff: number): number {
+  let d = diff;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
 export interface SimulationCallbacks {
   onToast?: (msg: string, tone?: 'banana' | 'chaos' | 'info') => void;
   onGameOver?: (deliveries: number, reason: string) => void;
   onPhaseChange?: () => void;
   onUpgradeOffered?: (options: UpgradeOption[]) => void;
+  onUpgradeVotesChange?: () => void;
+  onEmitFx?: (msg: Extract<NetMessage, { kind: 'event:fx' }>) => void;
 }
 
 export class TrafficSimulation {
@@ -68,9 +84,16 @@ export class TrafficSimulation {
   public cars: Car[] = [];
   public floatingTexts: FloatingText[] = [];
   public particles: Particle[] = [];
+  public pings: MapPing[] = [];
 
   public unlockedColors: MonkeyColor[] = ['yellow'];
+  public milestonesHit: number[] = [];
   public pendingUpgrades: UpgradeOption[] | null = null;
+  public upgradeVotes: Record<string, number> = {};
+  public playerStats: Record<string, PlayerContribution> = {};
+  public lastProcessedSeq: Record<string, number> = {};
+  public buildHistory: BuildHistoryEvent[] = [];
+
   public gameOverReason: string | null = null;
   public gameOverMarketId: string | null = null;
 
@@ -78,6 +101,10 @@ export class TrafficSimulation {
   public timeSec = 0;
 
   private spawnCooldown = 5.5;
+  private dispatchCooldown = 0;
+  private lastDispatchNetworkVersion = -1;
+  private unreachableCache = new Set<string>();
+  private cachedLookup: BuildingLookup | null = null;
   private lastPathCheckVersion = -1;
   private warningCooldown = 0;
   private callbacks: SimulationCallbacks;
@@ -91,8 +118,74 @@ export class TrafficSimulation {
     this.isAuthoritative = auth;
   }
 
+  invalidateLookup(): void {
+    this.cachedLookup = null;
+    this.unreachableCache.clear();
+  }
+
   getLookup(): BuildingLookup {
-    return buildBuildingLookup(this.houses, this.markets);
+    if (!this.cachedLookup) {
+      this.cachedLookup = buildBuildingLookup(this.houses, this.markets);
+    }
+    return this.cachedLookup;
+  }
+
+  ensurePlayerStat(actor: NetActor): PlayerContribution {
+    if (!this.playerStats[actor.id]) {
+      this.playerStats[actor.id] = {
+        id: actor.id,
+        name: actor.name,
+        color: actor.color,
+        roadsBuilt: 0,
+        bridgesBuilt: 0,
+        lightsBuilt: 0,
+        roundaboutsBuilt: 0,
+        motorwaysBuilt: 0,
+        erasedCount: 0,
+        pingsSent: 0,
+      };
+    } else {
+      this.playerStats[actor.id].name = actor.name;
+      this.playerStats[actor.id].color = actor.color;
+    }
+    return this.playerStats[actor.id];
+  }
+
+  recordActionStat(
+    actor: NetActor | undefined,
+    kind: 'road' | 'bridge' | 'light' | 'roundabout' | 'motorway' | 'erase' | 'ping',
+    amount = 1,
+  ): void {
+    if (!actor) return;
+    const stat = this.ensurePlayerStat(actor);
+    switch (kind) {
+      case 'road':
+        stat.roadsBuilt += amount;
+        break;
+      case 'bridge':
+        stat.bridgesBuilt += amount;
+        break;
+      case 'light':
+        stat.lightsBuilt += amount;
+        break;
+      case 'roundabout':
+        stat.roundaboutsBuilt += amount;
+        break;
+      case 'motorway':
+        stat.motorwaysBuilt += amount;
+        break;
+      case 'erase':
+        stat.erasedCount += amount;
+        break;
+      case 'ping':
+        stat.pingsSent += amount;
+        break;
+    }
+  }
+
+  recordBuildHistory(ev: Omit<BuildHistoryEvent, 't'>): void {
+    if (this.buildHistory.length >= 1400) return;
+    this.buildHistory.push({ ...ev, t: Number((this.day - 1 + this.dayProgress).toFixed(2)) });
   }
 
   startGame(mapId: MapId): void {
@@ -111,15 +204,23 @@ export class TrafficSimulation {
     this.cars = [];
     this.floatingTexts = [];
     this.particles = [];
+    this.pings = [];
     this.unlockedColors = ['yellow'];
+    this.milestonesHit = [];
     this.pendingUpgrades = null;
+    this.upgradeVotes = {};
+    this.playerStats = {};
+    this.lastProcessedSeq = {};
+    this.buildHistory = [];
     this.gameOverReason = null;
     this.gameOverMarketId = null;
     this.shake = 0;
     this.spawnCooldown = 6.5;
+    this.dispatchCooldown = 0;
+    this.lastDispatchNetworkVersion = this.network.version;
     this.lastPathCheckVersion = this.network.version;
+    this.invalidateLookup();
 
-    // Initial Yellow Market + 2 Yellow Houses nearby
     if (this.isAuthoritative) {
       this.spawnInitialCluster('yellow');
     }
@@ -127,8 +228,7 @@ export class TrafficSimulation {
   }
 
   private spawnInitialCluster(color: MonkeyColor): void {
-    const centerPrefer: GridCoord =
-      this.map.id === 'rio-de-bananeiro' ? { x: 8, y: 8 } : { x: 14, y: 9 };
+    const centerPrefer = this.map.initialClusterAnchor;
     const market = this.trySpawnMarket(color, centerPrefer, false);
     if (market) {
       market.pins.push({
@@ -158,6 +258,13 @@ export class TrafficSimulation {
     }
   }
 
+  castUpgradeVote(playerId: string, index: number): void {
+    if (this.phase !== 'upgrade' || !this.pendingUpgrades) return;
+    if (index < 0 || index >= this.pendingUpgrades.length) return;
+    this.upgradeVotes[playerId] = index;
+    this.callbacks.onUpgradeVotesChange?.();
+  }
+
   pickUpgrade(index: number): boolean {
     if (this.phase !== 'upgrade' || !this.pendingUpgrades) return false;
     const chosen = this.pendingUpgrades[index];
@@ -170,12 +277,34 @@ export class TrafficSimulation {
     this.inventory.motorways += chosen.motorways;
 
     this.pendingUpgrades = null;
+    this.upgradeVotes = {};
     this.phase = 'playing';
     this.speed = this.prePauseSpeed;
     gameAudio.playSpawnBuilding();
     this.callbacks.onToast?.(`Pacote "${chosen.title}" ativado!`, 'banana');
     this.callbacks.onPhaseChange?.();
     return true;
+  }
+
+  addPing(gx: number, gy: number, emoji: string, text: string, actor: NetActor): void {
+    if (!inBounds(gx, gy)) return;
+    this.pings.push({
+      id: nextId('ping'),
+      playerId: actor.id,
+      playerName: actor.name,
+      playerColor: actor.color,
+      gx,
+      gy,
+      emoji,
+      text,
+      life: 3.8,
+      maxLife: 3.8,
+    });
+    if (this.pings.length > 10) {
+      this.pings.shift();
+    }
+    this.recordActionStat(actor, 'ping', 1);
+    gameAudio.playPing();
   }
 
   update(rawDt: number): void {
@@ -186,7 +315,6 @@ export class TrafficSimulation {
       this.shake = Math.max(0, this.shake - dt * 2.5);
     }
 
-    // Visual animations always tick smoothly
     this.updateVisualFX(dt);
 
     if (this.phase !== 'playing' || this.speed === 0) {
@@ -198,22 +326,34 @@ export class TrafficSimulation {
     // 1. Update traffic light phases
     this.updateTrafficLights(simDt);
 
-    // 2. Day / Week cycle (authoritative or predicted smoothly)
+    // 2. Day / Week cycle
     this.dayProgress += simDt / DAY_DURATION_SEC;
     if (this.dayProgress >= 1) {
-      this.dayProgress -= 1;
       if (this.isAuthoritative) {
+        this.dayProgress -= 1;
         this.advanceDay();
         if (this.phase !== 'playing') return;
+      } else {
+        this.dayProgress = 0.99;
       }
     }
 
-    // 3. Authoritative spawns, demand & overload
+    // 3. Authoritative spawns, demand & throttled dispatch
     if (this.isAuthoritative) {
       this.updateSpawner(simDt);
       this.updateMarkets(simDt);
       if (this.phase !== 'playing') return;
-      this.dispatchCars();
+
+      if (this.network.version !== this.lastDispatchNetworkVersion) {
+        this.lastDispatchNetworkVersion = this.network.version;
+        this.unreachableCache.clear();
+        this.dispatchCooldown = 0;
+      }
+      this.dispatchCooldown -= simDt;
+      if (this.dispatchCooldown <= 0) {
+        this.dispatchCooldown = 0.35;
+        this.dispatchCars();
+      }
     }
 
     // 4. Revalidate car paths if road network changed
@@ -233,6 +373,26 @@ export class TrafficSimulation {
     for (const m of this.markets) {
       if (m.spawnAnim < 1) m.spawnAnim = Math.min(1, m.spawnAnim + dt * 3.0);
     }
+    // Smooth Guest car interpolation offsets decay exponentially
+    const blendDecay = Math.exp(-dt * 16);
+    for (const c of this.cars) {
+      if (c.vxOffset) {
+        c.vxOffset *= blendDecay;
+        if (Math.abs(c.vxOffset) < 0.002) c.vxOffset = 0;
+      }
+      if (c.vyOffset) {
+        c.vyOffset *= blendDecay;
+        if (Math.abs(c.vyOffset) < 0.002) c.vyOffset = 0;
+      }
+      if (c.vAngleOffset) {
+        c.vAngleOffset *= blendDecay;
+        if (Math.abs(c.vAngleOffset) < 0.005) c.vAngleOffset = 0;
+      }
+    }
+    for (let i = this.pings.length - 1; i >= 0; i--) {
+      this.pings[i].life -= dt;
+      if (this.pings[i].life <= 0) this.pings.splice(i, 1);
+    }
     for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
       const f = this.floatingTexts[i];
       f.life -= dt;
@@ -244,8 +404,14 @@ export class TrafficSimulation {
       p.life -= dt;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      p.vx *= 0.94;
-      p.vy *= 0.94;
+      if (p.gravity) {
+        p.vy += p.gravity * dt;
+      }
+      if (p.rot !== undefined && p.vRot !== undefined) {
+        p.rot += p.vRot * dt;
+      }
+      p.vx *= p.isConfetti ? 0.985 : 0.94;
+      p.vy *= p.isConfetti ? 0.99 : 0.94;
       if (p.life <= 0) this.particles.splice(i, 1);
     }
   }
@@ -265,7 +431,6 @@ export class TrafficSimulation {
     this.day += 1;
     this.week = Math.floor((this.day - 1) / DAYS_PER_WEEK) + 1;
 
-    // Unlock new colors progressively
     if (this.day === 3 && !this.unlockedColors.includes('red')) {
       this.unlockNewColor('red');
     } else if (this.day === 6 && !this.unlockedColors.includes('blue')) {
@@ -276,7 +441,6 @@ export class TrafficSimulation {
       this.unlockNewColor('green');
     }
 
-    // Weekly Sunday Reward!
     if (this.week > prevWeek) {
       this.offerWeeklyUpgrade();
     }
@@ -285,22 +449,13 @@ export class TrafficSimulation {
   private unlockNewColor(color: MonkeyColor): void {
     this.unlockedColors.push(color);
     const theme = MONKEY_COLORS[color];
-    // On Rio de Bananeiro, try placing Red/Blue on the far side of the river!
-    let marketAnchor: GridCoord | undefined;
-    if (this.map.id === 'rio-de-bananeiro' && color === 'red') {
-      marketAnchor = { x: 20, y: 4 };
-    } else if (this.map.id === 'rio-de-bananeiro' && color === 'blue') {
-      marketAnchor = { x: 21, y: 13 };
-    }
-    const m = this.trySpawnMarket(color, marketAnchor, false);
+    const anchor = this.map.colorAnchors?.[color];
+    const m = this.trySpawnMarket(color, anchor?.market, false);
     if (m) {
-      // Spawn 2 houses of same color on opposite or nearby side
-      const h1Prefer =
-        this.map.id === 'rio-de-bananeiro' && color === 'red'
-          ? { x: 8, y: 4 }
-          : { x: m.x - 4, y: m.y };
+      const h1Prefer = anchor?.house1 ?? { x: m.x - 4, y: m.y };
+      const h2Prefer = anchor?.house2 ?? { x: m.x + 3, y: m.y + 3 };
       this.trySpawnHouse(color, h1Prefer);
-      this.trySpawnHouse(color, { x: m.x + 3, y: m.y + 3 });
+      this.trySpawnHouse(color, h2Prefer);
       this.callbacks.onToast?.(
         `Novo mercado ${theme.fruitEmoji} ${theme.label} inaugurou!`,
         'info',
@@ -311,20 +466,19 @@ export class TrafficSimulation {
   private offerWeeklyUpgrade(): void {
     this.phase = 'upgrade';
     this.speed = 0;
+    this.upgradeVotes = {};
     const pool = [...UPGRADE_POOL];
-    // Pick 2 distinct upgrades, favoring bridges if river map and low bridges, or motorway from week 2+
     const picks: UpgradeOption[] = [];
-    if (this.map.id === 'rio-de-bananeiro' && this.inventory.bridges <= 1) {
+    if (this.map.bridgeBias && this.inventory.bridges <= 1) {
       const bridgeIdx = pool.findIndex((p) => p.bridges > 0);
       if (bridgeIdx >= 0) {
         const [item] = pool.splice(bridgeIdx, 1);
         picks.push({ ...item, id: nextId('upg') });
       }
     }
-    while (picks.length < 2 && pool.length > 0) {
+    while (picks.length < 3 && pool.length > 0) {
       const idx = Math.floor(Math.random() * pool.length);
       const [item] = pool.splice(idx, 1);
-      // Avoid offering motorway on week 1 only if we have plenty of other variety, actually offering Cipó Express is fun anytime!
       picks.push({ ...item, id: nextId('upg') });
     }
     this.pendingUpgrades = picks;
@@ -337,19 +491,16 @@ export class TrafficSimulation {
     this.spawnCooldown -= simDt;
     if (this.spawnCooldown > 0) return;
 
-    // Interval shrinks gradually over days, faster on Sao Chimpulo
-    const mapFactor = this.map.id === 'sao-chimpulo' ? 0.84 : 1.0;
+    const mapFactor = 1 / Math.max(0.75, this.map.rushMultiplier);
     const baseInterval = Math.max(4.4, (9.5 - this.day * 0.22) * mapFactor);
     this.spawnCooldown = baseInterval + Math.random() * 2.5;
 
-    // Decide whether to spawn a house, a new market, or upgrade a market to Mega Feira
     const color =
       this.unlockedColors[Math.floor(Math.random() * this.unlockedColors.length)] ?? 'yellow';
     const colorHouses = this.houses.filter((h) => h.color === color).length;
     const colorMarkets = this.markets.filter((m) => m.color === color);
 
     if (colorMarkets.length === 0 || (colorHouses >= colorMarkets.length * 3 && this.markets.length < 9)) {
-      // Upgrade an existing market to Mega Feira sometimes after Day 12
       const nonMega = colorMarkets.find((m) => !m.isMega);
       if (this.day >= 12 && nonMega && Math.random() < 0.45) {
         nonMega.isMega = true;
@@ -361,6 +512,14 @@ export class TrafficSimulation {
           MONKEY_COLORS[nonMega.color].fill,
         );
         gameAudio.playSpawnBuilding();
+        this.callbacks.onEmitFx?.({
+          kind: 'event:fx',
+          fx: 'mega',
+          x: nonMega.x + 1,
+          y: nonMega.y,
+          color: nonMega.color,
+          text: 'MEGA FEIRA! 🔥',
+        });
         return;
       }
 
@@ -378,9 +537,8 @@ export class TrafficSimulation {
     if (this.warningCooldown > 0) this.warningCooldown -= simDt;
 
     for (const m of this.markets) {
-      // Dynamic demand speed scales smoothly with days & map
       const ramp = 1 + Math.min(1.6, this.day * 0.045);
-      const mapRush = this.map.id === 'sao-chimpulo' ? 1.12 : 1.0;
+      const mapRush = this.map.rushMultiplier;
       const megaBoost = m.isMega ? 1.4 : 1.0;
       m.demandTimer += simDt * ramp * mapRush * megaBoost;
 
@@ -401,8 +559,14 @@ export class TrafficSimulation {
         const prev = m.overload;
         m.overload = Math.min(1, m.overload + simDt / 18.0);
         if (m.overload > 0.45 && this.warningCooldown <= 0) {
-          this.warningCooldown = 2.4;
-          gameAudio.playWarning();
+          const urgent = m.overload >= 0.72;
+          this.warningCooldown = urgent ? 1.45 : 2.3;
+          gameAudio.playWarning(urgent);
+          this.callbacks.onEmitFx?.({
+            kind: 'event:fx',
+            fx: 'overload-warn',
+            value: urgent ? 1 : 0,
+          });
         }
         if (prev < 0.7 && m.overload >= 0.7) {
           this.callbacks.onToast?.(
@@ -439,22 +603,25 @@ export class TrafficSimulation {
       if (unclaimed.length === 0) continue;
 
       for (const pin of unclaimed) {
-        // Find nearest available house of matching color with a valid path
         let bestHouse: House | null = null;
         let bestPath: PathStep[] | null = null;
         let bestScore = Infinity;
 
         for (const h of this.houses) {
           if (h.color !== m.color || h.carsParked <= 0) continue;
+          const cacheKey = `${h.id}->${m.id}`;
+          if (this.unreachableCache.has(cacheKey)) continue;
+
           const path = findPathToMarket(this.network, lookup, { x: h.x, y: h.y }, m);
           if (path && path.length >= 2) {
-            // Prefer shorter paths and houses with 2 cars parked
             const score = path.length - (h.carsParked > 1 ? 0.5 : 0);
             if (score < bestScore) {
               bestScore = score;
               bestHouse = h;
               bestPath = path;
             }
+          } else {
+            this.unreachableCache.add(cacheKey);
           }
         }
 
@@ -503,12 +670,10 @@ export class TrafficSimulation {
       const nextStep = car.path[car.segIndex + 1];
       if (!curStep || !nextStep) continue;
 
-      // Check if current segment still exists in network
       const segValid = nextStep.isMotorway
         ? this.network.motorways.some((mw) => mw.id === nextStep.motorwayId)
         : this.network.hasEdge(curStep.x, curStep.y, nextStep.x, nextStep.y);
 
-      // Check if remaining path still valid
       let fullValid = segValid;
       if (fullValid) {
         for (let k = car.segIndex + 1; k < car.path.length - 1; k++) {
@@ -526,7 +691,6 @@ export class TrafficSimulation {
 
       if (fullValid) continue;
 
-      // Try rerouting from the closer endpoint of current segment
       const anchor = car.segT > 0.5 && segValid ? nextStep : curStep;
       let newTail: PathStep[] | null = null;
 
@@ -558,13 +722,27 @@ export class TrafficSimulation {
         }
         car.orphanedTimer = 0;
       } else {
-        // Mark orphaned; if stays disconnected, car returns home safely
         car.orphanedTimer = 0.01;
       }
     }
   }
 
   private updateCars(simDt: number): void {
+    // Guests extrapolate smoothly using current angle/speed when not authoritative
+    if (!this.isAuthoritative) {
+      for (const car of this.cars) {
+        if (car.state === 'atMarket') continue;
+        if (car.moodTimer > 0) {
+          car.moodTimer -= simDt;
+          if (car.moodTimer <= 0) car.moodEmoji = '';
+        }
+        const stepDist = car.speed * simDt * 0.72;
+        car.x += Math.cos(car.angle) * stepDist;
+        car.y += Math.sin(car.angle) * stepDist;
+      }
+      return;
+    }
+
     const lookup = this.getLookup();
 
     for (let i = this.cars.length - 1; i >= 0; i--) {
@@ -596,7 +774,8 @@ export class TrafficSimulation {
             this.cars.splice(i, 1);
             continue;
           }
-          const lastStep = car.path[car.path.length - 1] ?? { x: Math.floor(car.x), y: Math.floor(car.y) };
+          const lastStep =
+            car.path[car.path.length - 1] ?? { x: Math.floor(car.x), y: Math.floor(car.y) };
           const backPath = findPathToCell(
             this.network,
             lookup,
@@ -629,25 +808,32 @@ export class TrafficSimulation {
 
       const segLen = Math.max(0.5, Math.hypot(b.x - a.x, b.y - a.y));
       const isMotorway = Boolean(b.isMotorway);
+      car.isOnMotorway = isMotorway;
       let targetSpeed = isMotorway ? 6.2 : 3.4;
 
       if (!isMotorway && this.network.roundabouts.has(cellKey(b.x, b.y))) {
-        targetSpeed = 3.1;
+        targetSpeed = 3.2;
       }
 
-      // 1. Traffic light check when approaching node b
+      let redLightStopT: number | null = null;
+
+      // 1. Traffic light check when approaching node b (with fixed diagonal axis grouping!)
       if (!isMotorway) {
         const light = this.network.lights.get(cellKey(b.x, b.y));
         if (light) {
-          const distToNode = (1 - car.segT) * segLen;
-          if (distToNode < 0.52 && distToNode > 0.12) {
-            const dx = Math.abs(b.x - a.x);
-            const dy = Math.abs(b.y - a.y);
-            const isVerticalish = dy >= dx;
-            const isGreen =
-              (light.phase === 0 && isVerticalish) || (light.phase === 1 && !isVerticalish);
-            if (!isGreen) {
+          const sx = b.x - a.x;
+          const sy = b.y - a.y;
+          // Phase 0: N-S (sx === 0) and NW-SE (sx * sy > 0). Phase 1: E-W (sy === 0) and NE-SW (sx * sy < 0).
+          const isPhase0Group = sx === 0 || sx * sy > 0;
+          const isGreen =
+            (light.phase === 0 && isPhase0Group) || (light.phase === 1 && !isPhase0Group);
+
+          if (!isGreen) {
+            const stopT = Math.max(0.12, 1 - 0.36 / segLen);
+            const distToNode = (1 - car.segT) * segLen;
+            if (distToNode < 0.65 && car.segT <= stopT + 0.08) {
               targetSpeed = 0;
+              redLightStopT = stopT;
             }
           }
         } else {
@@ -658,7 +844,7 @@ export class TrafficSimulation {
             lookup.marketByCell.has(cellKey(b.x, b.y));
           if (deg >= 3 && !isBuilding && !this.network.roundabouts.has(cellKey(b.x, b.y))) {
             const distToNode = (1 - car.segT) * segLen;
-            if (distToNode < 0.48 && distToNode > 0.14) {
+            if (distToNode < 0.52 && distToNode > 0.12) {
               const conflict = this.hasIntersectionConflict(car, b.x, b.y, a.x, a.y);
               if (conflict) {
                 targetSpeed = 0;
@@ -681,18 +867,25 @@ export class TrafficSimulation {
       // Rage / Honking when stuck in traffic
       if (car.speed < 0.45 && car.orphanedTimer === 0) {
         car.waitTime += simDt;
-        if (car.waitTime > 2.4) {
-          car.rage = Math.min(1, (car.waitTime - 2.4) / 4.0);
+        if (car.waitTime > 2.2) {
+          car.rage = Math.min(1, (car.waitTime - 2.2) / 3.8);
           if (car.hornCooldown <= 0) {
-            car.hornCooldown = 2.6 + Math.random() * 2.5;
-            car.moodEmoji = RAGE_EMOJIS[Math.floor(Math.random() * RAGE_EMOJIS.length)];
-            car.moodTimer = 1.4;
-            if (this.isAuthoritative && Math.random() < 0.55) {
+            car.hornCooldown = 2.5 + Math.random() * 2.4;
+            const bubble =
+              Math.random() < 0.55
+                ? RAGE_BUBBLES[Math.floor(Math.random() * RAGE_BUBBLES.length)]
+                : RAGE_EMOJIS[Math.floor(Math.random() * RAGE_EMOJIS.length)];
+            car.moodEmoji = bubble;
+            car.moodTimer = 1.65;
+            if (Math.random() < 0.55) {
               gameAudio.playHorn();
-            }
-            if (Math.random() < 0.25) {
-              const quip = RAGE_QUIPS[Math.floor(Math.random() * RAGE_QUIPS.length)];
-              this.addFloatingText(car.x, car.y - 0.4, quip, '#fecdd3');
+              this.callbacks.onEmitFx?.({
+                kind: 'event:fx',
+                fx: 'horn',
+                x: car.x,
+                y: car.y,
+                text: bubble,
+              });
             }
           }
         }
@@ -701,13 +894,19 @@ export class TrafficSimulation {
         car.rage = Math.max(0, car.rage - simDt * 1.5);
       }
 
-      // Advance along segment
+      // Advance along segment (with continuous red-light clamp so 2x never blows a red)
       const deltaT = (car.speed * simDt) / segLen;
-      car.segT += deltaT;
+      let nextSegT = car.segT + deltaT;
+      if (redLightStopT !== null && nextSegT > redLightStopT) {
+        nextSegT = redLightStopT;
+        car.speed = 0;
+      }
+      car.segT = nextSegT;
 
       if (car.segT >= 1) {
+        // Convert excess distance accurately by prevLen / nextLen so entering/exiting Motorways never teleports!
+        const excessDist = (car.segT - 1) * segLen;
         car.segIndex += 1;
-        car.segT -= 1;
         if (car.segIndex >= car.path.length - 1) {
           const endNode = car.path[car.path.length - 1];
           car.x = endNode.x + 0.5;
@@ -719,6 +918,10 @@ export class TrafficSimulation {
           }
           continue;
         }
+        const nextA = car.path[car.segIndex];
+        const nextB = car.path[car.segIndex + 1];
+        const nextLen = nextA && nextB ? Math.max(0.5, Math.hypot(nextB.x - nextA.x, nextB.y - nextA.y)) : 1;
+        car.segT = Math.min(0.95, excessDist / nextLen);
       }
 
       this.updateCarPose(car);
@@ -738,14 +941,11 @@ export class TrafficSimulation {
       const ob = other.path[other.segIndex + 1];
       if (!oa || !ob || ob.isMotorway) continue;
 
-      // Other car currently inside the intersection node
       const distOtherToNode = Math.hypot(other.x - (nodeX + 0.5), other.y - (nodeY + 0.5));
       if (distOtherToNode < 0.34) {
-        // Ignore cars coming from the exact same lane behind/ahead
         if (oa.x === fromX && oa.y === fromY && ob.x === nodeX && ob.y === nodeY) {
           continue;
         }
-        // Deterministic priority so two waiting cars never deadlock
         if (other.speed > 0.5 || other.id < self.id) {
           return true;
         }
@@ -769,7 +969,14 @@ export class TrafficSimulation {
           const gap = (other.segT - car.segT) * segLen;
           if (gap < minGap) minGap = gap;
         }
-      } else if (nextC && !nextC.isMotorway && oa.x === b.x && oa.y === b.y && ob.x === nextC.x && ob.y === nextC.y) {
+      } else if (
+        nextC &&
+        !nextC.isMotorway &&
+        oa.x === b.x &&
+        oa.y === b.y &&
+        ob.x === nextC.x &&
+        ob.y === nextC.y
+      ) {
         const nextLen = Math.max(0.5, Math.hypot(nextC.x - b.x, nextC.y - b.y));
         const gap = (1 - car.segT) * segLen + other.segT * nextLen;
         if (gap < minGap) minGap = gap;
@@ -792,7 +999,7 @@ export class TrafficSimulation {
     const by = b.y + 0.5;
 
     if (b.isMotorway) {
-      // High-arching Vine Expressway curve!
+      car.isOnMotorway = true;
       const mx = (ax + bx) * 0.5;
       const my = (ay + by) * 0.5 - Math.min(3.5, Math.hypot(bx - ax, by - ay) * 0.24);
       const t = car.segT;
@@ -805,27 +1012,40 @@ export class TrafficSimulation {
       return;
     }
 
+    car.isOnMotorway = false;
     const dx = bx - ax;
     const dy = by - ay;
     const len = Math.max(0.001, Math.hypot(dx, dy));
-    // Right-hand lane offset
+    // Right-hand lane normal
     const nx = -dy / len;
     const ny = dx / len;
-    const laneOffset = 0.14;
+    const laneOffset = 0.13;
 
     let px = ax + dx * car.segT + nx * laneOffset;
     let py = ay + dy * car.segT + ny * laneOffset;
+    let steerAngle = Math.atan2(dy, dx);
 
-    // Slight smooth roundabout curve around node B if approaching a roundabout
-    if (this.network.roundabouts.has(cellKey(b.x, b.y)) && car.segT > 0.72) {
-      const blend = (car.segT - 0.72) / 0.28;
-      px += nx * 0.12 * Math.sin(blend * Math.PI);
-      py += ny * 0.12 * Math.sin(blend * Math.PI);
+    const aIsRb = this.network.roundabouts.has(cellKey(a.x, a.y));
+    const bIsRb = this.network.roundabouts.has(cellKey(b.x, b.y));
+
+    // Orbit smoothly around roundabout green island!
+    if (bIsRb && car.segT > 0.42) {
+      const u = (car.segT - 0.42) / 0.58;
+      const orbitBump = Math.sin(u * Math.PI * 0.5) * 0.22;
+      px += nx * orbitBump;
+      py += ny * orbitBump;
+      steerAngle += Math.sin(u * Math.PI * 0.5) * 0.35;
+    } else if (aIsRb && car.segT < 0.58) {
+      const u = 1 - car.segT / 0.58;
+      const orbitBump = Math.sin(u * Math.PI * 0.5) * 0.22;
+      px += nx * orbitBump;
+      py += ny * orbitBump;
+      steerAngle -= Math.sin(u * Math.PI * 0.5) * 0.35;
     }
 
     car.x = px;
     car.y = py;
-    car.angle = Math.atan2(dy, dx);
+    car.angle = steerAngle;
   }
 
   private handleMarketArrival(car: Car): void {
@@ -833,6 +1053,7 @@ export class TrafficSimulation {
     car.atMarketTimer = 0.45;
     car.waitTime = 0;
     car.rage = 0;
+    car.isOnMotorway = false;
 
     if (this.isAuthoritative) {
       const market = this.markets.find((m) => m.id === car.targetMarketId);
@@ -847,8 +1068,43 @@ export class TrafficSimulation {
         gameAudio.playDelivery();
         this.spawnBurst(car.x, car.y, MONKEY_COLORS[car.color].fill, 7, MONKEY_COLORS[car.color].fruitEmoji);
         this.addFloatingText(car.x, car.y - 0.4, '+1 🍌', MONKEY_COLORS[car.color].fill);
+
+        this.callbacks.onEmitFx?.({
+          kind: 'event:fx',
+          fx: 'delivery',
+          x: car.x,
+          y: car.y,
+          color: car.color,
+        });
+
+        this.checkMilestoneCelebration(this.deliveries);
       }
     }
+  }
+
+  public checkMilestoneCelebration(totalDeliveries: number): void {
+    for (const milestone of DELIVERY_MILESTONES) {
+      if (totalDeliveries >= milestone && !this.milestonesHit.includes(milestone)) {
+        this.milestonesHit.push(milestone);
+        this.triggerMilestoneFX(milestone);
+        if (this.isAuthoritative) {
+          this.callbacks.onEmitFx?.({
+            kind: 'event:fx',
+            fx: 'milestone',
+            value: milestone,
+          });
+        }
+      }
+    }
+  }
+
+  public triggerMilestoneFX(milestone: number): void {
+    gameAudio.playMilestone();
+    this.spawnBananaConfetti(48);
+    this.callbacks.onToast?.(
+      `🎉 MARCO DE ${milestone} ENTREGAS! Chuva de Bananas na Selva! 🍌`,
+      'banana',
+    );
   }
 
   private handleHomeArrival(car: Car, index: number): void {
@@ -893,7 +1149,6 @@ export class TrafficSimulation {
     for (let y = 1; y < GRID_ROWS - 1; y++) {
       for (let x = 1; x < GRID_COLS - 1; x++) {
         if (!this.isCellFreeForBuilding(x, y, lookup)) continue;
-        // Ensure at least 1 adjacent land tile is free to draw a road out
         let freeNeighbors = 0;
         for (const [dx, dy] of [
           [1, 0],
@@ -912,7 +1167,7 @@ export class TrafficSimulation {
         let score = Math.random() * 6;
         if (near) {
           const d = Math.hypot(x - near.x, y - near.y);
-          score += Math.abs(d - 3.5) * 2.2;
+          score += Math.abs(d - 2.0) * 2.2;
         }
         candidates.push({ x, y, score });
       }
@@ -920,7 +1175,7 @@ export class TrafficSimulation {
 
     if (candidates.length === 0) return null;
     candidates.sort((a, b) => a.score - b.score);
-    const pick = candidates[Math.floor(Math.random() * Math.min(5, candidates.length))];
+    const pick = candidates[Math.floor(Math.random() * Math.min(4, candidates.length))];
 
     const house: House = {
       id: nextId('house'),
@@ -933,6 +1188,8 @@ export class TrafficSimulation {
       spawnAnim: 0,
     };
     this.houses.push(house);
+    this.invalidateLookup();
+    this.recordBuildHistory({ kind: 'house', x: house.x, y: house.y, color });
     gameAudio.playSpawnBuilding();
     return house;
   }
@@ -951,7 +1208,6 @@ export class TrafficSimulation {
         }
         if (!ok) continue;
 
-        // Also avoid crowding directly touching another market
         let clearPerimeter = true;
         for (let py = y - 1; py <= y + 2 && clearPerimeter; py++) {
           for (let px = x - 1; px <= x + 2 && clearPerimeter; px++) {
@@ -971,7 +1227,7 @@ export class TrafficSimulation {
 
     if (candidates.length === 0) return null;
     candidates.sort((a, b) => a.score - b.score);
-    const pick = candidates[Math.floor(Math.random() * Math.min(4, candidates.length))];
+    const pick = candidates[Math.floor(Math.random() * Math.min(3, candidates.length))];
     const names = MARKET_NAMES[color];
     const name = names[this.markets.filter((m) => m.color === color).length % names.length];
 
@@ -989,6 +1245,8 @@ export class TrafficSimulation {
       name,
     };
     this.markets.push(market);
+    this.invalidateLookup();
+    this.recordBuildHistory({ kind: 'market', x: market.x, y: market.y, color });
     gameAudio.playSpawnBuilding();
     return market;
   }
@@ -1024,6 +1282,160 @@ export class TrafficSimulation {
     }
   }
 
+  public spawnBananaConfetti(count = 42): void {
+    const palette = ['#facc15', '#f97316', '#4ade80', '#38bdf8', '#fb7185', '#c084fc'];
+    for (let i = 0; i < count; i++) {
+      const cx = 3 + Math.random() * (GRID_COLS - 6);
+      const cy = 2 + Math.random() * 5;
+      const isEmoji = i % 5 === 0;
+      this.particles.push({
+        x: cx,
+        y: cy,
+        vx: (Math.random() - 0.5) * 6,
+        vy: -2.5 - Math.random() * 3.5,
+        color: palette[i % palette.length],
+        size: 5 + Math.random() * 4,
+        life: 1.6 + Math.random() * 0.9,
+        maxLife: 2.5,
+        emoji: isEmoji ? (i % 10 === 0 ? '🍌' : '🎉') : undefined,
+        isConfetti: !isEmoji,
+        rot: Math.random() * Math.PI * 2,
+        vRot: (Math.random() - 0.5) * 10,
+        gravity: 5.5,
+      });
+    }
+  }
+
+  exportTickSnapshot(): DynamicTickSnapshot {
+    return {
+      day: this.day,
+      dayProgress: this.dayProgress,
+      week: this.week,
+      deliveries: this.deliveries,
+      speed: this.speed,
+      prePauseSpeed: this.prePauseSpeed,
+      inventory: { ...this.inventory },
+      lights: Array.from(this.network.lights.values()).map((l) => ({ ...l })),
+      markets: this.markets.map((m) => ({
+        id: m.id,
+        isMega: m.isMega,
+        pins: m.pins.map((p) => ({ ...p })),
+        overload: m.overload,
+        demandInterval: m.demandInterval,
+      })),
+      cars: this.cars.map((c) => ({
+        id: c.id,
+        color: c.color,
+        x: c.x,
+        y: c.y,
+        angle: c.angle,
+        speed: c.speed,
+        state: c.state,
+        isOnMotorway: Boolean(c.isOnMotorway ?? c.path[c.segIndex + 1]?.isMotorway),
+        rage: c.rage,
+        moodEmoji: c.moodEmoji,
+        moodTimer: c.moodTimer,
+        orphanedTimer: c.orphanedTimer,
+      })),
+      networkVersion: this.network.version,
+      upgradeVotes: { ...this.upgradeVotes },
+      lastProcessedSeq: { ...this.lastProcessedSeq },
+      playerStats: Object.fromEntries(
+        Object.entries(this.playerStats).map(([k, v]) => [k, { ...v }]),
+      ),
+    };
+  }
+
+  applyTickSnapshot(tick: DynamicTickSnapshot): boolean {
+    if (tick.networkVersion !== this.network.version) {
+      return false;
+    }
+
+    this.day = tick.day;
+    this.dayProgress = tick.dayProgress;
+    this.week = tick.week;
+    this.deliveries = tick.deliveries;
+    this.speed = tick.speed;
+    this.prePauseSpeed = tick.prePauseSpeed;
+    this.inventory = { ...tick.inventory };
+    this.upgradeVotes = { ...tick.upgradeVotes };
+    this.lastProcessedSeq = { ...tick.lastProcessedSeq };
+    this.playerStats = Object.fromEntries(
+      Object.entries(tick.playerStats).map(([k, v]) => [k, { ...v }]),
+    );
+
+    // Update light phases smoothly
+    for (const l of tick.lights) {
+      const existing = this.network.lights.get(cellKey(l.x, l.y));
+      if (existing) {
+        existing.phase = l.phase;
+        existing.timer = l.timer;
+      }
+    }
+
+    // Update market pins & overload
+    for (const cm of tick.markets) {
+      const m = this.markets.find((mk) => mk.id === cm.id);
+      if (m) {
+        m.isMega = cm.isMega;
+        m.pins = cm.pins.map((p) => ({ ...p }));
+        m.overload = cm.overload;
+        m.demandInterval = cm.demandInterval;
+      }
+    }
+
+    // Smoothly reconcile cars without jitter!
+    const prevById = new Map<string, Car>();
+    for (const c of this.cars) prevById.set(c.id, c);
+
+    this.cars = tick.cars.map((tc) => {
+      const old = prevById.get(tc.id);
+      let vxOffset = 0;
+      let vyOffset = 0;
+      let vAngleOffset = 0;
+      if (old) {
+        const oldVisX = old.x + (old.vxOffset ?? 0);
+        const oldVisY = old.y + (old.vyOffset ?? 0);
+        const oldVisA = old.angle + (old.vAngleOffset ?? 0);
+        const dist = Math.hypot(tc.x - oldVisX, tc.y - oldVisY);
+        if (dist < 2.2) {
+          vxOffset = oldVisX - tc.x;
+          vyOffset = oldVisY - tc.y;
+          vAngleOffset = wrapAngleDiff(oldVisA - tc.angle);
+        }
+      }
+      return {
+        id: tc.id,
+        color: tc.color,
+        homeHouseId: old?.homeHouseId ?? '',
+        targetMarketId: old?.targetMarketId ?? '',
+        targetPinId: old?.targetPinId ?? null,
+        state: tc.state,
+        path: old?.path ?? [],
+        segIndex: old?.segIndex ?? 0,
+        segT: old?.segT ?? 0,
+        x: tc.x,
+        y: tc.y,
+        angle: tc.angle,
+        speed: tc.speed,
+        atMarketTimer: 0,
+        waitTime: 0,
+        rage: tc.rage,
+        hornCooldown: 0,
+        moodEmoji: tc.moodEmoji,
+        moodTimer: tc.moodTimer,
+        orphanedTimer: tc.orphanedTimer,
+        isOnMotorway: tc.isOnMotorway,
+        vxOffset,
+        vyOffset,
+        vAngleOffset,
+      };
+    });
+
+    this.callbacks.onUpgradeVotesChange?.();
+    return true;
+  }
+
   exportSnapshot(): GameSnapshot {
     return {
       mapId: this.map.id,
@@ -1035,6 +1447,8 @@ export class TrafficSimulation {
       speed: this.speed,
       prePauseSpeed: this.prePauseSpeed,
       inventory: { ...this.inventory },
+      unlockedColors: [...this.unlockedColors],
+      milestonesHit: [...this.milestonesHit],
       roadEdges: Array.from(this.network.edges),
       lights: Array.from(this.network.lights.values()).map((l) => ({ ...l })),
       roundabouts: Array.from(this.network.roundabouts.values()).map((r) => ({ ...r })),
@@ -1043,6 +1457,12 @@ export class TrafficSimulation {
       markets: this.markets.map((m) => ({ ...m, pins: m.pins.map((p) => ({ ...p })) })),
       cars: this.cars.map((c) => ({ ...c, path: c.path.map((s) => ({ ...s })) })),
       pendingUpgrades: this.pendingUpgrades ? this.pendingUpgrades.map((u) => ({ ...u })) : null,
+      upgradeVotes: { ...this.upgradeVotes },
+      playerStats: Object.fromEntries(
+        Object.entries(this.playerStats).map(([k, v]) => [k, { ...v }]),
+      ),
+      lastProcessedSeq: { ...this.lastProcessedSeq },
+      buildHistory: this.buildHistory.map((b) => ({ ...b })),
       gameOverReason: this.gameOverReason,
       gameOverMarketId: this.gameOverMarketId,
       networkVersion: this.network.version,
@@ -1054,7 +1474,6 @@ export class TrafficSimulation {
       this.map = MAPS[snap.mapId];
     }
     const prevPhase = this.phase;
-    const prevDeliveries = this.deliveries;
 
     this.phase = snap.phase;
     this.day = snap.day;
@@ -1064,6 +1483,8 @@ export class TrafficSimulation {
     this.speed = snap.speed;
     this.prePauseSpeed = snap.prePauseSpeed;
     this.inventory = { ...snap.inventory };
+    this.unlockedColors = [...(snap.unlockedColors ?? ['yellow'])];
+    this.milestonesHit = [...(snap.milestonesHit ?? [])];
     this.network.loadFromSnapshot(
       snap.roadEdges,
       snap.lights,
@@ -1073,17 +1494,49 @@ export class TrafficSimulation {
     );
     this.houses = snap.houses.map((h) => ({ ...h }));
     this.markets = snap.markets.map((m) => ({ ...m, pins: m.pins.map((p) => ({ ...p })) }));
-    this.cars = snap.cars.map((c) => ({ ...c, path: c.path.map((s) => ({ ...s })) }));
+    this.invalidateLookup();
+
+    // Smoothly blend existing cars when full snapshot arrives
+    const prevById = new Map<string, Car>();
+    for (const c of this.cars) prevById.set(c.id, c);
+    this.cars = snap.cars.map((c) => {
+      const old = prevById.get(c.id);
+      let vxOffset = 0;
+      let vyOffset = 0;
+      let vAngleOffset = 0;
+      if (old) {
+        const oldVisX = old.x + (old.vxOffset ?? 0);
+        const oldVisY = old.y + (old.vyOffset ?? 0);
+        const oldVisA = old.angle + (old.vAngleOffset ?? 0);
+        if (Math.hypot(c.x - oldVisX, c.y - oldVisY) < 2.2) {
+          vxOffset = oldVisX - c.x;
+          vyOffset = oldVisY - c.y;
+          vAngleOffset = wrapAngleDiff(oldVisA - c.angle);
+        }
+      }
+      return {
+        ...c,
+        path: c.path.map((s) => ({ ...s })),
+        isOnMotorway: Boolean(c.isOnMotorway ?? c.path[c.segIndex + 1]?.isMotorway),
+        vxOffset,
+        vyOffset,
+        vAngleOffset,
+      };
+    });
+
     this.pendingUpgrades = snap.pendingUpgrades
       ? snap.pendingUpgrades.map((u) => ({ ...u }))
       : null;
+    this.upgradeVotes = { ...(snap.upgradeVotes ?? {}) };
+    this.playerStats = Object.fromEntries(
+      Object.entries(snap.playerStats ?? {}).map(([k, v]) => [k, { ...v }]),
+    );
+    this.lastProcessedSeq = { ...(snap.lastProcessedSeq ?? {}) };
+    this.buildHistory = (snap.buildHistory ?? []).map((b) => ({ ...b }));
     this.gameOverReason = snap.gameOverReason;
     this.gameOverMarketId = snap.gameOverMarketId;
     this.lastPathCheckVersion = this.network.version;
 
-    if (this.deliveries > prevDeliveries) {
-      gameAudio.playDelivery();
-    }
     if (prevPhase !== this.phase) {
       if (this.phase === 'upgrade' && this.pendingUpgrades) {
         gameAudio.playUpgrade();
@@ -1094,6 +1547,8 @@ export class TrafficSimulation {
         this.callbacks.onGameOver?.(this.deliveries, this.gameOverReason ?? 'Caos no trânsito!');
       }
       this.callbacks.onPhaseChange?.();
+    } else if (this.phase === 'upgrade') {
+      this.callbacks.onUpgradeVotesChange?.();
     }
   }
 }

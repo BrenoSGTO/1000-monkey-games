@@ -1,14 +1,16 @@
 import { GRID_COLS, GRID_ROWS, MONKEY_COLORS, TOOL_META } from './constants';
-import { cellKey, parseEdgeKey } from './roadNetwork';
+import { cellKey, parseEdgeKey, type RoadPathPreview } from './roadNetwork';
 import type { TrafficSimulation } from './simulation';
-import type { GridCoord, RemoteCursor, ToolKind } from './types';
+import type { BuildingShape, GridCoord, RemoteCursor, ToolKind } from './types';
 
 export interface RenderInteractionState {
   hoverCell: GridCoord | null;
   activeTool: ToolKind;
   motorwayAnchor: GridCoord | null;
+  roadPreview: RoadPathPreview | null;
   nightMode: boolean;
   remoteCursors: RemoteCursor[];
+  replayProgress: number | null; // null = normal render, 0..1 = quick replay timelapse
 }
 
 export class MotorwaysRenderer {
@@ -33,7 +35,7 @@ export class MotorwaysRenderer {
 
     const padX = 28;
     const topClear = 68;
-    const bottomClear = 94;
+    const bottomClear = 104;
     const availW = Math.max(200, this.width - padX * 2);
     const availH = Math.max(160, this.height - topClear - bottomClear);
 
@@ -66,7 +68,6 @@ export class MotorwaysRenderer {
     const night = uiState.nightMode;
     const cs = this.cellSize;
 
-    // Background fill outside board
     ctx.fillStyle = night ? '#090e1a' : '#ebe7d8';
     ctx.fillRect(0, 0, this.width, this.height);
 
@@ -76,7 +77,6 @@ export class MotorwaysRenderer {
       ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
     }
 
-    // Board surface
     const boardW = GRID_COLS * cs;
     const boardH = GRID_ROWS * cs;
     ctx.fillStyle = night ? '#111827' : '#f5f2e8';
@@ -102,8 +102,19 @@ export class MotorwaysRenderer {
     // Terrain: Water, Trees, Rocks
     this.renderTerrain(ctx, sim, night);
 
+    if (uiState.replayProgress !== null) {
+      this.renderReplayHistory(ctx, sim, uiState.replayProgress, night);
+      ctx.restore();
+      return;
+    }
+
     // Roads & Bridges
     this.renderRoads(ctx, sim, night);
+
+    // Smart road drag preview
+    if (uiState.roadPreview && uiState.roadPreview.segments.length > 0) {
+      this.renderRoadPreview(ctx, uiState.roadPreview, night);
+    }
 
     // Roundabouts
     this.renderRoundabouts(ctx, sim, night);
@@ -122,6 +133,12 @@ export class MotorwaysRenderer {
     this.renderMotorways(ctx, sim, uiState, night);
     this.renderCars(ctx, sim, night, true);
 
+    // Urgent Critical Market Alerts (above everything except cursors/UI)
+    this.renderCriticalMarketAlerts(ctx, sim);
+
+    // Map Pings
+    this.renderPings(ctx, sim);
+
     // Tool hover preview & Remote co-op cursors
     this.renderHoverPreview(ctx, sim, uiState, night);
     this.renderRemoteCursors(ctx, uiState);
@@ -132,6 +149,122 @@ export class MotorwaysRenderer {
     ctx.restore();
   }
 
+  private renderReplayHistory(
+    ctx: CanvasRenderingContext2D,
+    sim: TrafficSimulation,
+    progress: number,
+    night: boolean,
+  ): void {
+    const cs = this.cellSize;
+    const count = Math.floor(progress * sim.buildHistory.length);
+    const slice = sim.buildHistory.slice(0, Math.max(1, count));
+
+    // Bridges first
+    for (const ev of slice) {
+      if (ev.kind === 'road' && ev.isBridge && ev.bx !== undefined && ev.by !== undefined) {
+        const pA = this.gridToCenter(ev.x, ev.y);
+        const pB = this.gridToCenter(ev.bx, ev.by);
+        ctx.strokeStyle = night ? '#92400e' : '#d97706';
+        ctx.lineWidth = cs * 0.62;
+        ctx.lineCap = 'butt';
+        ctx.beginPath();
+        ctx.moveTo(pA.x, pA.y);
+        ctx.lineTo(pB.x, pB.y);
+        ctx.stroke();
+      }
+    }
+
+    // Roads
+    ctx.strokeStyle = night ? '#1e293b' : '#cbd5e1';
+    ctx.lineWidth = cs * 0.48;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (const ev of slice) {
+      if (ev.kind === 'road' && ev.bx !== undefined && ev.by !== undefined) {
+        const pA = this.gridToCenter(ev.x, ev.y);
+        const pB = this.gridToCenter(ev.bx, ev.by);
+        ctx.moveTo(pA.x, pA.y);
+        ctx.lineTo(pB.x, pB.y);
+      }
+    }
+    ctx.stroke();
+
+    ctx.strokeStyle = night ? '#334155' : '#475569';
+    ctx.lineWidth = cs * 0.36;
+    ctx.beginPath();
+    for (const ev of slice) {
+      if (ev.kind === 'road' && ev.bx !== undefined && ev.by !== undefined) {
+        const pA = this.gridToCenter(ev.x, ev.y);
+        const pB = this.gridToCenter(ev.bx, ev.by);
+        ctx.moveTo(pA.x, pA.y);
+        ctx.lineTo(pB.x, pB.y);
+      }
+    }
+    ctx.stroke();
+
+    // Roundabouts & Lights
+    for (const ev of slice) {
+      if (ev.kind === 'roundabout') {
+        const c = this.gridToCenter(ev.x, ev.y);
+        ctx.fillStyle = night ? '#334155' : '#475569';
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, cs * 0.48, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#22c55e';
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, cs * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (ev.kind === 'light') {
+        const c = this.gridToCenter(ev.x, ev.y);
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, cs * 0.16, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Houses & Markets
+    for (const ev of slice) {
+      if (ev.kind === 'house' && ev.color) {
+        const theme = MONKEY_COLORS[ev.color];
+        const c = this.gridToCenter(ev.x, ev.y);
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.fillStyle = theme.fill;
+        ctx.strokeStyle = theme.dark;
+        ctx.lineWidth = 2;
+        this.drawHouseBody(ctx, theme.shape, cs * 0.34);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      } else if (ev.kind === 'market' && ev.color) {
+        const theme = MONKEY_COLORS[ev.color];
+        const cx = this.offsetX + (ev.x + 1) * cs;
+        const cy = this.offsetY + (ev.y + 1) * cs;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.fillStyle = night ? '#1e293b' : '#ffffff';
+        ctx.strokeStyle = theme.fill;
+        ctx.lineWidth = 3;
+        this.roundRect(ctx, -cs * 0.86, -cs * 0.86, cs * 1.72, cs * 1.72, cs * 0.26);
+        ctx.fill();
+        ctx.stroke();
+        ctx.font = `${Math.floor(cs * 0.6)}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(theme.fruitEmoji, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    // Motorways
+    for (const ev of slice) {
+      if (ev.kind === 'motorway' && ev.bx !== undefined && ev.by !== undefined) {
+        this.drawVineCurve(ctx, ev.x, ev.y, ev.bx, ev.by, false, night);
+      }
+    }
+  }
+
   private renderTerrain(
     ctx: CanvasRenderingContext2D,
     sim: TrafficSimulation,
@@ -140,7 +273,6 @@ export class MotorwaysRenderer {
     const cs = this.cellSize;
     const t = sim.timeSec;
 
-    // Pass 1: Water tiles with rounded shorelines feel
     for (let y = 0; y < GRID_ROWS; y++) {
       for (let x = 0; x < GRID_COLS; x++) {
         const tile = sim.map.tiles[y][x];
@@ -149,14 +281,12 @@ export class MotorwaysRenderer {
         const px = this.offsetX + x * cs;
         const py = this.offsetY + y * cs;
 
-        // Shoreline foam border
         ctx.fillStyle = night ? '#164e63' : '#bae6fd';
         ctx.fillRect(px - 2, py - 2, cs + 4, cs + 4);
 
         ctx.fillStyle = night ? '#0c4a6e' : '#38bdf8';
         ctx.fillRect(px, py, cs + 0.5, cs + 0.5);
 
-        // Animated water ripple
         if ((x + y) % 2 === 0) {
           const wave = Math.sin(t * 2.2 + x * 0.8 + y * 0.6) * cs * 0.08;
           ctx.strokeStyle = night ? 'rgba(125, 211, 252, 0.2)' : 'rgba(255, 255, 255, 0.42)';
@@ -170,7 +300,6 @@ export class MotorwaysRenderer {
       }
     }
 
-    // Pass 2: Trees & Rocks
     for (let y = 0; y < GRID_ROWS; y++) {
       for (let x = 0; x < GRID_COLS; x++) {
         const tile = sim.map.tiles[y][x];
@@ -211,7 +340,6 @@ export class MotorwaysRenderer {
     const cs = this.cellSize;
     const lookup = sim.getLookup();
 
-    // Collect edges + curved degree-2 nodes
     const curveSkipEdges = new Set<string>();
     const curves: Array<{ ax: number; ay: number; cx: number; cy: number; bx: number; by: number }> = [];
 
@@ -231,7 +359,6 @@ export class MotorwaysRenderer {
 
       if (sim.map.tiles[ay][ax] === 'water' || sim.map.tiles[by][bx] === 'water') continue;
 
-      // Only curve if non-collinear
       const v1x = ax - cx;
       const v1y = ay - cy;
       const v2x = bx - cx;
@@ -245,7 +372,6 @@ export class MotorwaysRenderer {
           bx: (bx + cx) * 0.5,
           by: (by + cy) * 0.5,
         });
-        // Draw half-stubs from a -> mid(a,c) and b -> mid(b,c), skipping full straight edges
         curveSkipEdges.add(this.canonical(cx, cy, ax, ay));
         curveSkipEdges.add(this.canonical(cx, cy, bx, by));
       }
@@ -262,7 +388,6 @@ export class MotorwaysRenderer {
         const [a, b] = parseEdgeKey(ek);
         const key = this.canonical(a.x, a.y, b.x, b.y);
         if (curveSkipEdges.has(key)) {
-          // Draw half-stub only for ends that aren't curved
           const pA = this.gridToCenter(a.x, a.y);
           const pB = this.gridToCenter(b.x, b.y);
           const midX = (pA.x + pB.x) * 0.5;
@@ -296,13 +421,11 @@ export class MotorwaysRenderer {
       ctx.stroke();
     };
 
-    // Draw bridge planks UNDER asphalt for edges touching water
     for (const ek of sim.network.edges) {
       const [a, b] = parseEdgeKey(ek);
       if (sim.map.tiles[a.y][a.x] === 'water' || sim.map.tiles[b.y][b.x] === 'water') {
         const pA = this.gridToCenter(a.x, a.y);
         const pB = this.gridToCenter(b.x, b.y);
-        // Bamboo railing shadow
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.22)';
         ctx.lineWidth = cs * 0.66;
         ctx.lineCap = 'butt';
@@ -311,7 +434,6 @@ export class MotorwaysRenderer {
         ctx.lineTo(pB.x, pB.y + cs * 0.08);
         ctx.stroke();
 
-        // Bamboo deck
         ctx.strokeStyle = night ? '#92400e' : '#d97706';
         ctx.lineWidth = cs * 0.62;
         ctx.beginPath();
@@ -321,9 +443,104 @@ export class MotorwaysRenderer {
       }
     }
 
-    // Outer road curb + inner asphalt
     drawRoadStroke(cs * 0.48, night ? '#1e293b' : '#cbd5e1');
     drawRoadStroke(cs * 0.36, night ? '#334155' : '#475569');
+  }
+
+  private renderRoadPreview(
+    ctx: CanvasRenderingContext2D,
+    preview: RoadPathPreview,
+    night: boolean,
+  ): void {
+    const cs = this.cellSize;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    for (const seg of preview.segments) {
+      const pA = this.gridToCenter(seg.ax, seg.ay);
+      const pB = this.gridToCenter(seg.bx, seg.by);
+
+      if (seg.isBridge) {
+        ctx.globalAlpha = 0.65;
+        ctx.strokeStyle = seg.valid ? '#d97706' : '#ef4444';
+        ctx.lineWidth = cs * 0.58;
+        ctx.beginPath();
+        ctx.moveTo(pA.x, pA.y);
+        ctx.lineTo(pB.x, pB.y);
+        ctx.stroke();
+      }
+
+      ctx.globalAlpha = 0.72;
+      ctx.strokeStyle = seg.valid
+        ? night
+          ? '#fbbf24'
+          : '#f97316'
+        : '#ef4444';
+      ctx.lineWidth = cs * 0.36;
+      ctx.setLineDash([cs * 0.22, cs * 0.14]);
+      ctx.beginPath();
+      ctx.moveTo(pA.x, pA.y);
+      ctx.lineTo(pB.x, pB.y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Cost pill near the end of the drag preview
+    const lastSeg = preview.segments[preview.segments.length - 1];
+    if (lastSeg) {
+      const endPt = this.gridToCenter(lastSeg.bx, lastSeg.by);
+      const parts: string[] = [];
+      if (preview.roadsCost > 0) parts.push(`🛣️ -${preview.roadsCost}`);
+      if (preview.bridgesCost > 0) parts.push(`🌉 -${preview.bridgesCost}`);
+      if (!preview.valid && preview.reason) {
+        parts.length = 0;
+        parts.push(`❌ ${preview.reason}`);
+      } else if (preview.reason && parts.length > 0) {
+        parts.push(`⚠️ ${preview.reason}`);
+      }
+
+      if (parts.length > 0) {
+        const label = parts.join('  ');
+        this.drawCostBadge(
+          ctx,
+          endPt.x,
+          endPt.y - cs * 0.75,
+          label,
+          preview.valid ? '#facc15' : '#fb7185',
+        );
+      }
+    }
+
+    ctx.restore();
+  }
+
+  private drawCostBadge(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    text: string,
+    accent: string,
+  ): void {
+    ctx.save();
+    ctx.font = '800 11px system-ui, sans-serif';
+    const w = ctx.measureText(text).width + 16;
+    const h = 22;
+    const clampedX = Math.max(w / 2 + 8, Math.min(this.width - w / 2 - 8, x));
+    const clampedY = Math.max(h + 8, y);
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+    this.roundRect(ctx, clampedX - w / 2, clampedY - h / 2, w, h, 11);
+    ctx.fill();
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+
+    ctx.fillStyle = accent;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, clampedX, clampedY + 0.5);
+    ctx.restore();
   }
 
   private isNodeInCurves(
@@ -364,7 +581,6 @@ export class MotorwaysRenderer {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Green center island
       ctx.fillStyle = '#22c55e';
       ctx.beginPath();
       ctx.arc(c.x, c.y, cs * 0.2, 0, Math.PI * 2);
@@ -374,6 +590,40 @@ export class MotorwaysRenderer {
       ctx.beginPath();
       ctx.arc(c.x, c.y, cs * 0.08, 0, Math.PI * 2);
       ctx.fill();
+    }
+  }
+
+  private drawHouseBody(ctx: CanvasRenderingContext2D, shape: BuildingShape, r: number): void {
+    ctx.beginPath();
+    if (shape === 'circle') {
+      ctx.arc(0, 0, r * 1.05, 0, Math.PI * 2);
+    } else if (shape === 'diamond') {
+      ctx.moveTo(0, -r * 1.15);
+      ctx.lineTo(r * 1.12, 0);
+      ctx.lineTo(0, r * 1.15);
+      ctx.lineTo(-r * 1.12, 0);
+      ctx.closePath();
+    } else if (shape === 'hex') {
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i - Math.PI / 6;
+        const px = Math.cos(a) * r * 1.08;
+        const py = Math.sin(a) * r * 1.08;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    } else if (shape === 'pentagon') {
+      for (let i = 0; i < 5; i++) {
+        const a = ((Math.PI * 2) / 5) * i - Math.PI / 2;
+        const px = Math.cos(a) * r * 1.1;
+        const py = Math.sin(a) * r * 1.1;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    } else {
+      // Octagon / rounded square
+      this.roundRect(ctx, -r, -r, r * 2, r * 2, r * 0.42);
     }
   }
 
@@ -387,38 +637,39 @@ export class MotorwaysRenderer {
       const theme = MONKEY_COLORS[h.color];
       const c = this.gridToCenter(h.x, h.y);
       const s = this.easeOutBack(h.spawnAnim);
+      const r = cs * 0.36;
 
       ctx.save();
       ctx.translate(c.x, c.y);
       ctx.scale(s, s);
 
       // Ground shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.16)';
-      this.roundRect(ctx, -cs * 0.35, -cs * 0.31, cs * 0.7, cs * 0.7, cs * 0.16);
+      ctx.save();
+      ctx.translate(0, cs * 0.05);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      this.drawHouseBody(ctx, theme.shape, r);
       ctx.fill();
+      ctx.restore();
 
-      // House body
+      // House distinct shape body
       ctx.fillStyle = theme.fill;
       ctx.strokeStyle = theme.dark;
       ctx.lineWidth = Math.max(2, cs * 0.06);
-      this.roundRect(ctx, -cs * 0.35, -cs * 0.35, cs * 0.7, cs * 0.7, cs * 0.16);
+      this.drawHouseBody(ctx, theme.shape, r);
       ctx.fill();
       ctx.stroke();
 
-      // Roof / hut cap
-      ctx.fillStyle = theme.light;
-      ctx.beginPath();
-      ctx.moveTo(0, -cs * 0.25);
-      ctx.lineTo(cs * 0.24, -cs * 0.03);
-      ctx.lineTo(-cs * 0.24, -cs * 0.03);
-      ctx.closePath();
-      ctx.fill();
+      // Fruit symbol inside house for instant colorblind / visual clarity
+      ctx.font = `${Math.max(10, Math.floor(cs * 0.34))}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(theme.fruitEmoji, 0, -cs * 0.06);
 
       // Parked car pips
       for (let i = 0; i < h.carsParked; i++) {
         ctx.fillStyle = night ? '#f8fafc' : '#1e293b';
         ctx.beginPath();
-        ctx.arc(-cs * 0.1 + i * cs * 0.2, cs * 0.14, cs * 0.065, 0, Math.PI * 2);
+        ctx.arc(-cs * 0.1 + i * cs * 0.2, cs * 0.2, cs * 0.06, 0, Math.PI * 2);
         ctx.fill();
       }
 
@@ -444,7 +695,6 @@ export class MotorwaysRenderer {
       ctx.translate(cx, cy);
       ctx.scale(s, s);
 
-      // Night neon glow
       if (night) {
         ctx.shadowColor = theme.fill;
         ctx.shadowBlur = 16;
@@ -469,25 +719,36 @@ export class MotorwaysRenderer {
       this.roundRect(ctx, -w / 2 + cs * 0.12, -h / 2 + cs * 0.12, w - cs * 0.24, cs * 0.42, cs * 0.12);
       ctx.fill();
 
+      // Shape emblem in awning corner for extra accessibility clarity
+      ctx.save();
+      ctx.translate(-w / 2 + cs * 0.32, -h / 2 + cs * 0.33);
+      ctx.fillStyle = theme.dark;
+      this.drawHouseBody(ctx, theme.shape, cs * 0.11);
+      ctx.fill();
+      ctx.restore();
+
       // Fruit icon
       ctx.font = `${Math.floor(cs * 0.62)}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(theme.fruitEmoji, 0, cs * 0.16);
+      ctx.fillText(theme.fruitEmoji, 0, cs * 0.18);
 
       if (m.isMega) {
         ctx.font = `800 ${Math.max(9, Math.floor(cs * 0.24))}px system-ui, sans-serif`;
         ctx.fillStyle = theme.dark;
-        ctx.fillText('MEGA', 0, -h / 2 + cs * 0.34);
+        ctx.fillText('MEGA', cs * 0.08, -h / 2 + cs * 0.34);
       }
 
-      // Demand pins neatly stacked along top-right / bottom
+      // Demand pins — flip BELOW market when m.y <= 1 so pins never clip off-screen!
+      const flipPinsBelow = m.y <= 1;
       const pinRadius = Math.max(3.5, cs * 0.11);
       for (let i = 0; i < m.pins.length; i++) {
         const col = i % 5;
         const row = Math.floor(i / 5);
         const px = -cs * 0.56 + col * (pinRadius * 2.45);
-        const py = -h / 2 - cs * 0.14 - row * (pinRadius * 2.3);
+        const py = flipPinsBelow
+          ? h / 2 + cs * 0.2 + row * (pinRadius * 2.3)
+          : -h / 2 - cs * 0.14 - row * (pinRadius * 2.3);
         ctx.fillStyle = '#0f172a';
         ctx.beginPath();
         ctx.arc(px, py, pinRadius + 2, 0, Math.PI * 2);
@@ -520,18 +781,71 @@ export class MotorwaysRenderer {
           -Math.PI / 2 + Math.PI * 2 * Math.min(1, m.overload),
         );
         ctx.stroke();
-
-        if (m.overload > 0.45) {
-          ctx.fillStyle = '#ef4444';
-          ctx.beginPath();
-          ctx.arc(w / 2, -h / 2, cs * 0.24, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#fff';
-          ctx.font = `900 ${Math.floor(cs * 0.3)}px system-ui, sans-serif`;
-          ctx.fillText('!', w / 2, -h / 2 + 1);
-        }
         ctx.restore();
       }
+
+      ctx.restore();
+    }
+  }
+
+  private renderCriticalMarketAlerts(ctx: CanvasRenderingContext2D, sim: TrafficSimulation): void {
+    const cs = this.cellSize;
+    const t = sim.timeSec;
+
+    for (const m of sim.markets) {
+      if (m.overload < 0.45) continue;
+      const cx = this.offsetX + (m.x + 1) * cs;
+      const cy = this.offsetY + (m.y + 1) * cs;
+      const urgent = m.overload >= 0.72;
+
+      // Expanding urgent radar pulse ring
+      const wavePhase = (t * (urgent ? 1.8 : 1.1)) % 1;
+      ctx.save();
+      ctx.strokeStyle = urgent
+        ? `rgba(239, 68, 68, ${(1 - wavePhase) * 0.75})`
+        : `rgba(249, 115, 22, ${(1 - wavePhase) * 0.55})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cs * (1.1 + wavePhase * 1.15), 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Bouncing arrow + countdown alert badge
+      const bounce = Math.sin(t * (urgent ? 12 : 7)) * cs * 0.14;
+      const flipBelow = m.y <= 2;
+      const arrowY = flipBelow ? cy + cs * 1.45 - bounce : cy - cs * 1.55 + bounce;
+      const pct = Math.min(99, Math.round(m.overload * 100));
+
+      const pillText = urgent ? `🚨 SOS ${pct}%` : `⚠️ ${pct}%`;
+      ctx.font = '900 11px system-ui, sans-serif';
+      const pw = ctx.measureText(pillText).width + 14;
+      const pillY = flipBelow ? arrowY + 18 : arrowY - 18;
+
+      ctx.fillStyle = urgent ? '#dc2626' : '#ea580c';
+      this.roundRect(ctx, cx - pw / 2, pillY - 10, pw, 20, 10);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(pillText, cx, pillY + 0.5);
+
+      // Pointer triangle toward the market
+      ctx.fillStyle = urgent ? '#ef4444' : '#f97316';
+      ctx.beginPath();
+      if (flipBelow) {
+        ctx.moveTo(cx, arrowY - 6);
+        ctx.lineTo(cx - 7, arrowY + 5);
+        ctx.lineTo(cx + 7, arrowY + 5);
+      } else {
+        ctx.moveTo(cx, arrowY + 6);
+        ctx.lineTo(cx - 7, arrowY - 5);
+        ctx.lineTo(cx + 7, arrowY - 5);
+      }
+      ctx.closePath();
+      ctx.fill();
 
       ctx.restore();
     }
@@ -554,7 +868,6 @@ export class MotorwaysRenderer {
       ctx.fill();
       ctx.stroke();
 
-      // Phase 0: N/S Green, E/W Red. Phase 1: N/S Red, E/W Green
       const nsColor = light.phase === 0 ? '#4ade80' : '#ef4444';
       const ewColor = light.phase === 1 ? '#4ade80' : '#ef4444';
 
@@ -572,85 +885,106 @@ export class MotorwaysRenderer {
     }
   }
 
+  private drawVineCurve(
+    ctx: CanvasRenderingContext2D,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    ghost: boolean,
+    night: boolean,
+  ): void {
+    const cs = this.cellSize;
+    const pA = this.gridToCenter(ax, ay);
+    const pB = this.gridToCenter(bx, by);
+    const dist = Math.hypot(bx - ax, by - ay);
+    const arcLift = Math.min(cs * 3.5, dist * cs * 0.24);
+    const mx = (pA.x + pB.x) * 0.5;
+    const my = (pA.y + pB.y) * 0.5 - arcLift;
+
+    ctx.save();
+    if (ghost) ctx.globalAlpha = 0.65;
+
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.18)';
+    ctx.lineWidth = cs * 0.34;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(pA.x, pA.y + cs * 0.14);
+    ctx.quadraticCurveTo(mx, my + arcLift * 0.45 + cs * 0.14, pB.x, pB.y + cs * 0.14);
+    ctx.stroke();
+
+    ctx.strokeStyle = night ? '#14532d' : '#166534';
+    ctx.lineWidth = cs * 0.38;
+    ctx.beginPath();
+    ctx.moveTo(pA.x, pA.y);
+    ctx.quadraticCurveTo(mx, my, pB.x, pB.y);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#84cc16';
+    ctx.lineWidth = cs * 0.24;
+    ctx.beginPath();
+    ctx.moveTo(pA.x, pA.y);
+    ctx.quadraticCurveTo(mx, my, pB.x, pB.y);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#bef264';
+    ctx.lineWidth = cs * 0.09;
+    ctx.setLineDash([cs * 0.22, cs * 0.18]);
+    ctx.beginPath();
+    ctx.moveTo(pA.x, pA.y);
+    ctx.quadraticCurveTo(mx, my, pB.x, pB.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    for (const pt of [pA, pB]) {
+      ctx.fillStyle = '#166534';
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, cs * 0.24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#bef264';
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, cs * 0.11, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   private renderMotorways(
     ctx: CanvasRenderingContext2D,
     sim: TrafficSimulation,
     uiState: RenderInteractionState,
     night: boolean,
   ): void {
-    const cs = this.cellSize;
-
-    const drawVine = (ax: number, ay: number, bx: number, by: number, ghost = false) => {
-      const pA = this.gridToCenter(ax, ay);
-      const pB = this.gridToCenter(bx, by);
-      const dist = Math.hypot(bx - ax, by - ay);
-      const arcLift = Math.min(cs * 3.5, dist * cs * 0.24);
-      const mx = (pA.x + pB.x) * 0.5;
-      const my = (pA.y + pB.y) * 0.5 - arcLift;
-
-      ctx.save();
-      if (ghost) ctx.globalAlpha = 0.65;
-
-      // Ground shadow
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.18)';
-      ctx.lineWidth = cs * 0.34;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(pA.x, pA.y + cs * 0.14);
-      ctx.quadraticCurveTo(mx, my + arcLift * 0.45 + cs * 0.14, pB.x, pB.y + cs * 0.14);
-      ctx.stroke();
-
-      // Dark vine border
-      ctx.strokeStyle = night ? '#14532d' : '#166534';
-      ctx.lineWidth = cs * 0.38;
-      ctx.beginPath();
-      ctx.moveTo(pA.x, pA.y);
-      ctx.quadraticCurveTo(mx, my, pB.x, pB.y);
-      ctx.stroke();
-
-      // Bright green liana body
-      ctx.strokeStyle = '#84cc16';
-      ctx.lineWidth = cs * 0.24;
-      ctx.beginPath();
-      ctx.moveTo(pA.x, pA.y);
-      ctx.quadraticCurveTo(mx, my, pB.x, pB.y);
-      ctx.stroke();
-
-      // Dashed leaf weave
-      ctx.strokeStyle = '#bef264';
-      ctx.lineWidth = cs * 0.09;
-      ctx.setLineDash([cs * 0.22, cs * 0.18]);
-      ctx.beginPath();
-      ctx.moveTo(pA.x, pA.y);
-      ctx.quadraticCurveTo(mx, my, pB.x, pB.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Anchor pads
-      for (const pt of [pA, pB]) {
-        ctx.fillStyle = '#166534';
-        ctx.beginPath();
-        ctx.arc(pt.x, pt.y, cs * 0.24, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#bef264';
-        ctx.beginPath();
-        ctx.arc(pt.x, pt.y, cs * 0.11, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.restore();
-    };
-
     for (const mw of sim.network.motorways) {
-      drawVine(mw.ax, mw.ay, mw.bx, mw.by, false);
+      this.drawVineCurve(ctx, mw.ax, mw.ay, mw.bx, mw.by, false, night);
     }
 
     if (uiState.activeTool === 'motorway' && uiState.motorwayAnchor && uiState.hoverCell) {
-      drawVine(
+      this.drawVineCurve(
+        ctx,
         uiState.motorwayAnchor.x,
         uiState.motorwayAnchor.y,
         uiState.hoverCell.x,
         uiState.hoverCell.y,
         true,
+        night,
+      );
+      const check = sim.network.canAddMotorway(
+        uiState.motorwayAnchor.x,
+        uiState.motorwayAnchor.y,
+        uiState.hoverCell.x,
+        uiState.hoverCell.y,
+        sim.map,
+        sim.getLookup(),
+        sim.inventory,
+      );
+      const endPt = this.gridToCenter(uiState.hoverCell.x, uiState.hoverCell.y);
+      this.drawCostBadge(
+        ctx,
+        endPt.x,
+        endPt.y - this.cellSize * 0.72,
+        check.ok ? '🌿 -1 Cipó Express' : `❌ ${check.reason ?? 'Ponto inválido'}`,
+        check.ok ? '#bef264' : '#fb7185',
       );
     }
   }
@@ -665,20 +999,24 @@ export class MotorwaysRenderer {
     for (const car of sim.cars) {
       if (car.state === 'atMarket') continue;
       const step = car.path[car.segIndex + 1];
-      const onMw = Boolean(step?.isMotorway);
+      const onMw = car.isOnMotorway ?? Boolean(step?.isMotorway);
       if (onMw !== elevatedOnly) continue;
 
       const theme = MONKEY_COLORS[car.color];
-      const px = this.offsetX + car.x * cs;
-      const py = this.offsetY + car.y * cs;
+      const renderX = car.x + (car.vxOffset ?? 0);
+      const renderY = car.y + (car.vyOffset ?? 0);
+      const renderAngle = car.angle + (car.vAngleOffset ?? 0);
+      const rageJitter =
+        car.rage > 0.35 ? Math.sin(sim.timeSec * 38 + renderX * 5) * cs * 0.025 * car.rage : 0;
+      const px = this.offsetX + renderX * cs + rageJitter;
+      const py = this.offsetY + renderY * cs;
       const carW = cs * 0.44;
       const carH = cs * 0.28;
 
       ctx.save();
       ctx.translate(px, py);
-      ctx.rotate(car.angle);
+      ctx.rotate(renderAngle);
 
-      // Night headlights
       if (night) {
         const grad = ctx.createRadialGradient(carW * 0.5, 0, 1, carW * 1.9, 0, cs * 0.9);
         grad.addColorStop(0, 'rgba(254, 240, 138, 0.45)');
@@ -693,12 +1031,10 @@ export class MotorwaysRenderer {
         ctx.fill();
       }
 
-      // Car shadow
       ctx.fillStyle = 'rgba(0,0,0,0.28)';
       this.roundRect(ctx, -carW / 2 + 1, -carH / 2 + 2, carW, carH, cs * 0.08);
       ctx.fill();
 
-      // Car body
       ctx.fillStyle = theme.fill;
       ctx.strokeStyle = theme.dark;
       ctx.lineWidth = Math.max(1.5, cs * 0.045);
@@ -706,26 +1042,32 @@ export class MotorwaysRenderer {
       ctx.fill();
       ctx.stroke();
 
-      // Brake lights when stopped
       if (car.speed < 0.45) {
         ctx.fillStyle = '#ef4444';
         ctx.fillRect(-carW / 2 - 1, -carH * 0.35, 2.5, carH * 0.25);
         ctx.fillRect(-carW / 2 - 1, carH * 0.1, 2.5, carH * 0.25);
       }
 
-      // Goofy Monkey Driver Head!
+      // Honk sound-wave arcs when furious
+      if (car.moodTimer > 0.6 && car.rage > 0.15) {
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(carW * 0.55, 0, cs * 0.16, -0.7, 0.7);
+        ctx.stroke();
+      }
+
+      // Goofy Monkey Driver Head
       const headR = cs * 0.11;
       ctx.fillStyle = '#78350f';
-      // Ears
       ctx.beginPath();
       ctx.arc(carW * 0.06, -headR * 0.95, headR * 0.5, 0, Math.PI * 2);
       ctx.arc(carW * 0.06, headR * 0.95, headR * 0.5, 0, Math.PI * 2);
       ctx.fill();
-      // Face
       ctx.beginPath();
       ctx.arc(carW * 0.08, 0, headR, 0, Math.PI * 2);
       ctx.fill();
-      // Googly eyes
+
       ctx.fillStyle = '#fff';
       ctx.beginPath();
       ctx.arc(carW * 0.13, -headR * 0.38, headR * 0.36, 0, Math.PI * 2);
@@ -739,15 +1081,93 @@ export class MotorwaysRenderer {
 
       ctx.restore();
 
-      // Floating rage / confused mood bubble
+      // Comic Speech Bubble when honking / stuck / confused
       if (car.moodEmoji && car.moodTimer > 0) {
         ctx.save();
-        ctx.font = `${Math.max(12, Math.floor(cs * 0.42))}px system-ui, sans-serif`;
+        const isShortEmoji = car.moodEmoji.length <= 3;
+        ctx.font = isShortEmoji
+          ? `${Math.max(12, Math.floor(cs * 0.36))}px system-ui, sans-serif`
+          : `800 10px system-ui, sans-serif`;
+        const padX = isShortEmoji ? 8 : 10;
+        const bw = ctx.measureText(car.moodEmoji).width + padX * 2;
+        const bh = 20;
+        const bx = Math.max(bw / 2 + 4, Math.min(this.width - bw / 2 - 4, px));
+        const by = Math.max(bh + 6, py - cs * 0.62);
+
+        ctx.globalAlpha = Math.min(1, car.moodTimer * 2.2);
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = car.rage > 0.4 ? '#ef4444' : '#334155';
+        ctx.lineWidth = 1.6;
+        this.roundRect(ctx, bx - bw / 2, by - bh / 2, bw, bh, 9);
+        ctx.fill();
+        ctx.stroke();
+
+        // Tail
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(bx - 4, by + bh / 2 - 1);
+        ctx.lineTo(bx + 4, by + bh / 2 - 1);
+        ctx.lineTo(px, Math.min(by + bh / 2 + 6, py - cs * 0.25));
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(car.moodEmoji, px, py - cs * 0.42);
+        ctx.fillText(car.moodEmoji, bx, by + 0.5);
         ctx.restore();
       }
+    }
+  }
+
+  private renderPings(ctx: CanvasRenderingContext2D, sim: TrafficSimulation): void {
+    const cs = this.cellSize;
+    for (const ping of sim.pings) {
+      const c = this.gridToCenter(ping.gx, ping.gy);
+      const age = ping.maxLife - ping.life;
+      const alpha = Math.min(1, ping.life / 0.8);
+      const pulse = (age * 1.4) % 1;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      // Concentric expanding ring
+      ctx.strokeStyle = ping.playerColor;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, cs * (0.35 + pulse * 0.85), 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Center beacon
+      ctx.fillStyle = ping.playerColor;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, cs * 0.16, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Floating banner
+      const bounce = Math.abs(Math.sin(age * 6)) * 4;
+      const label = `${ping.emoji} ${ping.text}`;
+      ctx.font = '800 11px system-ui, sans-serif';
+      const w = Math.max(ctx.measureText(label).width, ctx.measureText(ping.playerName).width) + 18;
+      const bx = Math.max(w / 2 + 6, Math.min(this.width - w / 2 - 6, c.x));
+      const by = Math.max(36, c.y - cs * 0.85 - bounce);
+
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+      this.roundRect(ctx, bx - w / 2, by - 18, w, 32, 10);
+      ctx.fill();
+      ctx.strokeStyle = ping.playerColor;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, bx, by - 6);
+
+      ctx.font = '700 9px system-ui, sans-serif';
+      ctx.fillStyle = ping.playerColor;
+      ctx.fillText(ping.playerName, bx, by + 7);
+      ctx.restore();
     }
   }
 
@@ -770,11 +1190,13 @@ export class MotorwaysRenderer {
     ctx.strokeStyle =
       uiState.activeTool === 'erase'
         ? '#ef4444'
-        : blocked
-          ? '#ef4444'
-          : night
-            ? '#facc15'
-            : '#f97316';
+        : uiState.activeTool === 'ping'
+          ? '#38bdf8'
+          : blocked
+            ? '#ef4444'
+            : night
+              ? '#facc15'
+              : '#f97316';
     ctx.lineWidth = 2.5;
     this.roundRect(ctx, px + 2, py + 2, cs - 4, cs - 4, 6);
     ctx.stroke();
@@ -783,7 +1205,7 @@ export class MotorwaysRenderer {
       ctx.font = `${Math.floor(cs * 0.44)}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.globalAlpha = 0.8;
+      ctx.globalAlpha = 0.85;
       ctx.fillText(TOOL_META[uiState.activeTool].icon, px + cs / 2, py + cs / 2);
     }
     ctx.restore();
@@ -806,7 +1228,6 @@ export class MotorwaysRenderer {
       ctx.arc(c.x, c.y, cs * 0.36, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Player chip tag
       ctx.font = '700 11px system-ui, sans-serif';
       const label = `${TOOL_META[cur.tool].icon} ${cur.name}`;
       const tw = ctx.measureText(label).width + 12;
@@ -837,6 +1258,11 @@ export class MotorwaysRenderer {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(p.emoji, px, py);
+      } else if (p.isConfetti) {
+        ctx.translate(px, py);
+        ctx.rotate(p.rot ?? 0);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size * 0.6, -p.size * 0.35, p.size * 1.2, p.size * 0.7);
       } else {
         ctx.fillStyle = p.color;
         ctx.beginPath();

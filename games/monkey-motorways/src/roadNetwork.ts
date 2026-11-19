@@ -62,6 +62,34 @@ export function buildBuildingLookup(houses: House[], markets: Market[]): Buildin
   return { houseByCell, marketByCell };
 }
 
+export interface PreviewSegment {
+  ax: number;
+  ay: number;
+  bx: number;
+  by: number;
+  isBridge: boolean;
+  valid: boolean;
+  reason?: string;
+}
+
+export interface RoadPathPreview {
+  segments: PreviewSegment[];
+  roadsCost: number;
+  bridgesCost: number;
+  valid: boolean;
+  reason?: string;
+}
+
+export interface CellRemovalResult {
+  changed: boolean;
+  removedEdges: Array<{ ax: number; ay: number; bx: number; by: number }>;
+  removedLight: boolean;
+  removedRoundabout: boolean;
+  removedMotorway: VineMotorway | null;
+  roadsRefunded: number;
+  bridgesRefunded: number;
+}
+
 export class RoadNetwork {
   public edges = new Set<string>();
   public adjacency = new Map<string, Set<string>>();
@@ -150,6 +178,7 @@ export class RoadNetwork {
     map: MapDefinition,
     lookup: BuildingLookup,
     inventory: Inventory,
+    virtualDegrees?: Map<string, number>,
   ): { ok: boolean; reason?: string; roadsCost: number; bridgesCost: number } {
     if (!inBounds(ax, ay) || !inBounds(bx, by)) {
       return { ok: false, roadsCost: 0, bridgesCost: 0 };
@@ -167,14 +196,36 @@ export class RoadNetwork {
       return { ok: false, reason: 'Obstáculo na selva!', roadsCost: 0, bridgesCost: 0 };
     }
 
-    // Prevent internal edges within the same 2x2 market
-    const ma = lookup.marketByCell.get(cellKey(ax, ay));
-    const mb = lookup.marketByCell.get(cellKey(bx, by));
+    const ka = cellKey(ax, ay);
+    const kb = cellKey(bx, by);
+    const degA = virtualDegrees ? (virtualDegrees.get(ka) ?? this.getDegree(ax, ay)) : this.getDegree(ax, ay);
+    const degB = virtualDegrees ? (virtualDegrees.get(kb) ?? this.getDegree(bx, by)) : this.getDegree(bx, by);
+
+    const ha = lookup.houseByCell.get(ka);
+    const hb = lookup.houseByCell.get(kb);
+    const ma = lookup.marketByCell.get(ka);
+    const mb = lookup.marketByCell.get(kb);
+
+    // Prevent internal edges within the same 2x2 market or between adjacent markets/houses
     if (ma && mb && ma.id === mb.id) {
       return { ok: false, roadsCost: 0, bridgesCost: 0 };
     }
+    if (ha && hb) {
+      return { ok: false, reason: 'Não ligue casinhas direto entre si!', roadsCost: 0, bridgesCost: 0 };
+    }
+    if (ma && mb) {
+      return { ok: false, reason: 'Não ligue mercados direto entre si!', roadsCost: 0, bridgesCost: 0 };
+    }
 
-    // Prevent direct house-to-house or building-to-building shortcut? Actually allow house->market if adjacent!
+    // Prevent "road through building" trap: houses have max 1 driveway exit,
+    // and each market cell accepts max 1 terminal connection so roads never pass through buildings.
+    if ((ha && degA >= 1) || (hb && degB >= 1)) {
+      return { ok: false, reason: 'Casinha só pode ter 1 saída!', roadsCost: 0, bridgesCost: 0 };
+    }
+    if ((ma && degA >= 1) || (mb && degB >= 1)) {
+      return { ok: false, reason: 'Não atravesse o mercado! Contorne por fora.', roadsCost: 0, bridgesCost: 0 };
+    }
+
     // Check diagonal over water barrier
     const isDiag = ax !== bx && ay !== by;
     if ((ta === 'water' || tb === 'water') && isDiag) {
@@ -185,8 +236,8 @@ export class RoadNetwork {
     }
 
     const bridgesCost =
-      (ta === 'water' && this.getDegree(ax, ay) === 0 ? 1 : 0) +
-      (tb === 'water' && this.getDegree(bx, by) === 0 ? 1 : 0);
+      (ta === 'water' && degA === 0 ? 1 : 0) +
+      (tb === 'water' && degB === 0 ? 1 : 0);
     const roadsCost = ta !== 'water' && tb !== 'water' ? 1 : 0;
 
     if (inventory.bridges < bridgesCost) {
@@ -197,6 +248,73 @@ export class RoadNetwork {
     }
 
     return { ok: true, roadsCost, bridgesCost };
+  }
+
+  previewRoadPath(
+    cells: GridCoord[],
+    map: MapDefinition,
+    lookup: BuildingLookup,
+    inventory: Inventory,
+  ): RoadPathPreview {
+    if (cells.length < 2) {
+      return { segments: [], roadsCost: 0, bridgesCost: 0, valid: false };
+    }
+
+    const virtualInv: Inventory = { ...inventory };
+    const virtualDeg = new Map<string, number>();
+    const virtualEdges = new Set<string>();
+    const segments: PreviewSegment[] = [];
+    let roadsCost = 0;
+    let bridgesCost = 0;
+    let firstInvalidReason: string | undefined;
+
+    for (let i = 0; i < cells.length - 1; i++) {
+      const a = cells[i];
+      const b = cells[i + 1];
+      const ek = edgeKey(a.x, a.y, b.x, b.y);
+      if (this.hasEdge(a.x, a.y, b.x, b.y) || virtualEdges.has(ek)) {
+        continue;
+      }
+
+      const ta = map.tiles[a.y]?.[a.x];
+      const tb = map.tiles[b.y]?.[b.x];
+      const isBridge = ta === 'water' || tb === 'water';
+      const check = this.canAddEdge(a.x, a.y, b.x, b.y, map, lookup, virtualInv, virtualDeg);
+
+      if (check.ok) {
+        virtualInv.roads -= check.roadsCost;
+        virtualInv.bridges -= check.bridgesCost;
+        roadsCost += check.roadsCost;
+        bridgesCost += check.bridgesCost;
+        virtualEdges.add(ek);
+        const ka = cellKey(a.x, a.y);
+        const kb = cellKey(b.x, b.y);
+        virtualDeg.set(ka, (virtualDeg.get(ka) ?? this.getDegree(a.x, a.y)) + 1);
+        virtualDeg.set(kb, (virtualDeg.get(kb) ?? this.getDegree(b.x, b.y)) + 1);
+        segments.push({ ax: a.x, ay: a.y, bx: b.x, by: b.y, isBridge, valid: true });
+      } else {
+        if (!firstInvalidReason && check.reason) {
+          firstInvalidReason = check.reason;
+        }
+        segments.push({
+          ax: a.x,
+          ay: a.y,
+          bx: b.x,
+          by: b.y,
+          isBridge,
+          valid: false,
+          reason: check.reason,
+        });
+      }
+    }
+
+    return {
+      segments,
+      roadsCost,
+      bridgesCost,
+      valid: segments.some((s) => s.valid),
+      reason: firstInvalidReason,
+    };
   }
 
   addEdge(
@@ -243,11 +361,75 @@ export class RoadNetwork {
       inventory.bridges += 1;
     }
 
-    // Refund lights/roundabouts if node lost all roads
     this.cleanupOrphanedNodes(ax, ay, inventory);
     this.cleanupOrphanedNodes(bx, by, inventory);
     this.version++;
     return true;
+  }
+
+  removeCellContentDetailed(
+    gx: number,
+    gy: number,
+    map: MapDefinition,
+    inventory: Inventory,
+  ): CellRemovalResult {
+    const result: CellRemovalResult = {
+      changed: false,
+      removedEdges: [],
+      removedLight: false,
+      removedRoundabout: false,
+      removedMotorway: null,
+      roadsRefunded: 0,
+      bridgesRefunded: 0,
+    };
+    const key = cellKey(gx, gy);
+
+    // Priority 1: Remove ONLY the Traffic Light if present (preserve intersection roads!)
+    if (this.lights.delete(key)) {
+      inventory.lights += 1;
+      result.removedLight = true;
+      result.changed = true;
+      this.version++;
+      return result;
+    }
+
+    // Priority 2: Remove ONLY the Roundabout if present (preserve intersection roads!)
+    if (this.roundabouts.delete(key)) {
+      inventory.roundabouts += 1;
+      result.removedRoundabout = true;
+      result.changed = true;
+      this.version++;
+      return result;
+    }
+
+    // Priority 3: Remove ONLY the Motorway anchored at this cell
+    const mwIdx = this.motorways.findIndex(
+      (m) => (m.ax === gx && m.ay === gy) || (m.bx === gx && m.by === gy),
+    );
+    if (mwIdx >= 0) {
+      const [removed] = this.motorways.splice(mwIdx, 1);
+      inventory.motorways += 1;
+      result.removedMotorway = removed;
+      result.changed = true;
+      this.version++;
+      return result;
+    }
+
+    // Priority 4: Otherwise remove road edges attached to this cell
+    const prevRoads = inventory.roads;
+    const prevBridges = inventory.bridges;
+    const neighbors = this.getNeighbors(gx, gy);
+    for (const n of neighbors) {
+      if (this.removeEdge(gx, gy, n.x, n.y, map, inventory)) {
+        result.removedEdges.push({ ax: gx, ay: gy, bx: n.x, by: n.y });
+        result.changed = true;
+      }
+    }
+    result.roadsRefunded = Math.max(0, inventory.roads - prevRoads);
+    result.bridgesRefunded = Math.max(0, inventory.bridges - prevBridges);
+
+    if (result.changed) this.version++;
+    return result;
   }
 
   removeCellContent(
@@ -256,38 +438,7 @@ export class RoadNetwork {
     map: MapDefinition,
     inventory: Inventory,
   ): boolean {
-    let changed = false;
-    const key = cellKey(gx, gy);
-
-    // First check if clicking a traffic light or roundabout on this cell?
-    // If erasing cell, remove all attached edges + any light/roundabout/motorway anchored here
-    const neighbors = this.getNeighbors(gx, gy);
-    for (const n of neighbors) {
-      if (this.removeEdge(gx, gy, n.x, n.y, map, inventory)) {
-        changed = true;
-      }
-    }
-
-    if (this.lights.delete(key)) {
-      inventory.lights += 1;
-      changed = true;
-    }
-    if (this.roundabouts.delete(key)) {
-      inventory.roundabouts += 1;
-      changed = true;
-    }
-
-    const mwIdx = this.motorways.findIndex(
-      (m) => (m.ax === gx && m.ay === gy) || (m.bx === gx && m.by === gy),
-    );
-    if (mwIdx >= 0) {
-      this.motorways.splice(mwIdx, 1);
-      inventory.motorways += 1;
-      changed = true;
-    }
-
-    if (changed) this.version++;
-    return changed;
+    return this.removeCellContentDetailed(gx, gy, map, inventory).changed;
   }
 
   private cleanupOrphanedNodes(x: number, y: number, inventory: Inventory): void {
@@ -360,7 +511,6 @@ export class RoadNetwork {
       return { changed: false, reason: 'Não cabe rotatória dentro do prédio!' };
     }
     if (this.lights.has(key)) {
-      // Auto-refund light if upgrading intersection to roundabout
       this.lights.delete(key);
       inventory.lights += 1;
     }
@@ -376,6 +526,54 @@ export class RoadNetwork {
     return { changed: true, action: 'added' };
   }
 
+  canAddMotorway(
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    map: MapDefinition,
+    lookup: BuildingLookup,
+    inventory: Inventory,
+  ): { ok: boolean; reason?: string } {
+    if (!inBounds(ax, ay) || !inBounds(bx, by)) {
+      return { ok: false };
+    }
+    const dist = Math.hypot(bx - ax, by - ay);
+    if (dist < 2.2) {
+      return { ok: false, reason: 'Estique o cipó por pelo menos 3 casas!' };
+    }
+    if (inventory.motorways <= 0) {
+      return { ok: false, reason: 'Sem Cipós Express no estoque!' };
+    }
+    const ka = cellKey(ax, ay);
+    const kb = cellKey(bx, by);
+    const ta = map.tiles[ay][ax];
+    const tb = map.tiles[by][bx];
+    if (
+      ta === 'water' ||
+      tb === 'water' ||
+      ta === 'rock' ||
+      tb === 'rock' ||
+      ta === 'tree' ||
+      tb === 'tree' ||
+      lookup.marketByCell.has(ka) ||
+      lookup.marketByCell.has(kb) ||
+      lookup.houseByCell.has(ka) ||
+      lookup.houseByCell.has(kb)
+    ) {
+      return { ok: false, reason: 'Prenda as pontas do cipó em terra/estrada!' };
+    }
+    const dup = this.motorways.some(
+      (m) =>
+        (m.ax === ax && m.ay === ay && m.bx === bx && m.by === by) ||
+        (m.ax === bx && m.ay === by && m.bx === ax && m.by === ay),
+    );
+    if (dup) {
+      return { ok: false, reason: 'Já existe um cipó ligando esses pontos!' };
+    }
+    return { ok: true };
+  }
+
   addMotorway(
     ax: number,
     ay: number,
@@ -386,37 +584,9 @@ export class RoadNetwork {
     inventory: Inventory,
     id: string,
   ): { added: boolean; reason?: string } {
-    if (!inBounds(ax, ay) || !inBounds(bx, by)) {
-      return { added: false };
-    }
-    const dist = Math.hypot(bx - ax, by - ay);
-    if (dist < 2.2) {
-      return { added: false, reason: 'Estique o cipó por pelo menos 3 casas!' };
-    }
-    if (inventory.motorways <= 0) {
-      return { added: false, reason: 'Sem Cipós Express no estoque!' };
-    }
-    const ka = cellKey(ax, ay);
-    const kb = cellKey(bx, by);
-    if (
-      map.tiles[ay][ax] === 'water' ||
-      map.tiles[by][bx] === 'water' ||
-      map.tiles[ay][ax] === 'rock' ||
-      map.tiles[by][bx] === 'rock' ||
-      lookup.marketByCell.has(ka) ||
-      lookup.marketByCell.has(kb) ||
-      lookup.houseByCell.has(ka) ||
-      lookup.houseByCell.has(kb)
-    ) {
-      return { added: false, reason: 'Prenda as pontas do cipó em terra/estrada!' };
-    }
-    const dup = this.motorways.some(
-      (m) =>
-        (m.ax === ax && m.ay === ay && m.bx === bx && m.by === by) ||
-        (m.ax === bx && m.ay === by && m.bx === ax && m.by === ay),
-    );
-    if (dup) {
-      return { added: false, reason: 'Já existe um cipó ligando esses pontos!' };
+    const check = this.canAddMotorway(ax, ay, bx, by, map, lookup, inventory);
+    if (!check.ok) {
+      return { added: false, reason: check.reason };
     }
 
     inventory.motorways -= 1;
