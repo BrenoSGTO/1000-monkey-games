@@ -1,4 +1,6 @@
 import {
+  BALL_GRAVITY,
+  BALL_MAX_VY,
   BASE_SPEED,
   CEILING_Y,
   CUBE_GRAVITY,
@@ -11,6 +13,7 @@ import {
   SHIP_MAX_VY,
   SHIP_THRUST,
   TILE,
+  WAVE_HITBOX_SIZE,
   type Checkpoint,
   type LevelData,
   type LevelObject,
@@ -21,15 +24,15 @@ export interface PhysicsEvents {
   jumped?: boolean;
   pad?: boolean;
   orb?: boolean;
-  portal?: { label: string; color: string };
+  portal?: { label: string; color: string; x: number; y: number };
   banana?: { x: number; y: number };
   died?: { x: number; y: number };
   won?: boolean;
 }
 
-export function createInitialPlayer(): PlayerState {
+export function createInitialPlayer(startX = 40): PlayerState {
   return {
-    x: 40,
+    x: startX,
     y: GROUND_Y - PLAYER_SIZE,
     vx: BASE_SPEED,
     vy: 0,
@@ -85,6 +88,21 @@ export function snapshotCheckpoint(player: PlayerState, songBeatOffset: number):
   };
 }
 
+export function isNearSpike(playerX: number, level: LevelData, marginSec = 0.5, speedMult = 1): boolean {
+  const marginPx = BASE_SPEED * speedMult * marginSec;
+  const minX = playerX - marginPx * 0.45;
+  const maxX = playerX + PLAYER_SIZE + marginPx;
+  for (let i = 0; i < level.objects.length; i++) {
+    const obj = level.objects[i];
+    if (obj.type !== 'spike' && obj.type !== 'spike_down') continue;
+    const ox = obj.gx * TILE;
+    if (ox >= minX && ox <= maxX) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export interface StepInput {
   held: boolean;
   justPressed: boolean;
@@ -118,7 +136,6 @@ export function stepPhysics(
 
   if (!player.alive) return { events, consumedJump, consumedOrb };
 
-  const prevX = player.x;
   const prevY = player.y;
 
   player.vx = BASE_SPEED * player.speedMult;
@@ -149,6 +166,22 @@ export function stepPhysics(
       const target = Math.round(player.rot / (Math.PI / 2)) * (Math.PI / 2);
       player.rot += (target - player.rot) * Math.min(1, dt * 22);
     }
+  } else if (player.form === 'ball') {
+    if ((input.justPressed || input.jumpBuffer > 0) && (player.onGround || input.coyoteTimer > 0)) {
+      player.grav = (player.grav === 1 ? -1 : 1) as 1 | -1;
+      player.vy = 210 * player.grav;
+      player.onGround = false;
+      player.scaleX = 1.25;
+      player.scaleY = 0.76;
+      events.jumped = true;
+      consumedJump = true;
+      consumedOrb = true;
+    }
+
+    player.vy += BALL_GRAVITY * player.grav * dt;
+    player.vy = Math.max(-BALL_MAX_VY, Math.min(BALL_MAX_VY, player.vy));
+    player.y += player.vy * dt;
+    player.rot += 10.5 * player.grav * dt;
   } else if (player.form === 'ship') {
     const accel = input.held ? SHIP_THRUST * player.grav : SHIP_GRAVITY * player.grav;
     player.vy += accel * dt;
@@ -167,9 +200,10 @@ export function stepPhysics(
 
   // Floor & ceiling bounds
   let landedThisStep = false;
+  const isGroundForm = player.form === 'cube' || player.form === 'ball';
   if (player.y + PLAYER_SIZE >= GROUND_Y) {
     player.y = GROUND_Y - PLAYER_SIZE;
-    if (player.grav === 1 && player.form === 'cube') {
+    if (player.grav === 1 && isGroundForm) {
       if (!player.onGround && player.vy > 180) {
         player.scaleX = 1.22;
         player.scaleY = 0.78;
@@ -177,8 +211,6 @@ export function stepPhysics(
       player.vy = 0;
       player.onGround = true;
       landedThisStep = true;
-    } else if (player.form === 'ship' || player.form === 'wave') {
-      if (player.vy > 0) player.vy = 0;
     } else {
       if (player.vy > 0) player.vy = 0;
     }
@@ -186,7 +218,7 @@ export function stepPhysics(
 
   if (player.y <= CEILING_Y) {
     player.y = CEILING_Y;
-    if (player.grav === -1 && player.form === 'cube') {
+    if (player.grav === -1 && isGroundForm) {
       if (!player.onGround && player.vy < -180) {
         player.scaleX = 1.22;
         player.scaleY = 0.78;
@@ -194,14 +226,12 @@ export function stepPhysics(
       player.vy = 0;
       player.onGround = true;
       landedThisStep = true;
-    } else if (player.form === 'ship' || player.form === 'wave') {
-      if (player.vy < 0) player.vy = 0;
     } else {
       if (player.vy < 0) player.vy = 0;
     }
   }
 
-  if (!landedThisStep && player.form === 'cube') {
+  if (!landedThisStep && isGroundForm) {
     // Will be set true below if resting on a block
     player.onGround = false;
   }
@@ -210,10 +240,9 @@ export function stepPhysics(
   const minGx = Math.floor((player.x - TILE * 2) / TILE);
   const maxGx = Math.ceil((player.x + PLAYER_SIZE + TILE * 2) / TILE);
 
-  const px = player.x;
-  const py = player.y;
   const pw = PLAYER_SIZE;
   const ph = PLAYER_SIZE;
+  const waveInset = (PLAYER_SIZE - WAVE_HITBOX_SIZE) / 2; // 8px
 
   // 1) Process solid blocks first so landing resolves cleanly
   for (let i = 0; i < level.objects.length; i++) {
@@ -224,34 +253,50 @@ export function stepPhysics(
     const bx = obj.gx * TILE;
     const by = GROUND_Y - (obj.gy + 1) * TILE;
 
-    if (!rectsOverlap(px, py, pw, ph, bx, by, TILE, TILE)) continue;
-
     if (player.form === 'wave') {
-      player.alive = false;
-      events.died = { x: player.x + pw / 2, y: player.y + ph / 2 };
-      return { events, consumedJump, consumedOrb };
+      if (
+        rectsOverlap(
+          player.x + waveInset,
+          player.y + waveInset,
+          WAVE_HITBOX_SIZE,
+          WAVE_HITBOX_SIZE,
+          bx,
+          by,
+          TILE,
+          TILE,
+        )
+      ) {
+        player.alive = false;
+        events.died = { x: player.x + pw / 2, y: player.y + ph / 2 };
+        return { events, consumedJump, consumedOrb };
+      }
+      continue;
     }
+
+    const px = player.x;
+    const py = player.y; // always read fresh player.y
+    if (!rectsOverlap(px, py, pw, ph, bx, by, TILE, TILE)) continue;
 
     const prevBottom = prevY + ph;
     const prevTop = prevY;
-    const landingTol = 14;
+    const landingTol = 15;
 
     if (player.grav === 1 && prevBottom <= by + landingTol && player.vy >= 0) {
-      if (player.form === 'cube' && player.vy > 180) {
+      if (isGroundForm && player.vy > 180) {
         player.scaleX = 1.2;
         player.scaleY = 0.8;
       }
       player.y = by - ph;
       player.vy = 0;
-      if (player.form === 'cube') player.onGround = true;
+      if (isGroundForm) player.onGround = true;
     } else if (player.grav === -1 && prevTop >= by + TILE - landingTol && player.vy <= 0) {
-      if (player.form === 'cube' && player.vy < -180) {
+      if (isGroundForm && player.vy < -180) {
         player.scaleX = 1.2;
         player.scaleY = 0.8;
       }
       player.y = by + TILE;
       player.vy = 0;
-      if (player.form === 'cube') player.onGround = true;
+      if (isGroundForm) player.onGround = true;
     } else if (player.form === 'ship') {
       // Ship can also gently scrape ceiling/floor blocks opposite its gravity
       if (prevBottom <= by + landingTol && player.vy >= 0) {
@@ -266,16 +311,17 @@ export function stepPhysics(
         return { events, consumedJump, consumedOrb };
       }
     } else {
-      // Cube hit side or wrong face of block
+      // Cube or Ball hit side or wrong face of block
       player.alive = false;
       events.died = { x: player.x + pw / 2, y: player.y + ph / 2 };
       return { events, consumedJump, consumedOrb };
     }
   }
 
-  // Check if cube is still standing on a block even when vy===0
-  if (player.form === 'cube' && !player.onGround) {
+  // Check if cube or ball is still standing on a block even when vy===0
+  if (isGroundForm && !player.onGround) {
     const eps = 2;
+    const px = player.x;
     for (let i = 0; i < level.objects.length; i++) {
       const obj = level.objects[i];
       if (obj.gx < minGx || obj.gx > maxGx || obj.type !== 'block') continue;
@@ -298,6 +344,12 @@ export function stepPhysics(
     }
   }
 
+  // Hurtbox for spikes: tighter & fairer (never die grazing a tip!)
+  const hurtX = player.form === 'wave' ? player.x + waveInset : player.x + 5;
+  const hurtY = player.form === 'wave' ? player.y + waveInset : player.y + 5;
+  const hurtW = player.form === 'wave' ? WAVE_HITBOX_SIZE : pw - 10;
+  const hurtH = player.form === 'wave' ? WAVE_HITBOX_SIZE : ph - 10;
+
   // 2) Process spikes, pads, orbs, portals, bananas
   for (let i = 0; i < level.objects.length; i++) {
     const obj = level.objects[i];
@@ -308,20 +360,20 @@ export function stepPhysics(
     const wy = GROUND_Y - (obj.gy + 1) * TILE;
 
     if (obj.type === 'spike') {
-      // Forgiving inner hitbox
-      if (rectsOverlap(player.x + 3, player.y + 3, pw - 6, ph - 4, wx + 11, wy + 14, 18, 25)) {
+      // Geometry Dash fair inner hitbox (~47% base width, ~55% height near base)
+      if (rectsOverlap(hurtX, hurtY, hurtW, hurtH, wx + 12, wy + 18, 16, 20)) {
         player.alive = false;
         events.died = { x: player.x + pw / 2, y: player.y + ph / 2 };
         return { events, consumedJump, consumedOrb };
       }
     } else if (obj.type === 'spike_down') {
-      if (rectsOverlap(player.x + 3, player.y + 2, pw - 6, ph - 4, wx + 11, wy + 1, 18, 25)) {
+      if (rectsOverlap(hurtX, hurtY, hurtW, hurtH, wx + 12, wy + 2, 16, 20)) {
         player.alive = false;
         events.died = { x: player.x + pw / 2, y: player.y + ph / 2 };
         return { events, consumedJump, consumedOrb };
       }
     } else if (obj.type === 'pad_yellow') {
-      if (!player.activatedIds.has(i) && rectsOverlap(player.x, player.y, pw, ph, wx + 4, wy + 24, TILE - 8, 18)) {
+      if (!player.activatedIds.has(i) && rectsOverlap(player.x, player.y, pw, ph, wx + 4, wy + 22, TILE - 8, 20)) {
         player.activatedIds.add(i);
         player.vy = PAD_YELLOW_VEL * player.grav;
         player.onGround = false;
@@ -330,7 +382,7 @@ export function stepPhysics(
         events.pad = true;
       }
     } else if (obj.type === 'pad_gravity') {
-      if (!player.activatedIds.has(i) && rectsOverlap(player.x, player.y, pw, ph, wx + 4, wy + 24, TILE - 8, 18)) {
+      if (!player.activatedIds.has(i) && rectsOverlap(player.x, player.y, pw, ph, wx + 4, wy + 22, TILE - 8, 20)) {
         player.activatedIds.add(i);
         player.grav = (player.grav === 1 ? -1 : 1) as 1 | -1;
         player.vy = 420 * player.grav;
@@ -341,7 +393,7 @@ export function stepPhysics(
       if (
         !player.activatedIds.has(i) &&
         (input.justPressed || input.orbBuffer > 0) &&
-        rectsOverlap(player.x - 6, player.y - 6, pw + 12, ph + 12, wx - 4, wy - 4, TILE + 8, TILE + 8)
+        rectsOverlap(player.x - 8, player.y - 8, pw + 16, ph + 16, wx - 6, wy - 6, TILE + 12, TILE + 12)
       ) {
         player.activatedIds.add(i);
         player.vy = ORB_YELLOW_VEL * player.grav;
@@ -355,7 +407,7 @@ export function stepPhysics(
       if (
         !player.activatedIds.has(i) &&
         (input.justPressed || input.orbBuffer > 0) &&
-        rectsOverlap(player.x - 6, player.y - 6, pw + 12, ph + 12, wx - 4, wy - 4, TILE + 8, TILE + 8)
+        rectsOverlap(player.x - 8, player.y - 8, pw + 16, ph + 16, wx - 6, wy - 6, TILE + 12, TILE + 12)
       ) {
         player.activatedIds.add(i);
         player.grav = (player.grav === 1 ? -1 : 1) as 1 | -1;
@@ -370,46 +422,62 @@ export function stepPhysics(
         events.banana = { x: wx + TILE / 2, y: wy + TILE / 2 };
       }
     } else if (obj.type.startsWith('portal_')) {
-      // Portals have a tall 2.6-tile trigger zone
+      // Check if another portal shares this exact column (e.g. split custom path)
+      let hasColumnSibling = false;
+      for (let j = 0; j < level.objects.length; j++) {
+        if (j !== i && level.objects[j].gx === obj.gx && level.objects[j].type.startsWith('portal_')) {
+          hasColumnSibling = true;
+          break;
+        }
+      }
+      const zoneY = hasColumnSibling ? wy - TILE * 1.1 : CEILING_Y;
+      const zoneH = hasColumnSibling ? TILE * 3.2 : GROUND_Y;
+
       if (
         !player.activatedIds.has(i) &&
-        rectsOverlap(player.x, player.y, pw, ph, wx + 4, wy - TILE * 0.8, TILE - 8, TILE * 2.6)
+        rectsOverlap(player.x, player.y, pw, ph, wx + 4, zoneY, TILE - 8, zoneH)
       ) {
         player.activatedIds.add(i);
+        const pxCenter = wx + TILE / 2;
+        const pyCenter = player.y + ph / 2;
         switch (obj.type) {
           case 'portal_cube':
             player.form = 'cube';
-            events.portal = { label: 'CUBO MACACO!', color: '#4ade80' };
+            events.portal = { label: 'CUBO MACACO!', color: '#4ade80', x: pxCenter, y: pyCenter };
             break;
           case 'portal_ship':
             player.form = 'ship';
             player.rot = 0;
-            events.portal = { label: 'NAVE BANANA!', color: '#f43f5e' };
+            events.portal = { label: 'NAVE BANANA!', color: '#f43f5e', x: pxCenter, y: pyCenter };
             break;
           case 'portal_wave':
             player.form = 'wave';
             player.waveTrail = [{ x: player.x + pw / 2, y: player.y + ph / 2 }];
-            events.portal = { label: 'ONDA SURTADA!', color: '#22d3ee' };
+            events.portal = { label: 'ONDA SURTADA!', color: '#22d3ee', x: pxCenter, y: pyCenter };
+            break;
+          case 'portal_ball':
+            player.form = 'ball';
+            events.portal = { label: 'BOLA GRAVIDADE!', color: '#c084fc', x: pxCenter, y: pyCenter };
             break;
           case 'portal_grav_inv':
             player.grav = -1;
-            events.portal = { label: 'GRAVIDADE INVERTIDA!', color: '#38bdf8' };
+            events.portal = { label: 'GRAVIDADE INVERTIDA!', color: '#38bdf8', x: pxCenter, y: pyCenter };
             break;
           case 'portal_grav_norm':
             player.grav = 1;
-            events.portal = { label: 'GRAVIDADE NORMAL!', color: '#facc15' };
+            events.portal = { label: 'GRAVIDADE NORMAL!', color: '#facc15', x: pxCenter, y: pyCenter };
             break;
           case 'portal_speed_norm':
             player.speedMult = 1;
-            events.portal = { label: 'VELOCIDADE 1x', color: '#4ade80' };
+            events.portal = { label: 'VELOCIDADE 1x', color: '#4ade80', x: pxCenter, y: pyCenter };
             break;
           case 'portal_speed_fast':
-            player.speedMult = 1.25;
-            events.portal = { label: 'TURBO 1.25x!', color: '#facc15' };
+            player.speedMult = 1.3;
+            events.portal = { label: 'TURBO 1.3x!', color: '#facc15', x: pxCenter, y: pyCenter };
             break;
           case 'portal_speed_turbo':
             player.speedMult = 1.5;
-            events.portal = { label: 'SURTO 1.5x!!', color: '#fb7185' };
+            events.portal = { label: 'SURTO 1.5x!!', color: '#fb7185', x: pxCenter, y: pyCenter };
             break;
         }
       }
@@ -426,7 +494,7 @@ export function stepPhysics(
     if (player.waveTrail.length > 90) player.waveTrail.shift();
   } else {
     player.trail.push({ x: player.x + pw / 2, y: player.y + ph / 2, form: player.form });
-    if (player.trail.length > 22) player.trail.shift();
+    if (player.trail.length > 24) player.trail.shift();
   }
 
   // Check level finish line
