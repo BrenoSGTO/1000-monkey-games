@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#090d26" />
+      <stop offset="55%" stop-color="#140c34" />
+      <stop offset="100%" stop-color="#052126" />
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0e7490" />
+      <stop offset="100%" stop-color="#082f49" />
+    </linearGradient>
+    <linearGradient id="neonTrail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0" />
+      <stop offset="50%" stop-color="#22d3ee" stop-opacity="0.7" />
+      <stop offset="100%" stop-color="#facc15" stop-opacity="0.95" />
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Sky & Neon Grid -->
+  <rect width="640" height="360" fill="url(#bg)" />
+  <g stroke="#22d3ee" stroke-opacity="0.14" stroke-width="1">
+    <line x1="0" y1="60" x2="640" y2="60" />
+    <line x1="0" y1="120" x2="640" y2="120" />
+    <line x1="0" y1="180" x2="640" y2="180" />
+    <line x1="0" y1="240" x2="640" y2="240" />
+    <line x1="80" y1="0" x2="80" y2="280" />
+    <line x1="160" y1="0" x2="160" y2="280" />
+    <line x1="240" y1="0" x2="240" y2="280" />
+    <line x1="320" y1="0" x2="320" y2="280" />
+    <line x1="400" y1="0" x2="400" y2="280" />
+    <line x1="480" y1="0" x2="480" y2="280" />
+    <line x1="560" y1="0" x2="560" y2="280" />
+  </g>
+
+  <!-- Neon Banana Moon & Palm Silhouettes -->
+  <circle cx="520" cy="82" r="44" fill="#facc15" fill-opacity="0.16" />
+  <path d="M510 46 A36 36 0 1 0 554 96 A28 28 0 1 1 510 46 Z" fill="#fde047" filter="url(#glow)" />
+  <g fill="#064e3b" opacity="0.55">
+    <rect x="65" y="160" width="12" height="120" />
+    <path d="M71 162 Q35 135 15 162 Q48 156 71 162 Z" />
+    <path d="M71 162 Q105 130 128 158 Q96 155 71 162 Z" />
+    <path d="M71 162 Q75 118 108 118 Q84 140 71 162 Z" />
+  </g>
+
+  <!-- Equalizer Beat Bars -->
+  <g fill="#a855f7" opacity="0.35">
+    <rect x="130" y="220" width="18" height="60" rx="3" />
+    <rect x="156" y="190" width="18" height="90" rx="3" />
+    <rect x="182" y="235" width="18" height="45" rx="3" />
+    <rect x="208" y="170" width="18" height="110" rx="3" />
+    <rect x="234" y="210" width="18" height="70" rx="3" />
+    <rect x="410" y="205" width="18" height="75" rx="3" />
+    <rect x="436" y="165" width="18" height="115" rx="3" />
+    <rect x="462" y="225" width="18" height="55" rx="3" />
+  </g>
+
+  <!-- Neon Floor -->
+  <rect x="0" y="280" width="640" height="80" fill="url(#floor)" />
+  <line x1="0" y1="280" x2="640" y2="280" stroke="#22d3ee" stroke-width="4" filter="url(#glow)" />
+  <g stroke="#22d3ee" stroke-opacity="0.3" stroke-width="2">
+    <line x1="40" y1="280" x2="10" y2="360" />
+    <line x1="120" y1="280" x2="90" y2="360" />
+    <line x1="200" y1="280" x2="170" y2="360" />
+    <line x1="280" y1="280" x2="250" y2="360" />
+    <line x1="360" y1="280" x2="330" y2="360" />
+    <line x1="440" y1="280" x2="410" y2="360" />
+    <line x1="520" y1="280" x2="490" y2="360" />
+    <line x1="600" y1="280" x2="570" y2="360" />
+  </g>
+
+  <!-- Coconut Spikes -->
+  <g filter="url(#glow)">
+    <polygon points="270,280 294,225 318,280" fill="#1e1b4b" stroke="#fb7185" stroke-width="3" />
+    <polygon points="320,280 344,225 368,280" fill="#1e1b4b" stroke="#fb7185" stroke-width="3" />
+    <polygon points="370,280 394,225 418,280" fill="#1e1b4b" stroke="#fb7185" stroke-width="3" />
+  </g>
+
+  <!-- Jump Orb -->
+  <circle cx="485" cy="175" r="20" fill="#facc15" fill-opacity="0.25" stroke="#fde047" stroke-width="4" filter="url(#glow)" />
+  <circle cx="485" cy="175" r="9" fill="#fef08a" />
+
+  <!-- Neon Arc Trail -->
+  <path d="M55 245 Q175 110 295 142" fill="none" stroke="url(#neonTrail)" stroke-width="14" stroke-linecap="round" />
+
+  <!-- Cross-Eyed Monkey Cube Jumping -->
+  <g transform="translate(300, 145) rotate(-18)" filter="url(#glow)">
+    <!-- Ears -->
+    <circle cx="-38" cy="-12" r="14" fill="#78350f" stroke="#22d3ee" stroke-width="3" />
+    <circle cx="-38" cy="-12" r="7" fill="#fca5a5" />
+    <circle cx="38" cy="-12" r="14" fill="#78350f" stroke="#22d3ee" stroke-width="3" />
+    <circle cx="38" cy="-12" r="7" fill="#fca5a5" />
+    <!-- Cube Body -->
+    <rect x="-34" y="-34" width="68" height="68" rx="12" fill="#92400e" stroke="#22d3ee" stroke-width="4" />
+    <!-- Face mask -->
+    <rect x="-25" y="-6" width="50" height="32" rx="12" fill="#fde68a" />
+    <!-- Crossed Eyes -->
+    <circle cx="-13" cy="-14" r="10" fill="#ffffff" stroke="#1e293b" stroke-width="2" />
+    <circle cx="13" cy="-14" r="10" fill="#ffffff" stroke="#1e293b" stroke-width="2" />
+    <circle cx="-9" cy="-12" r="4.5" fill="#0f172a" />
+    <circle cx="8" cy="-16" r="4.5" fill="#0f172a" />
+    <!-- Grin -->
+    <path d="M-14 6 Q0 22 14 6 Z" fill="#991b1b" stroke="#0f172a" stroke-width="2" />
+    <rect x="-6" y="7" width="12" height="4" rx="1" fill="#ffffff" />
+  </g>
+
+  <!-- Title Badge -->
+  <g transform="translate(24, 24)">
+    <rect x="0" y="0" width="275" height="58" rx="14" fill="#0f172a" fill-opacity="0.88" stroke="#facc15" stroke-width="3" />
+    <text x="16" y="28" fill="#facc15" font-family="system-ui, sans-serif" font-size="22" font-weight="900">⚡ CHIMP DASH</text>
+    <text x="16" y="48" fill="#22d3ee" font-family="system-ui, sans-serif" font-size="13" font-weight="800">SURTO RÍTMICO • 4 FASES + EDITOR</text>
+  </g>
+</svg>
