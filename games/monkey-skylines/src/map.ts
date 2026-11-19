@@ -24,20 +24,26 @@ export function gridToWorld(gx: number, gy: number): { wx: number; wy: number } 
   };
 }
 
+/**
+ * gridToWorld returns the CENTER of diamond (gx, gy), so rounding (not flooring)
+ * maps any point inside a tile diamond back to the exact tile under the cursor.
+ */
 export function worldToGrid(wx: number, wy: number): { gx: number; gy: number } {
   const halfW = TILE_W * 0.5;
   const halfH = TILE_H * 0.5;
   const fx = (wx / halfW + wy / halfH) * 0.5;
   const fy = (wy / halfH - wx / halfW) * 0.5;
   return {
-    gx: Math.floor(fx),
-    gy: Math.floor(fy),
+    gx: Math.round(fx),
+    gy: Math.round(fy),
   };
 }
 
 export function inBounds(gx: number, gy: number): boolean {
   return gx >= 0 && gy >= 0 && gx < GRID_SIZE && gy < GRID_SIZE;
 }
+
+export const TOWN_HALL_POS = { gx: 10, gy: 6 };
 
 export function generateMap(seed: number): TileData[][] {
   const rng = mulberry32(seed);
@@ -52,9 +58,11 @@ export function generateMap(seed: number): TileData[][] {
         terrain: 'grass',
         building: null,
         level: 1,
+        damaged: false,
+        levelUpTimer: 0,
         powered: false,
         connectedToRoad: false,
-        localHappiness: 65,
+        localHappiness: 66,
         pollution: 0,
         trafficLoad: 0,
         variant: Math.floor(rng() * 1000),
@@ -63,31 +71,31 @@ export function generateMap(seed: number): TileData[][] {
     grid.push(row);
   }
 
-  // Winding jungle river cutting across the map
+  // Winding jungle river cutting across the lower half of the map (never covering starter plaza)
   const phase = rng() * Math.PI * 2;
-  const amp = 2.2 + rng() * 1.4;
-  const baseOffset = GRID_SIZE * 0.54;
+  const amp = 1.6 + rng() * 1.2;
+  const baseOffset = GRID_SIZE * 0.62;
   for (let x = 0; x < GRID_SIZE; x++) {
     const centerY = Math.round(baseOffset + Math.sin(x * 0.32 + phase) * amp);
     for (let dy = -1; dy <= 0; dy++) {
       const y = centerY + dy;
       if (inBounds(x, y)) {
+        if (x >= 6 && x <= 14 && y >= 4 && y <= 9) continue;
         grid[y][x].terrain = 'water';
       }
     }
   }
 
-  // Forest clusters away from center buildable area
+  // Forest clusters away from central starter plaza
   const numGroves = 10;
   for (let g = 0; g < numGroves; g++) {
     const cx = Math.floor(rng() * GRID_SIZE);
     const cy = Math.floor(rng() * GRID_SIZE);
-    const rad = 1.6 + rng() * 2.2;
+    const rad = 1.5 + rng() * 2.1;
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
         if (grid[y][x].terrain !== 'grass') continue;
-        // Keep central starter plaza open
-        if (Math.abs(x - 10) <= 3 && Math.abs(y - 8) <= 3) continue;
+        if (Math.abs(x - TOWN_HALL_POS.gx) <= 4 && Math.abs(y - TOWN_HALL_POS.gy) <= 3) continue;
         const d = Math.hypot(x - cx, y - cy);
         if (d <= rad && rng() < 0.72) {
           grid[y][x].terrain = 'forest';
@@ -96,17 +104,71 @@ export function generateMap(seed: number): TileData[][] {
     }
   }
 
-  // Starter "Avenida das Bananas" in the center-north so players see roads immediately
-  const starterRoadX = [8, 9, 10, 11, 12];
-  const starterRoadY = 7;
-  for (const x of starterRoadX) {
-    if (inBounds(x, starterRoadY) && grid[starterRoadY][x].terrain !== 'water') {
-      grid[starterRoadY][x].terrain = 'grass';
-      grid[starterRoadY][x].building = 'road';
+  // Starter Prefeitura da Selva at center plaza
+  const th = grid[TOWN_HALL_POS.gy][TOWN_HALL_POS.gx];
+  th.terrain = 'grass';
+  th.building = 'townhall';
+  th.builtBy = 'Prefeitura';
+
+  // Starter "Avenida das Bananas" right in front of Prefeitura
+  const starterRoads: Array<{ x: number; y: number }> = [
+    { x: 7, y: 7 },
+    { x: 8, y: 7 },
+    { x: 9, y: 7 },
+    { x: 10, y: 7 },
+    { x: 11, y: 7 },
+    { x: 12, y: 7 },
+    { x: 13, y: 7 },
+    { x: 10, y: 8 },
+  ];
+  for (const pt of starterRoads) {
+    if (inBounds(pt.x, pt.y) && grid[pt.y][pt.x].terrain !== 'water') {
+      grid[pt.y][pt.x].terrain = 'grass';
+      grid[pt.y][pt.x].building = 'road';
+      grid[pt.y][pt.x].builtBy = 'Prefeitura';
     }
   }
 
   return grid;
+}
+
+/**
+ * Computes an orthogonal L-shaped grid path from start to end without diagonals or zig-zags.
+ */
+export function computeLPath(
+  start: { gx: number; gy: number },
+  end: { gx: number; gy: number },
+  horizontalFirst: boolean,
+): Array<{ gx: number; gy: number }> {
+  const path: Array<{ gx: number; gy: number }> = [];
+  let x = start.gx;
+  let y = start.gy;
+  path.push({ gx: x, gy: y });
+
+  const stepX = () => {
+    const dx = Math.sign(end.gx - x);
+    while (x !== end.gx) {
+      x += dx;
+      path.push({ gx: x, gy: y });
+    }
+  };
+  const stepY = () => {
+    const dy = Math.sign(end.gy - y);
+    while (y !== end.gy) {
+      y += dy;
+      path.push({ gx: x, gy: y });
+    }
+  };
+
+  if (horizontalFirst) {
+    stepX();
+    stepY();
+  } else {
+    stepY();
+    stepX();
+  }
+
+  return path;
 }
 
 /**

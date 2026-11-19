@@ -15,13 +15,13 @@
     "summary": "Prefeito + até 3 Vice-Prefeitos construindo (e trollando com Lixão de Coco) a mesma cidade ao vivo via P2P!"
   },
   "controls": [
-    "Clique / Arraste: Construir ou demolir no mapa",
-    "Botão Direito / Meio / WASD: Mover câmera",
-    "Scroll do Mouse: Zoom",
-    "Teclas 1-8: Selecionar construção / Demolidor",
-    "Botão 🚨 Decretar Caos: Disparar desastre na cidade"
+    "Tecla 0 / Esc: Inspecionar prédio ou reparar danos",
+    "Teclas 1-7: Selecionar construção (arraste em L para Estradas!)",
+    "Tecla 8 / B: Demolidor (devolve 50% das bananas!)",
+    "P: Ping no mapa | V: Alternar camadas (Energia / Felicidade / Poluição)",
+    "Ctrl+Z: Desfazer última ação | Botão Direito / WASD: Mover câmera"
   ],
   "thumbnail": "thumbnail.svg",
   "status": "playable",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
