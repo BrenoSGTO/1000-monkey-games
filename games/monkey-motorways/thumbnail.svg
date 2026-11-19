@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f6f3e8" />
+      <stop offset="100%" stop-color="#e5eedb" />
+    </linearGradient>
+    <linearGradient id="river" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0ea5e9" />
+    </linearGradient>
+  </defs>
+
+  <!-- Jungle Cream Background -->
+  <rect width="640" height="360" fill="url(#bg)" />
+
+  <!-- Subtle Grid -->
+  <g stroke="#d6d3c4" stroke-width="1" opacity="0.5">
+    <path d="M0 60 H640 M0 120 H640 M0 180 H640 M0 240 H640 M0 300 H640" />
+    <path d="M80 0 V360 M160 0 V360 M240 0 V360 M320 0 V360 M400 0 V360 M480 0 V360 M560 0 V360" />
+  </g>
+
+  <!-- Winding River -->
+  <path d="M360 -10 C 310 90, 420 180, 340 270 C 300 315, 330 350, 355 370"
+        fill="none" stroke="#bae6fd" stroke-width="58" stroke-linecap="round" />
+  <path d="M360 -10 C 310 90, 420 180, 340 270 C 300 315, 330 350, 355 370"
+        fill="none" stroke="url(#river)" stroke-width="44" stroke-linecap="round" />
+
+  <!-- Jungle Palm Clusters -->
+  <g fill="#22c55e" opacity="0.35">
+    <circle cx="72" cy="295" r="24" />
+    <circle cx="100" cy="310" r="18" />
+    <circle cx="565" cy="65" r="28" />
+    <circle cx="595" cy="90" r="20" />
+  </g>
+
+  <!-- Road Casing -->
+  <g fill="none" stroke="#cbd5e1" stroke-width="32" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M90 100 L 210 100 L 260 150 L 260 220 L 450 220 L 520 150" />
+    <path d="M120 240 L 260 220" />
+    <path d="M260 150 L 260 75 L 490 75" />
+  </g>
+
+  <!-- Road Asphalt -->
+  <g fill="none" stroke="#334155" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M90 100 L 210 100 L 260 150 L 260 220 L 450 220 L 520 150" />
+    <path d="M120 240 L 260 220" />
+    <path d="M260 150 L 260 75 L 490 75" />
+  </g>
+
+  <!-- Bamboo Bridge over River -->
+  <g transform="translate(310, 200)">
+    <rect x="0" y="0" width="90" height="34" rx="6" fill="#d97706" stroke="#78350f" stroke-width="3" />
+    <rect x="4" y="6" width="82" height="22" rx="3" fill="#475569" />
+    <line x1="15" y1="0" x2="15" y2="34" stroke="#92400e" stroke-width="3" />
+    <line x1="45" y1="0" x2="45" y2="34" stroke="#92400e" stroke-width="3" />
+    <line x1="75" y1="0" x2="75" y2="34" stroke="#92400e" stroke-width="3" />
+  </g>
+
+  <!-- Roundabout -->
+  <circle cx="260" cy="220" r="28" fill="#334155" stroke="#cbd5e1" stroke-width="4" />
+  <circle cx="260" cy="220" r="12" fill="#4ade80" stroke="#166534" stroke-width="3" />
+
+  <!-- Vine Expressway (Via Expressa de Cipó) -->
+  <path d="M90 100 Q 300 5 520 150" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="16" stroke-linecap="round" transform="translate(0, 12)" />
+  <path d="M90 100 Q 300 5 520 150" fill="none" stroke="#15803d" stroke-width="18" stroke-linecap="round" />
+  <path d="M90 100 Q 300 5 520 150" fill="none" stroke="#84cc16" stroke-width="10" stroke-linecap="round" stroke-dasharray="14 8" />
+
+  <!-- Houses -->
+  <!-- Yellow House -->
+  <g transform="translate(68, 78)">
+    <rect width="44" height="44" rx="10" fill="#facc15" stroke="#854d0e" stroke-width="3" />
+    <polygon points="8,16 22,5 36,16" fill="#fef08a" />
+    <rect x="15" y="18" width="14" height="16" rx="3" fill="#713f12" />
+  </g>
+  <!-- Red House -->
+  <g transform="translate(98, 218)">
+    <rect width="44" height="44" rx="10" fill="#ef4444" stroke="#7f1d1d" stroke-width="3" />
+    <polygon points="8,16 22,5 36,16" fill="#fecaca" />
+    <rect x="15" y="18" width="14" height="16" rx="3" fill="#450a0a" />
+  </g>
+
+  <!-- Markets -->
+  <!-- Yellow Banana Market -->
+  <g transform="translate(492, 114)">
+    <rect width="74" height="74" rx="14" fill="#facc15" stroke="#854d0e" stroke-width="4" />
+    <rect x="10" y="10" width="54" height="22" rx="6" fill="#fef9c3" />
+    <text x="37" y="54" text-anchor="middle" font-size="24">🍌</text>
+    <!-- Demand Pin -->
+    <circle cx="66" cy="8" r="11" fill="#1e293b" stroke="#facc15" stroke-width="3" />
+    <circle cx="66" cy="8" r="5" fill="#facc15" />
+  </g>
+
+  <!-- Red Açaí Market -->
+  <g transform="translate(462, 42)">
+    <rect width="66" height="66" rx="12" fill="#ef4444" stroke="#7f1d1d" stroke-width="4" />
+    <text x="33" y="43" text-anchor="middle" font-size="22">🍓</text>
+  </g>
+
+  <!-- Monkey Cars -->
+  <!-- Car 1 (Yellow) -->
+  <g transform="translate(175, 90)">
+    <rect x="-14" y="-9" width="28" height="18" rx="6" fill="#facc15" stroke="#713f12" stroke-width="2.5" />
+    <circle cx="3" cy="0" r="6" fill="#92400e" />
+    <circle cx="5" cy="-2" r="1.7" fill="#fff" />
+    <circle cx="5" cy="2" r="1.7" fill="#fff" />
+  </g>
+
+  <!-- Car 2 (Red, stuck honking!) -->
+  <g transform="translate(215, 212) rotate(-10)">
+    <rect x="-14" y="-9" width="28" height="18" rx="6" fill="#ef4444" stroke="#7f1d1d" stroke-width="2.5" />
+    <circle cx="3" cy="0" r="6" fill="#78350f" />
+    <circle cx="5" cy="-2" r="1.7" fill="#fff" />
+    <circle cx="5" cy="2" r="1.7" fill="#fff" />
+  </g>
+  <!-- Rage Bubble -->
+  <g transform="translate(205, 178)">
+    <rect x="-18" y="-14" width="36" height="24" rx="10" fill="#111827" stroke="#fb7185" stroke-width="2" />
+    <text x="0" y="3" text-anchor="middle" font-size="14">🤬</text>
+  </g>
+
+  <!-- Car 3 on Cipó -->
+  <g transform="translate(310, 62) rotate(5)">
+    <rect x="-14" y="-9" width="28" height="18" rx="6" fill="#facc15" stroke="#713f12" stroke-width="2.5" />
+    <circle cx="3" cy="0" r="6" fill="#92400e" />
+    <text x="-20" y="-12" font-size="15">🐒</text>
+  </g>
+
+  <!-- Title Ribbon -->
+  <g transform="translate(22, 18)">
+    <rect width="238" height="44" rx="12" fill="rgba(17,24,39,0.9)" stroke="#facc15" stroke-width="2.5" />
+    <text x="16" y="29" fill="#fef08a" font-family="system-ui, sans-serif" font-weight="900" font-size="19">🐒 MINI MACACOWAYS</text>
+  </g>
+</svg>
