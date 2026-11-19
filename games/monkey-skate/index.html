@@ -52,7 +52,7 @@
       .hud-card.timer {
         border-color: #38bdf8;
         text-align: center;
-        min-width: 92px;
+        min-width: 96px;
       }
       .hud-label {
         font-size: 10px;
@@ -80,10 +80,72 @@
         color: #cbd5e1;
       }
 
+      /* Top-Center Turn & Race Bar */
+      .top-center-stack {
+        position: fixed;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 46;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        pointer-events: none;
+      }
+      .local2p-banner {
+        display: none;
+        background: rgba(15, 23, 42, 0.9);
+        border: 2px solid #4ade80;
+        border-radius: 999px;
+        padding: 4px 14px;
+        font-size: 12px;
+        font-weight: 900;
+        color: #bbf7d0;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+      }
+      .local2p-banner.visible {
+        display: block;
+      }
+      .race-bar {
+        display: none;
+        width: 280px;
+        background: rgba(15, 23, 42, 0.88);
+        border: 2px solid #38bdf8;
+        border-radius: 999px;
+        padding: 5px 12px;
+      }
+      .race-bar.visible {
+        display: block;
+      }
+      .race-track-line {
+        position: relative;
+        height: 8px;
+        background: #1e293b;
+        border-radius: 999px;
+        margin: 4px 0 2px;
+      }
+      .race-dot {
+        position: absolute;
+        top: 50%;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        border: 2px solid #0f172a;
+      }
+      .race-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        font-weight: 800;
+        color: #bae6fd;
+      }
+
       /* Active Combo Banner */
       .combo-banner {
         position: fixed;
-        top: 78px;
+        top: 84px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 45;
@@ -112,6 +174,38 @@
         margin-top: 2px;
       }
 
+      /* First-run Mini-Tip Pill */
+      .tip-banner {
+        position: fixed;
+        bottom: 68px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 49;
+        background: rgba(15, 23, 42, 0.92);
+        border: 2px solid #38bdf8;
+        border-radius: 999px;
+        padding: 6px 14px;
+        display: none;
+        align-items: center;
+        gap: 10px;
+        font-size: 12px;
+        font-weight: 800;
+        color: #e0f2fe;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      }
+      .tip-banner.visible {
+        display: flex;
+      }
+      .tip-close {
+        background: transparent;
+        border: none;
+        color: #94a3b8;
+        font-weight: 900;
+        cursor: pointer;
+        font-size: 14px;
+        padding: 0 2px;
+      }
+
       /* Bottom Controls & Action Strip */
       .bottom-bar {
         position: fixed;
@@ -126,15 +220,15 @@
         pointer-events: none;
       }
       .controls-pill {
-        background: rgba(15, 23, 42, 0.82);
+        background: rgba(15, 23, 42, 0.85);
         border: 1.5px solid rgba(250, 204, 21, 0.45);
         border-radius: 12px;
         padding: 7px 12px;
         font-size: 11px;
-        line-height: 1.45;
+        line-height: 1.5;
         color: #e2e8f0;
         pointer-events: auto;
-        max-width: 660px;
+        max-width: 780px;
       }
       .controls-pill kbd {
         background: #1e293b;
@@ -196,7 +290,7 @@
         top: 86px;
         right: 12px;
         z-index: 48;
-        width: 230px;
+        width: 250px;
         background: rgba(15, 23, 42, 0.86);
         border: 1.5px solid #4ade80;
         border-radius: 12px;
@@ -228,7 +322,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        max-width: 110px;
+        max-width: 115px;
       }
       .mp-stats {
         font-variant-numeric: tabular-nums;
@@ -253,24 +347,26 @@
       }
       .modal-card {
         width: 100%;
-        max-width: 720px;
+        max-width: 760px;
+        max-height: 92vh;
+        overflow-y: auto;
         background: linear-gradient(160deg, #1e293b 0%, #0f172a 100%);
         border: 3px solid #facc15;
         border-radius: 22px;
-        padding: 24px;
+        padding: 22px;
         box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
       }
       .modal-title {
         margin: 0;
-        font-size: 32px;
+        font-size: 30px;
         font-weight: 900;
         color: #fde047;
         text-shadow: 0 3px 0 #000;
       }
       .modal-sub {
-        margin: 4px 0 18px;
+        margin: 4px 0 16px;
         color: #cbd5e1;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 600;
       }
       .section-label {
@@ -285,13 +381,13 @@
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
         gap: 10px;
-        margin-bottom: 16px;
+        margin-bottom: 14px;
       }
       .choice-card {
         background: rgba(15, 23, 42, 0.85);
         border: 2px solid #334155;
         border-radius: 14px;
-        padding: 12px;
+        padding: 11px 12px;
         cursor: pointer;
         text-align: left;
         color: #f8fafc;
@@ -307,21 +403,51 @@
         box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.25);
       }
       .choice-title {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 900;
         color: #fde047;
-        margin-bottom: 4px;
+        margin-bottom: 3px;
       }
       .choice-desc {
-        font-size: 12px;
+        font-size: 11.5px;
         color: #cbd5e1;
         line-height: 1.35;
       }
       .mode-row {
         display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .local2p-config {
+        display: none;
         grid-template-columns: 1fr 1fr;
         gap: 10px;
-        margin-bottom: 18px;
+        margin-bottom: 14px;
+        background: rgba(15, 23, 42, 0.72);
+        border: 1.5px solid #4ade80;
+        border-radius: 12px;
+        padding: 10px 12px;
+      }
+      .local2p-config.visible {
+        display: grid;
+      }
+      .name-field label {
+        display: block;
+        font-size: 11px;
+        font-weight: 800;
+        color: #94a3b8;
+        margin-bottom: 4px;
+      }
+      .name-field input {
+        width: 100%;
+        background: #0f172a;
+        border: 1.5px solid #334155;
+        border-radius: 8px;
+        padding: 7px 10px;
+        color: #f8fafc;
+        font-weight: 700;
+        font-size: 13px;
       }
       .play-cta {
         width: 100%;
@@ -330,7 +456,7 @@
         border: none;
         border-radius: 14px;
         padding: 14px 20px;
-        font-size: 18px;
+        font-size: 17px;
         font-weight: 900;
         cursor: pointer;
         box-shadow: 0 5px 0 #a16207;
@@ -346,7 +472,7 @@
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 10px;
-        margin: 16px 0;
+        margin: 14px 0;
       }
       .summary-box {
         background: rgba(15, 23, 42, 0.9);
@@ -356,7 +482,7 @@
         text-align: center;
       }
       .summary-box .num {
-        font-size: 24px;
+        font-size: 22px;
         font-weight: 900;
         color: #fde047;
       }
@@ -369,6 +495,39 @@
         font-weight: 700;
         margin-top: 2px;
       }
+      .podium-box {
+        display: none;
+        background: rgba(15, 23, 42, 0.85);
+        border: 1.5px solid #4ade80;
+        border-radius: 14px;
+        padding: 12px 14px;
+        margin-bottom: 14px;
+      }
+      .podium-box.visible {
+        display: block;
+      }
+      .podium-box h4 {
+        margin: 0 0 8px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #4ade80;
+      }
+      .podium-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 8px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 800;
+        margin-bottom: 4px;
+        background: rgba(30, 41, 59, 0.6);
+      }
+      .podium-row.winner {
+        background: rgba(250, 204, 21, 0.16);
+        border: 1px solid #facc15;
+      }
     </style>
   </head>
   <body>
@@ -377,7 +536,7 @@
     <!-- Top-Right HUD -->
     <div class="skate-hud-top">
       <div class="hud-card timer" id="hud-timer-card" style="display: none;">
-        <div class="hud-label">Sessão 90s</div>
+        <div class="hud-label" id="hud-timer-label">Sessão 90s</div>
         <div class="hud-value" id="hud-timer">90</div>
         <div class="hud-sub" id="hud-track-badge">Praça</div>
       </div>
@@ -393,10 +552,29 @@
       </div>
     </div>
 
+    <!-- Top-Center Local 2P & Race Progress -->
+    <div class="top-center-stack">
+      <div class="local2p-banner" id="local2p-banner">👤 Turno 1/2: Macaco 1</div>
+      <div class="race-bar" id="race-bar">
+        <div class="race-meta">
+          <span>⛰️ Largada</span>
+          <span id="race-pct">0%</span>
+          <span>🏁 Fim do Morro</span>
+        </div>
+        <div class="race-track-line" id="race-track-line"></div>
+      </div>
+    </div>
+
     <!-- Active Combo Banner -->
     <div class="combo-banner" id="combo-banner">
       <div class="combo-points" id="combo-points">0 x1</div>
       <div class="combo-tricks" id="combo-tricks">Ollie!</div>
+    </div>
+
+    <!-- First-Run Mini-Tip Pill -->
+    <div class="tip-banner" id="tip-banner">
+      <span id="tip-text">💡 Dica: Aperte Espaço, W ou ▲ para mandar um Ollie instantâneo!</span>
+      <button class="tip-close" id="tip-close" title="Fechar dica">✕</button>
     </div>
 
     <!-- Live Multiplayer Leaderboard -->
@@ -408,15 +586,18 @@
     <!-- Bottom Controls & Quick Actions -->
     <div class="bottom-bar">
       <div class="controls-pill">
-        <kbd>A</kbd><kbd>D</kbd> / <kbd>◀</kbd><kbd>▶</kbd> Remar, Girar &amp; Equilibrar •
-        <kbd>Espaço</kbd> Carregar Ollie •
-        <kbd>J</kbd> Kickflip • <kbd>K</kbd> Banana Grab • <kbd>L</kbd> Christ Air •
-        <kbd>E</kbd> Ejetar Ragdoll (Hall of Meat!) •
-        <kbd>R</kbd> Levantar
+        <kbd>A</kbd><kbd>D</kbd> / <kbd>◀</kbd><kbd>▶</kbd> Remar &amp; Ar •
+        <kbd>Espaço</kbd>/<kbd>W</kbd>/<kbd>▲</kbd> Ollie (segure p/ altura) •
+        <kbd>S</kbd>/<kbd>▼</kbd> Agachar / Manual •
+        <kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> Manobras •
+        <kbd>Q</kbd><kbd>E</kbd> Flip •
+        <kbd>X</kbd> Ragdoll •
+        <kbd>R</kbd> Levantar •
+        <kbd>B</kbd> Casca
       </div>
       <div class="action-buttons">
         <button class="action-btn banana" id="btn-banana" title="Atalho: B">🍌 Jogar Casca (B)</button>
-        <button class="action-btn eject" id="btn-eject" title="Atalho: E">💀 Ejetar! (E)</button>
+        <button class="action-btn eject" id="btn-eject" title="Atalho: X">💀 Ejetar! (X)</button>
         <button class="action-btn menu" id="btn-menu">🗺️ Pistas / Modo</button>
       </div>
     </div>
@@ -425,17 +606,17 @@
     <div class="overlay-backdrop" id="menu-modal">
       <div class="modal-card">
         <h1 class="modal-title">🛹 Tony Chimp: Skate Ragdoll</h1>
-        <p class="modal-sub">Mande manobras absurdas ou se arrebente inteiro no Hall of Meat. Sem capacete, sem freio, 100% SUS!</p>
+        <p class="modal-sub">Mande manobras fluidas, emende Manuals e Grinds ou se ejete no Hall of Meat. Sem freio, 100% SUS!</p>
 
         <div class="section-label">1. Escolha a Pista</div>
         <div class="track-grid" id="track-grid">
           <button class="choice-card selected" data-track="praca">
             <div class="choice-title">🌴 Praça da Banana</div>
-            <div class="choice-desc">Half-pipes gigantes, corrimões longos, escadarias, carros estacionados e rampas pro céu!</div>
+            <div class="choice-desc">Half-pipes gigantes, corrimões longos, escadaria lisa, Corsa e rampas pro céu!</div>
           </button>
           <button class="choice-card" data-track="ladeira">
             <div class="choice-title">⛰️ Ladeira do Morro Slop</div>
-            <div class="choice-desc">Descida caótica cheia de lombadas, postes, cascas de banana turbo e carros passando!</div>
+            <div class="choice-desc">Descida caótica cheia de lombadas, guard-rails, turbos e carros passando!</div>
           </button>
           <button class="choice-card" data-track="megarampa">
             <div class="choice-title">🚀 Mega Rampa da Selva</div>
@@ -447,23 +628,70 @@
         <div class="mode-row" id="mode-row">
           <button class="choice-card selected" data-mode="free">
             <div class="choice-title">🍌 Free Skate / Caos</div>
-            <div class="choice-desc">Sem tempo! Treine combos infinitos ou ejete de cara nos postes à vontade.</div>
+            <div class="choice-desc">Sem tempo! Treine combos, grinds, manuals ou ejete no Hall of Meat (Solo ou Online).</div>
           </button>
           <button class="choice-card" data-mode="session90">
-            <div class="choice-title">⏱️ Sessão 90s (Pontos)</div>
-            <div class="choice-desc">90 segundos pra somar Manobras + Conta do SUS e cravar recorde no ranking!</div>
+            <div class="choice-title">⏱️ Duelo 90s (Solo / Online)</div>
+            <div class="choice-desc">90 segundos sincronizados pra somar Manobras + Conta do SUS e liderar o pódio!</div>
           </button>
+          <button class="choice-card" data-mode="race">
+            <div class="choice-title">🏁 Corrida Ladeira Abaixo</div>
+            <div class="choice-desc">Disputa de velocidade até o Fim do Morro com manobras, turbos e cascas de banana!</div>
+          </button>
+          <button class="choice-card" data-mode="local2p">
+            <div class="choice-title">👥 2P Local (Turnos 45s)</div>
+            <div class="choice-desc">Desafio no mesmo teclado! Jogador 1 vs Jogador 2 em turnos de 45s sem precisar de internet.</div>
+          </button>
+        </div>
+
+        <div class="local2p-config" id="local2p-config">
+          <div class="name-field">
+            <label for="p1-name-input">🟡 Jogador 1</label>
+            <input id="p1-name-input" type="text" value="Macaco 1" maxlength="16" />
+          </div>
+          <div class="name-field">
+            <label for="p2-name-input">🟢 Jogador 2</label>
+            <input id="p2-name-input" type="text" value="Macaco 2" maxlength="16" />
+          </div>
         </div>
 
         <button class="play-cta" id="btn-start">🔥 DROPAR NA PISTA!</button>
       </div>
     </div>
 
-    <!-- Session End Modal -->
+    <!-- Local 2P Turn Intermission Modal -->
+    <div class="overlay-backdrop hidden" id="turn-modal">
+      <div class="modal-card" style="max-width: 540px; text-align: center;">
+        <h1 class="modal-title" id="turn-headline">⏱️ Fim do Turno 1!</h1>
+        <p class="modal-sub" id="turn-sub">Passe o teclado para o Jogador 2!</p>
+        <div class="summary-grid">
+          <div class="summary-box">
+            <div class="num" id="turn-p1-tricks">0</div>
+            <div class="lbl">Manobras</div>
+          </div>
+          <div class="summary-box sus">
+            <div class="num" id="turn-p1-sus">0</div>
+            <div class="lbl">Conta do SUS</div>
+          </div>
+          <div class="summary-box">
+            <div class="num" id="turn-p1-total">0</div>
+            <div class="lbl">Total pra Bater</div>
+          </div>
+        </div>
+        <button class="play-cta" id="btn-next-turn">🔥 DROPAR JOGADOR 2!</button>
+      </div>
+    </div>
+
+    <!-- Session End / Podium Modal -->
     <div class="overlay-backdrop hidden" id="summary-modal">
       <div class="modal-card">
         <h1 class="modal-title" id="summary-headline">🏥 Alta do SUS Concedida!</h1>
         <p class="modal-sub" id="summary-diagnosis">Diagnóstico: Excesso de potássio e zero amor próprio.</p>
+
+        <div class="podium-box" id="podium-box">
+          <h4>🏆 Pódio da Macacada</h4>
+          <div id="podium-rows"></div>
+        </div>
 
         <div class="summary-grid">
           <div class="summary-box">
@@ -480,7 +708,7 @@
           </div>
         </div>
 
-        <div class="mode-row">
+        <div class="mode-row" style="margin-bottom: 0;">
           <button class="play-cta" id="btn-replay">🔄 Jogar Novamente</button>
           <button class="action-btn menu" id="btn-summary-menu" style="font-size: 16px; padding: 14px;">🗺️ Trocar Pista / Modo</button>
         </div>

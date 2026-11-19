@@ -3,7 +3,7 @@
   "title": "Tony Chimp: Skate Ragdoll",
   "subtitle": "Manobras insanas e fraturas expostas no SUS!",
   "inspiredBy": "Skate / Hall of Meat",
-  "description": "Mande combos absurdos de Kickflip da Banana, Banana Grab e Chimp Christ Air — ou aperte E para se ejetar de cara nos postes no modo Hall of Meat! Com pistas caóticas, carros na ladeira, física ragdoll articulada, raios-X hilários e multiplayer P2P com cascas de banana traíras.",
+  "description": "Mande combos absurdos de Kickflip da Banana, Banana Grab, Chimp Christ Air, Grinds e Manuals — ou aperte X para se ejetar no modo Hall of Meat! Com half-pipes de verdade, corrida ladeira abaixo, duelo 90s sincronizado online, modo 2P local no mesmo teclado e cascas de banana traíras.",
   "category": "fisica",
   "tags": ["skate", "ragdoll", "manobras", "hall-of-meat", "fisica", "multiplayer"],
   "emoji": "🛹",
@@ -12,17 +12,19 @@
     "supported": true,
     "mode": "coop-versus",
     "maxPlayers": 4,
-    "summary": "Andem juntos na mesma pista em tempo real, disputem Maior Combo e Maior Fratura ao vivo e joguem cascas de banana para derrubar os amigos!"
+    "summary": "Free Skate, Duelo 90s sincronizado e Corrida Ladeira Abaixo online via P2P com cascas de banana, além de modo 2P Local em turnos de 45s no mesmo teclado!"
   },
   "controls": [
-    "A / D ou Setas: Remar, girar no ar e equilibrar no grind",
-    "Espaço (segurar e soltar): Carregar e mandar Ollie",
+    "A / D ou Setas Esq/Dir: Remar, acelerar e controlar deslocamento no ar",
+    "Espaço / W / Seta Cima: Ollie instantâneo (segure para pular mais alto)",
+    "S / Seta Baixo: Agachar / Super Ollie e segurar ao pousar para fazer Manual",
     "J / K / L (no ar): Kickflip da Banana, Banana Grab, Chimp Christ Air",
-    "E: Ejetar Ragdoll (Hall of Meat!)",
-    "R: Levantar / Resetar no skate",
-    "B: Jogar Casca de Banana na pista (Multiplayer)"
+    "Q / E (ou Shift + A/D): Backflip / Frontflip no ar",
+    "X: Ejetar Ragdoll (Hall of Meat!)",
+    "R ou Espaço (no ragdoll): Levantar imediatamente (ou auto-levantar)",
+    "B: Jogar Casca de Banana na pista"
   ],
   "thumbnail": "thumbnail.svg",
   "status": "playable",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }

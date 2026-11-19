@@ -1,6 +1,6 @@
 export type TrackId = 'praca' | 'ladeira' | 'megarampa';
-export type GameMode = 'free' | 'session90';
-export type SkaterMode = 'skating' | 'air' | 'grinding' | 'ragdoll';
+export type GameMode = 'free' | 'session90' | 'race' | 'local2p';
+export type SkaterMode = 'skating' | 'manual' | 'air' | 'grinding' | 'ragdoll';
 export type TrickKind = 'none' | 'kickflip' | 'bananagrab' | 'christair';
 
 export interface Vec2 {
@@ -11,6 +11,25 @@ export interface Vec2 {
 export interface TerrainPoint {
   x: number;
   y: number;
+}
+
+export interface StairVisual {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  steps: number;
+}
+
+export interface LaunchLip {
+  x: number;
+  tolerance: number;
+  direction: 'left' | 'right' | 'any';
+  minSpeed: number;
+  vy: number;
+  vxBoost?: number;
+  vxOverride?: number;
+  label?: string;
 }
 
 export interface GrindRail {
@@ -40,6 +59,7 @@ export interface TrackProp {
   label?: string;
   color?: string;
   roofRail?: boolean; // Can grind top!
+  solidInSkate?: boolean; // False = background scenery while skating (still solid in ragdoll!)
 }
 
 export interface BananaPad {
@@ -83,6 +103,8 @@ export interface TrackData {
   groundTopColor: string;
   spawnX: number;
   terrain: TerrainPoint[];
+  stairs: StairVisual[];
+  launchLips: LaunchLip[];
   rails: GrindRail[];
   props: TrackProp[];
   turboBananas: BananaPad[];
@@ -173,7 +195,7 @@ export interface SkaterSnapshot {
   vy: number;
   angle: number;
   facing: 1 | -1;
-  ollieCharge: number;
+  crouching: boolean;
   activeTrick: TrickKind;
   trickTimer: number;
   boardFlip: number;
@@ -181,6 +203,9 @@ export interface SkaterSnapshot {
   boneScore: number;
   bestCombo: number;
   bestCrash: number;
+  matchId?: string;
+  raceProgress?: number;
+  raceFinishTime?: number | null;
   ragdollNodes?: [number, number][];
   boardPos?: [number, number, number];
 }
@@ -188,12 +213,38 @@ export interface SkaterSnapshot {
 export type NetMessage =
   | { kind: 'state'; snap: SkaterSnapshot }
   | { kind: 'banana'; id: string; x: number; y: number; trackId: TrackId }
-  | { kind: 'callout'; text: string; tone: 'banana' | 'chaos' | 'info' };
+  | { kind: 'banana_hit'; id: string }
+  | { kind: 'callout'; text: string; tone: 'banana' | 'chaos' | 'info' }
+  | {
+      kind: 'match_start';
+      matchId: string;
+      trackId: TrackId;
+      mode: 'session90' | 'race';
+      countdownMs: number;
+    }
+  | {
+      kind: 'race_finish';
+      matchId: string;
+      finishTime: number;
+      totalScore: number;
+    };
 
 export interface RemotePlayerState {
   id: string;
   name: string;
   color: string;
   snap: SkaterSnapshot;
+  renderX: number;
+  renderY: number;
+  renderAngle: number;
   lastSeen: number;
+}
+
+export interface TurnScoreResult {
+  name: string;
+  trickScore: number;
+  boneScore: number;
+  bonesBroken: number;
+  bestCombo: number;
+  total: number;
 }
