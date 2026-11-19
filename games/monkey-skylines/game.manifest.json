@@ -1,0 +1,27 @@
+{
+  "slug": "monkey-skylines",
+  "title": "SimMacaco: Prefeitura do Caos",
+  "subtitle": "Construa a metrópole da selva sem causar rebelião primata!",
+  "inspiredBy": "Cities: Skylines",
+  "description": "Assuma a prefeitura da selva neste City Builder isométrico caótico! Trace estradas que se conectam sozinhas, ligue usinas de casca de banana, erga a Estátua do Macaco Calvo, sobreviva a engarrafamentos de carrinhos de banana, leia reclamações ao vivo no ChimpTwitter e enfrente um Gorilão de Pelúcia Gigante — sozinho ou com amigos em Co-op online!",
+  "category": "simulacao",
+  "tags": ["city-builder", "simulacao", "isometrico", "coop", "caos"],
+  "emoji": "🏙️",
+  "accentColor": "#facc15",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop",
+    "maxPlayers": 4,
+    "summary": "Prefeito + até 3 Vice-Prefeitos construindo (e trollando com Lixão de Coco) a mesma cidade ao vivo via P2P!"
+  },
+  "controls": [
+    "Clique / Arraste: Construir ou demolir no mapa",
+    "Botão Direito / Meio / WASD: Mover câmera",
+    "Scroll do Mouse: Zoom",
+    "Teclas 1-8: Selecionar construção / Demolidor",
+    "Botão 🚨 Decretar Caos: Disparar desastre na cidade"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
