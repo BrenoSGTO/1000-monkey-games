@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Tony Chimp: Skate Ragdoll 🛹</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0f172a;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        color: #f8fafc;
+      }
+      #game-canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+
+      /* Top-Right Score & Timer HUD */
+      .skate-hud-top {
+        position: fixed;
+        top: 10px;
+        right: 12px;
+        z-index: 50;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        pointer-events: none;
+      }
+      .hud-card {
+        background: rgba(15, 23, 42, 0.88);
+        border: 2px solid #facc15;
+        border-radius: 14px;
+        padding: 8px 14px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(6px);
+      }
+      .hud-card.sus {
+        border-color: #fb7185;
+      }
+      .hud-card.timer {
+        border-color: #38bdf8;
+        text-align: center;
+        min-width: 92px;
+      }
+      .hud-label {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #94a3b8;
+      }
+      .hud-value {
+        font-size: 22px;
+        font-weight: 900;
+        line-height: 1.1;
+        color: #fde047;
+        font-variant-numeric: tabular-nums;
+      }
+      .hud-card.sus .hud-value {
+        color: #fb7185;
+      }
+      .hud-card.timer .hud-value {
+        color: #38bdf8;
+      }
+      .hud-sub {
+        font-size: 11px;
+        font-weight: 700;
+        color: #cbd5e1;
+      }
+
+      /* Active Combo Banner */
+      .combo-banner {
+        position: fixed;
+        top: 78px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 45;
+        pointer-events: none;
+        text-align: center;
+        display: none;
+      }
+      .combo-banner.visible {
+        display: block;
+      }
+      .combo-points {
+        font-size: 28px;
+        font-weight: 900;
+        color: #fde047;
+        text-shadow: 0 3px 0 #0f172a, 0 0 18px rgba(250, 204, 21, 0.55);
+      }
+      .combo-tricks {
+        font-size: 13px;
+        font-weight: 800;
+        color: #fff;
+        background: rgba(15, 23, 42, 0.78);
+        border: 1.5px solid #facc15;
+        border-radius: 999px;
+        padding: 3px 12px;
+        display: inline-block;
+        margin-top: 2px;
+      }
+
+      /* Bottom Controls & Action Strip */
+      .bottom-bar {
+        position: fixed;
+        bottom: 12px;
+        left: 12px;
+        right: 12px;
+        z-index: 50;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12px;
+        pointer-events: none;
+      }
+      .controls-pill {
+        background: rgba(15, 23, 42, 0.82);
+        border: 1.5px solid rgba(250, 204, 21, 0.45);
+        border-radius: 12px;
+        padding: 7px 12px;
+        font-size: 11px;
+        line-height: 1.45;
+        color: #e2e8f0;
+        pointer-events: auto;
+        max-width: 660px;
+      }
+      .controls-pill kbd {
+        background: #1e293b;
+        border: 1px solid #475569;
+        border-bottom-width: 2px;
+        border-radius: 5px;
+        padding: 1px 5px;
+        font-size: 10px;
+        font-weight: 800;
+        color: #fde047;
+      }
+      .action-buttons {
+        display: flex;
+        gap: 8px;
+        pointer-events: auto;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .action-btn {
+        background: rgba(15, 23, 42, 0.92);
+        color: #fef08a;
+        border: 2px solid #facc15;
+        border-radius: 12px;
+        padding: 8px 13px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        box-shadow: 0 4px 0 rgba(0, 0, 0, 0.45);
+        transition: transform 0.1s ease, opacity 0.15s ease;
+      }
+      .action-btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+      }
+      .action-btn:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+      .action-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .action-btn.banana {
+        border-color: #fde047;
+        background: linear-gradient(180deg, #854d0e, #422006);
+        color: #fef08a;
+      }
+      .action-btn.eject {
+        border-color: #fb7185;
+        background: linear-gradient(180deg, #881337, #4c0519);
+        color: #ffe4e6;
+      }
+      .action-btn.menu {
+        border-color: #38bdf8;
+        color: #e0f2fe;
+      }
+
+      /* Multiplayer Live Leaderboard */
+      .mp-board {
+        position: fixed;
+        top: 86px;
+        right: 12px;
+        z-index: 48;
+        width: 230px;
+        background: rgba(15, 23, 42, 0.86);
+        border: 1.5px solid #4ade80;
+        border-radius: 12px;
+        padding: 8px 10px;
+        font-size: 11px;
+        display: none;
+        pointer-events: none;
+      }
+      .mp-board.visible {
+        display: block;
+      }
+      .mp-board h4 {
+        margin: 0 0 6px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #4ade80;
+      }
+      .mp-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .mp-name {
+        font-weight: 800;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 110px;
+      }
+      .mp-stats {
+        font-variant-numeric: tabular-nums;
+        color: #cbd5e1;
+        font-weight: 700;
+      }
+
+      /* Menu & End-of-Session Modal */
+      .overlay-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: rgba(2, 6, 23, 0.78);
+        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+      .overlay-backdrop.hidden {
+        display: none;
+      }
+      .modal-card {
+        width: 100%;
+        max-width: 720px;
+        background: linear-gradient(160deg, #1e293b 0%, #0f172a 100%);
+        border: 3px solid #facc15;
+        border-radius: 22px;
+        padding: 24px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+      }
+      .modal-title {
+        margin: 0;
+        font-size: 32px;
+        font-weight: 900;
+        color: #fde047;
+        text-shadow: 0 3px 0 #000;
+      }
+      .modal-sub {
+        margin: 4px 0 18px;
+        color: #cbd5e1;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .section-label {
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94a3b8;
+        margin-bottom: 8px;
+      }
+      .track-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+      .choice-card {
+        background: rgba(15, 23, 42, 0.85);
+        border: 2px solid #334155;
+        border-radius: 14px;
+        padding: 12px;
+        cursor: pointer;
+        text-align: left;
+        color: #f8fafc;
+        transition: border-color 0.15s ease, transform 0.12s ease, background 0.15s ease;
+      }
+      .choice-card:hover {
+        border-color: #fde047;
+        transform: translateY(-2px);
+      }
+      .choice-card.selected {
+        border-color: #facc15;
+        background: rgba(250, 204, 21, 0.14);
+        box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.25);
+      }
+      .choice-title {
+        font-size: 15px;
+        font-weight: 900;
+        color: #fde047;
+        margin-bottom: 4px;
+      }
+      .choice-desc {
+        font-size: 12px;
+        color: #cbd5e1;
+        line-height: 1.35;
+      }
+      .mode-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+      .play-cta {
+        width: 100%;
+        background: linear-gradient(180deg, #facc15, #eab308);
+        color: #0f172a;
+        border: none;
+        border-radius: 14px;
+        padding: 14px 20px;
+        font-size: 18px;
+        font-weight: 900;
+        cursor: pointer;
+        box-shadow: 0 5px 0 #a16207;
+        transition: transform 0.1s ease;
+      }
+      .play-cta:hover {
+        transform: translateY(-1px);
+      }
+      .play-cta:active {
+        transform: translateY(2px);
+      }
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin: 16px 0;
+      }
+      .summary-box {
+        background: rgba(15, 23, 42, 0.9);
+        border: 1.5px solid #334155;
+        border-radius: 12px;
+        padding: 12px;
+        text-align: center;
+      }
+      .summary-box .num {
+        font-size: 24px;
+        font-weight: 900;
+        color: #fde047;
+      }
+      .summary-box.sus .num {
+        color: #fb7185;
+      }
+      .summary-box .lbl {
+        font-size: 11px;
+        color: #94a3b8;
+        font-weight: 700;
+        margin-top: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Top-Right HUD -->
+    <div class="skate-hud-top">
+      <div class="hud-card timer" id="hud-timer-card" style="display: none;">
+        <div class="hud-label">Sessão 90s</div>
+        <div class="hud-value" id="hud-timer">90</div>
+        <div class="hud-sub" id="hud-track-badge">Praça</div>
+      </div>
+      <div class="hud-card">
+        <div class="hud-label">🛹 Manobras</div>
+        <div class="hud-value" id="hud-trick-score">0</div>
+        <div class="hud-sub">Melhor combo: <span id="hud-best-combo">0</span></div>
+      </div>
+      <div class="hud-card sus">
+        <div class="hud-label">💀 Conta do SUS</div>
+        <div class="hud-value" id="hud-bone-score">0</div>
+        <div class="hud-sub">Ossos: <span id="hud-bones-count">0</span> • Recorde: <span id="hud-record">0</span></div>
+      </div>
+    </div>
+
+    <!-- Active Combo Banner -->
+    <div class="combo-banner" id="combo-banner">
+      <div class="combo-points" id="combo-points">0 x1</div>
+      <div class="combo-tricks" id="combo-tricks">Ollie!</div>
+    </div>
+
+    <!-- Live Multiplayer Leaderboard -->
+    <div class="mp-board" id="mp-board">
+      <h4>🐒 Macacada na Pista</h4>
+      <div id="mp-rows"></div>
+    </div>
+
+    <!-- Bottom Controls & Quick Actions -->
+    <div class="bottom-bar">
+      <div class="controls-pill">
+        <kbd>A</kbd><kbd>D</kbd> / <kbd>◀</kbd><kbd>▶</kbd> Remar, Girar &amp; Equilibrar •
+        <kbd>Espaço</kbd> Carregar Ollie •
+        <kbd>J</kbd> Kickflip • <kbd>K</kbd> Banana Grab • <kbd>L</kbd> Christ Air •
+        <kbd>E</kbd> Ejetar Ragdoll (Hall of Meat!) •
+        <kbd>R</kbd> Levantar
+      </div>
+      <div class="action-buttons">
+        <button class="action-btn banana" id="btn-banana" title="Atalho: B">🍌 Jogar Casca (B)</button>
+        <button class="action-btn eject" id="btn-eject" title="Atalho: E">💀 Ejetar! (E)</button>
+        <button class="action-btn menu" id="btn-menu">🗺️ Pistas / Modo</button>
+      </div>
+    </div>
+
+    <!-- Main Menu Modal -->
+    <div class="overlay-backdrop" id="menu-modal">
+      <div class="modal-card">
+        <h1 class="modal-title">🛹 Tony Chimp: Skate Ragdoll</h1>
+        <p class="modal-sub">Mande manobras absurdas ou se arrebente inteiro no Hall of Meat. Sem capacete, sem freio, 100% SUS!</p>
+
+        <div class="section-label">1. Escolha a Pista</div>
+        <div class="track-grid" id="track-grid">
+          <button class="choice-card selected" data-track="praca">
+            <div class="choice-title">🌴 Praça da Banana</div>
+            <div class="choice-desc">Half-pipes gigantes, corrimões longos, escadarias, carros estacionados e rampas pro céu!</div>
+          </button>
+          <button class="choice-card" data-track="ladeira">
+            <div class="choice-title">⛰️ Ladeira do Morro Slop</div>
+            <div class="choice-desc">Descida caótica cheia de lombadas, postes, cascas de banana turbo e carros passando!</div>
+          </button>
+          <button class="choice-card" data-track="megarampa">
+            <div class="choice-title">🚀 Mega Rampa da Selva</div>
+            <div class="choice-desc">Salto estratosférico para combos x10 ou fraturas de 50 metros de altura!</div>
+          </button>
+        </div>
+
+        <div class="section-label">2. Modo de Jogo</div>
+        <div class="mode-row" id="mode-row">
+          <button class="choice-card selected" data-mode="free">
+            <div class="choice-title">🍌 Free Skate / Caos</div>
+            <div class="choice-desc">Sem tempo! Treine combos infinitos ou ejete de cara nos postes à vontade.</div>
+          </button>
+          <button class="choice-card" data-mode="session90">
+            <div class="choice-title">⏱️ Sessão 90s (Pontos)</div>
+            <div class="choice-desc">90 segundos pra somar Manobras + Conta do SUS e cravar recorde no ranking!</div>
+          </button>
+        </div>
+
+        <button class="play-cta" id="btn-start">🔥 DROPAR NA PISTA!</button>
+      </div>
+    </div>
+
+    <!-- Session End Modal -->
+    <div class="overlay-backdrop hidden" id="summary-modal">
+      <div class="modal-card">
+        <h1 class="modal-title" id="summary-headline">🏥 Alta do SUS Concedida!</h1>
+        <p class="modal-sub" id="summary-diagnosis">Diagnóstico: Excesso de potássio e zero amor próprio.</p>
+
+        <div class="summary-grid">
+          <div class="summary-box">
+            <div class="num" id="sum-tricks">0</div>
+            <div class="lbl">Pontos de Manobra</div>
+          </div>
+          <div class="summary-box sus">
+            <div class="num" id="sum-sus">0</div>
+            <div class="lbl">Conta do SUS (Hall of Meat)</div>
+          </div>
+          <div class="summary-box">
+            <div class="num" id="sum-total">0</div>
+            <div class="lbl">Placar Total</div>
+          </div>
+        </div>
+
+        <div class="mode-row">
+          <button class="play-cta" id="btn-replay">🔄 Jogar Novamente</button>
+          <button class="action-btn menu" id="btn-summary-menu" style="font-size: 16px; padding: 14px;">🗺️ Trocar Pista / Modo</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

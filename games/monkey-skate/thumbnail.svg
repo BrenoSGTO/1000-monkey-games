@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="48%" stop-color="#db2777"/>
+      <stop offset="85%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#facc15"/>
+    </linearGradient>
+    <linearGradient id="ramp" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="deck" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="50%" stop-color="#facc15"/>
+      <stop offset="100%" stop-color="#eab308"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Sky -->
+  <rect width="640" height="360" fill="url(#sky)"/>
+
+  <!-- Retro Sun -->
+  <circle cx="490" cy="110" r="68" fill="#fef08a" opacity="0.9"/>
+  <rect x="410" y="128" width="160" height="7" fill="#f97316" opacity="0.7"/>
+  <rect x="410" y="142" width="160" height="9" fill="#ec4899" opacity="0.7"/>
+  <rect x="410" y="158" width="160" height="12" fill="#be185d" opacity="0.7"/>
+
+  <!-- City / Jungle silhouettes -->
+  <path d="M0 245 L45 245 L45 190 L80 190 L80 230 L125 230 L125 170 L165 170 L165 245 L240 245 L240 205 L295 205 L295 245 L410 245 L410 185 L455 185 L455 245 L550 245 L550 175 L605 175 L605 245 L640 245 L640 360 L0 360 Z" fill="#1e1b4b" opacity="0.55"/>
+
+  <!-- Palm trees -->
+  <g fill="#0f172a" opacity="0.75">
+    <path d="M55 280 Q65 220 50 175 L58 175 Q74 220 67 280 Z"/>
+    <path d="M54 178 Q22 162 12 184 Q34 178 54 178 Z"/>
+    <path d="M54 178 Q35 144 65 148 Q58 164 54 178 Z"/>
+    <path d="M54 178 Q88 156 96 180 Q74 175 54 178 Z"/>
+  </g>
+
+  <!-- Half-pipe & Rail -->
+  <path d="M0 210 Q45 315 195 315 L440 315 Q585 315 640 215 L640 360 L0 360 Z" fill="url(#ramp)" stroke="#facc15" stroke-width="4"/>
+  <path d="M180 285 L470 250" stroke="#94a3b8" stroke-width="8" stroke-linecap="round"/>
+  <line x1="215" y1="281" x2="215" y2="315" stroke="#64748b" stroke-width="6"/>
+  <line x1="435" y1="254" x2="435" y2="315" stroke="#64748b" stroke-width="6"/>
+
+  <!-- Sparks & Speed lines -->
+  <g stroke="#fef08a" stroke-width="3" stroke-linecap="round" opacity="0.85">
+    <line x1="115" y1="150" x2="175" y2="175"/>
+    <line x1="130" y1="185" x2="185" y2="200"/>
+    <line x1="100" y1="120" x2="155" y2="145"/>
+  </g>
+  <g fill="#fef08a" filter="url(#glow)">
+    <polygon points="365,246 374,234 378,248 392,244 380,256 388,268 374,260 362,268 368,255 356,248"/>
+  </g>
+
+  <!-- Flying Monkey Skater (Doing a crazy grab!) -->
+  <g transform="translate(325, 145) rotate(-18)">
+    <!-- Tail -->
+    <path d="M-24 22 Q-68 18 -64 -18 Q-58 -36 -42 -26" fill="none" stroke="#78350f" stroke-width="9" stroke-linecap="round"/>
+
+    <!-- Skateboard -->
+    <g transform="translate(5, 58) rotate(8)">
+      <rect x="-66" y="-7" width="132" height="14" rx="7" fill="url(#deck)" stroke="#0f172a" stroke-width="3"/>
+      <!-- Banana sticker on deck -->
+      <path d="M-12 -3 Q0 6 14 -2" fill="none" stroke="#854d0e" stroke-width="3.5" stroke-linecap="round"/>
+      <!-- Trucks & Wheels -->
+      <rect x="-44" y="7" width="14" height="6" fill="#94a3b8"/>
+      <rect x="30" y="7" width="14" height="6" fill="#94a3b8"/>
+      <circle cx="-37" cy="17" r="9" fill="#fb7185" stroke="#0f172a" stroke-width="2.5"/>
+      <circle cx="37" cy="17" r="9" fill="#fb7185" stroke="#0f172a" stroke-width="2.5"/>
+      <circle cx="-37" cy="17" r="3" fill="#fff"/>
+      <circle cx="37" cy="17" r="3" fill="#fff"/>
+    </g>
+
+    <!-- Legs -->
+    <path d="M-14 26 L-30 48 L-28 56" fill="none" stroke="#78350f" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M12 24 L26 42 L34 52" fill="none" stroke="#78350f" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Sneakers -->
+    <ellipse cx="-26" cy="57" rx="11" ry="6" fill="#ef4444" stroke="#0f172a" stroke-width="2.5"/>
+    <ellipse cx="36" cy="54" rx="11" ry="6" fill="#ef4444" stroke="#0f172a" stroke-width="2.5"/>
+
+    <!-- Torso (Hoodie) -->
+    <rect x="-24" y="-12" width="46" height="42" rx="16" fill="#facc15" stroke="#0f172a" stroke-width="3"/>
+    <path d="M-10 4 L12 4 L8 20 L-6 20 Z" fill="#854d0e" opacity="0.35"/>
+
+    <!-- Grabbing Arm & Wild Arm -->
+    <path d="M14 -2 L32 24 L22 52" fill="none" stroke="#92400e" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M-20 -2 L-46 -28 L-58 -16" fill="none" stroke="#92400e" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="-58" cy="-16" r="7" fill="#fcd34d" stroke="#0f172a" stroke-width="2.5"/>
+    <circle cx="22" cy="52" r="7" fill="#fcd34d" stroke="#0f172a" stroke-width="2.5"/>
+
+    <!-- Monkey Head -->
+    <g transform="translate(2, -32)">
+      <!-- Big Ears -->
+      <circle cx="-27" cy="2" r="11" fill="#78350f" stroke="#0f172a" stroke-width="2.5"/>
+      <circle cx="-27" cy="2" r="5.5" fill="#fcd34d"/>
+      <circle cx="27" cy="2" r="11" fill="#78350f" stroke="#0f172a" stroke-width="2.5"/>
+      <circle cx="27" cy="2" r="5.5" fill="#fcd34d"/>
+
+      <!-- Head & Face -->
+      <circle cx="0" cy="0" r="24" fill="#78350f" stroke="#0f172a" stroke-width="3"/>
+      <ellipse cx="0" cy="8" rx="19" ry="13" fill="#fde68a"/>
+      <circle cx="-8" cy="-4" r="8" fill="#fde68a"/>
+      <circle cx="8" cy="-4" r="8" fill="#fde68a"/>
+
+      <!-- Goofy Crossed/Hyped Eyes -->
+      <circle cx="-8" cy="-4" r="5.5" fill="#fff" stroke="#0f172a" stroke-width="2"/>
+      <circle cx="8" cy="-4" r="5.5" fill="#fff" stroke="#0f172a" stroke-width="2"/>
+      <circle cx="-6" cy="-4" r="2.5" fill="#0f172a"/>
+      <circle cx="10" cy="-5" r="2.5" fill="#0f172a"/>
+
+      <!-- Hyped Mouth -->
+      <path d="M-10 9 Q0 22 12 9 Z" fill="#7f1d1d" stroke="#0f172a" stroke-width="2"/>
+      <path d="M-4 15 Q2 19 6 15" fill="#fb7185"/>
+
+      <!-- Backwards Cap -->
+      <path d="M-23 -8 Q0 -34 23 -8 Z" fill="#ef4444" stroke="#0f172a" stroke-width="2.5"/>
+      <path d="M-22 -10 L-42 -5 L-38 2 L-20 -4 Z" fill="#dc2626" stroke="#0f172a" stroke-width="2.5"/>
+    </g>
+  </g>
+
+  <!-- X-Ray / Hall of Meat Joke Badge -->
+  <g transform="translate(495, 228) rotate(8)">
+    <rect x="-78" y="-20" width="156" height="40" rx="10" fill="#0f172a" stroke="#38bdf8" stroke-width="3"/>
+    <text x="0" y="6" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="900" font-size="16" fill="#38bdf8">💀 SUS: +4.200 R$</text>
+  </g>
+
+  <!-- Title Banner -->
+  <g transform="translate(24, 24)">
+    <rect x="0" y="0" width="338" height="72" rx="14" fill="rgba(15, 23, 42, 0.88)" stroke="#facc15" stroke-width="3.5"/>
+    <text x="16" y="34" font-family="system-ui, sans-serif" font-weight="900" font-size="25" fill="#fde047">TONY CHIMP</text>
+    <text x="16" y="57" font-family="system-ui, sans-serif" font-weight="800" font-size="14" fill="#fb7185">SKATE RAGDOLL • HALL OF MEAT 🍌</text>
+  </g>
+</svg>
