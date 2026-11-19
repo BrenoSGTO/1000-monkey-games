@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#14532d" />
+      <stop offset="55%" stop-color="#166534" />
+      <stop offset="100%" stop-color="#052e16" />
+    </linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#d97706" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+    <linearGradient id="moab" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0369a1" />
+    </linearGradient>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.45" />
+    </filter>
+  </defs>
+
+  <!-- Jungle background -->
+  <rect width="640" height="360" fill="url(#bg)" />
+  <circle cx="80" cy="60" r="70" fill="#22c55e" opacity="0.16" />
+  <circle cx="560" cy="300" r="95" fill="#4ade80" opacity="0.12" />
+  <circle cx="320" cy="40" r="55" fill="#facc15" opacity="0.08" />
+
+  <!-- Winding dirt track -->
+  <path
+    d="M -20 270 C 110 270, 120 110, 250 110 C 370 110, 340 285, 470 285 C 565 285, 585 170, 660 170"
+    fill="none"
+    stroke="#78350f"
+    stroke-width="64"
+    stroke-linecap="round"
+  />
+  <path
+    d="M -20 270 C 110 270, 120 110, 250 110 C 370 110, 340 285, 470 285 C 565 285, 585 170, 660 170"
+    fill="none"
+    stroke="url(#road)"
+    stroke-width="50"
+    stroke-linecap="round"
+  />
+  <path
+    d="M -20 270 C 110 270, 120 110, 250 110 C 370 110, 340 285, 470 285 C 565 285, 585 170, 660 170"
+    fill="none"
+    stroke="#fef3c7"
+    stroke-width="3"
+    stroke-dasharray="14 14"
+    opacity="0.45"
+  />
+
+  <!-- MOAB Dirigivel do Imposto de Renda -->
+  <g transform="translate(465, 102) rotate(-8)" filter="url(#shadow)">
+    <polygon points="62,-18 86,-30 82,0 86,30 62,18" fill="#ef4444" stroke="#0f172a" stroke-width="3" />
+    <ellipse cx="0" cy="0" rx="74" ry="38" fill="url(#moab)" stroke="#0f172a" stroke-width="4" />
+    <path d="M -55 -16 Q 0 -30 55 -16" fill="none" stroke="#bae6fd" stroke-width="4" opacity="0.6" />
+    <rect x="-40" y="-12" width="76" height="22" rx="6" fill="#fef08a" stroke="#0f172a" stroke-width="2.5" />
+    <text x="-2" y="4" font-family="system-ui, sans-serif" font-size="13" font-weight="900" text-anchor="middle" fill="#b91c1c">IRPF MOAB</text>
+    <!-- Angry eyes -->
+    <circle cx="-48" cy="-16" r="8" fill="#fff" stroke="#0f172a" stroke-width="2" />
+    <circle cx="-50" cy="-15" r="3.5" fill="#0f172a" />
+    <path d="M -57 -26 L -40 -20" stroke="#0f172a" stroke-width="3.5" stroke-linecap="round" />
+  </g>
+
+  <!-- Cheeky Bloons on the path -->
+  <g filter="url(#shadow)">
+    <!-- Red bloon -->
+    <g transform="translate(88, 252)">
+      <path d="M0,22 Q-4,34 3,42" stroke="#e2e8f0" stroke-width="2" fill="none" />
+      <ellipse cx="0" cy="0" rx="18" ry="22" fill="#ef4444" stroke="#7f1d1d" stroke-width="3" />
+      <ellipse cx="-6" cy="-8" rx="4" ry="6" fill="#fca5a5" opacity="0.65" />
+      <circle cx="-5" cy="-2" r="3" fill="#fff" /><circle cx="5" cy="-2" r="3" fill="#fff" />
+      <circle cx="-4" cy="-2" r="1.5" fill="#0f172a" /><circle cx="6" cy="-2" r="1.5" fill="#0f172a" />
+      <path d="M -6 7 Q 0 12 6 7" stroke="#0f172a" stroke-width="2" fill="none" stroke-linecap="round" />
+    </g>
+    <!-- Camo sunglasses bloon -->
+    <g transform="translate(185, 130)">
+      <path d="M0,22 Q4,33 -2,40" stroke="#e2e8f0" stroke-width="2" fill="none" />
+      <ellipse cx="0" cy="0" rx="19" ry="23" fill="#4d7c0f" stroke="#1a2e05" stroke-width="3" />
+      <circle cx="-6" cy="8" r="5" fill="#84cc16" opacity="0.6" />
+      <circle cx="8" cy="-8" r="4" fill="#365314" opacity="0.7" />
+      <rect x="-13" y="-7" width="11" height="7" rx="2" fill="#0f172a" />
+      <rect x="2" y="-7" width="11" height="7" rx="2" fill="#0f172a" />
+      <line x1="-2" y1="-4" x2="2" y2="-4" stroke="#0f172a" stroke-width="2.5" />
+      <path d="M -5 7 Q 0 11 6 5" stroke="#0f172a" stroke-width="2" fill="none" stroke-linecap="round" />
+    </g>
+    <!-- Pink bloon -->
+    <g transform="translate(362, 232)">
+      <path d="M0,20 Q-3,31 2,38" stroke="#e2e8f0" stroke-width="2" fill="none" />
+      <ellipse cx="0" cy="0" rx="17" ry="20" fill="#f472b6" stroke="#9d174d" stroke-width="3" />
+      <circle cx="-5" cy="-2" r="3" fill="#fff" /><circle cx="5" cy="-2" r="3" fill="#fff" />
+      <circle cx="-5" cy="-2" r="1.5" fill="#0f172a" /><circle cx="5" cy="-2" r="1.5" fill="#0f172a" />
+      <path d="M -5 6 Q 0 10 5 6" stroke="#0f172a" stroke-width="2" fill="none" />
+    </g>
+  </g>
+
+  <!-- Flying Banana & Havaianas Flip-Flop! -->
+  <g transform="translate(265, 165) rotate(25)" filter="url(#shadow)">
+    <path d="M -18 -4 Q 0 -20 20 -2 Q 4 -6 -18 -4 Z" fill="#fde047" stroke="#854d0e" stroke-width="2.5" />
+  </g>
+  <g transform="translate(310, 265) rotate(-32)" filter="url(#shadow)">
+    <rect x="-12" y="-22" width="24" height="44" rx="11" fill="#38bdf8" stroke="#0c4a6e" stroke-width="2.5" />
+    <path d="M -8 4 L 0 -10 L 8 4" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+
+  <!-- Pop Explosion Starburst -->
+  <g transform="translate(290, 128)" filter="url(#shadow)">
+    <polygon points="0,-28 8,-9 28,-12 13,3 24,22 4,13 -8,27 -10,8 -29,5 -12,-7" fill="#fef08a" stroke="#ea580c" stroke-width="3" />
+    <text x="0" y="5" font-family="system-ui, sans-serif" font-size="13" font-weight="900" text-anchor="middle" fill="#b91c1c">POW!</text>
+  </g>
+
+  <!-- Hero Googly-Eyed Angry Monkey -->
+  <g transform="translate(152, 232)" filter="url(#shadow)">
+    <!-- Ears -->
+    <circle cx="-30" cy="-6" r="12" fill="#92400e" stroke="#451a03" stroke-width="3" />
+    <circle cx="-30" cy="-6" r="6" fill="#fed7aa" />
+    <circle cx="30" cy="-6" r="12" fill="#92400e" stroke="#451a03" stroke-width="3" />
+    <circle cx="30" cy="-6" r="6" fill="#fed7aa" />
+    <!-- Body / Head -->
+    <circle cx="0" cy="0" r="30" fill="#b45309" stroke="#451a03" stroke-width="3.5" />
+    <ellipse cx="0" cy="9" rx="22" ry="16" fill="#fed7aa" />
+    <ellipse cx="0" cy="-6" rx="19" ry="12" fill="#fed7aa" />
+    <!-- Googly eyes -->
+    <circle cx="-9" cy="-7" r="8" fill="#fff" stroke="#451a03" stroke-width="2" />
+    <circle cx="9" cy="-7" r="8" fill="#fff" stroke="#451a03" stroke-width="2" />
+    <circle cx="-7" cy="-9" r="3.5" fill="#0f172a" />
+    <circle cx="11" cy="-5" r="3.5" fill="#0f172a" />
+    <!-- Brows -->
+    <path d="M -17 -16 L -3 -12" stroke="#451a03" stroke-width="3.5" stroke-linecap="round" />
+    <path d="M 17 -16 L 3 -12" stroke="#451a03" stroke-width="3.5" stroke-linecap="round" />
+    <!-- Grin -->
+    <path d="M -11 8 Q 0 19 11 8 Z" fill="#fff" stroke="#451a03" stroke-width="2" />
+    <!-- Red headband -->
+    <path d="M -28 -17 Q 0 -27 28 -17 L 25 -25 Q 0 -35 -25 -25 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="2" />
+  </g>
+
+  <!-- Title Banner -->
+  <g transform="translate(22, 18)" filter="url(#shadow)">
+    <rect x="0" y="0" width="352" height="58" rx="14" fill="#0f172a" fill-opacity="0.9" stroke="#facc15" stroke-width="3" />
+    <text x="16" y="27" font-family="system-ui, sans-serif" font-size="20" font-weight="900" fill="#fde047">MACACO ESTOURA-BEXIGA TD</text>
+    <text x="16" y="46" font-family="system-ui, sans-serif" font-size="12" font-weight="700" fill="#86efac">🍌 Bananas • 🩴 Chineladas • 🔊 JBL • 💼 Receita Federal</text>
+  </g>
+</svg>
