@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f3d2e" />
+      <stop offset="60%" stop-color="#175941" />
+      <stop offset="100%" stop-color="#0a251b" />
+    </linearGradient>
+    <linearGradient id="plumbob" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#bef264" />
+      <stop offset="50%" stop-color="#22c55e" />
+      <stop offset="100%" stop-color="#15803d" />
+    </linearGradient>
+    <linearGradient id="plumbobRed" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="50%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#dc2626" />
+    </linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#a16207" />
+      <stop offset="100%" stop-color="#713f12" />
+    </linearGradient>
+  </defs>
+
+  <!-- Jungle backdrop -->
+  <rect width="640" height="360" fill="url(#sky)" />
+  <circle cx="95" cy="70" r="95" fill="#166534" opacity="0.55" />
+  <circle cx="560" cy="65" r="110" fill="#15803d" opacity="0.5" />
+  <circle cx="585" cy="295" r="95" fill="#14532d" opacity="0.7" />
+  <circle cx="45" cy="310" r="85" fill="#14532d" opacity="0.7" />
+
+  <!-- Treehouse platform -->
+  <g transform="translate(80, 96)">
+    <!-- Shadow -->
+    <rect x="10" y="196" width="460" height="24" rx="12" fill="#05130d" opacity="0.55" />
+    <!-- Floor -->
+    <rect x="0" y="34" width="480" height="172" rx="14" fill="#d97706" stroke="#78350f" stroke-width="5" />
+    <!-- Kitchen checkered area -->
+    <rect x="8" y="42" width="170" height="156" rx="8" fill="#fef3c7" />
+    <path d="M8 82 H178 M8 122 H178 M8 162 H178 M50 42 V198 M93 42 V198 M136 42 V198" stroke="#fde68a" stroke-width="3" />
+    <!-- Living room rug -->
+    <rect x="184" y="42" width="288" height="156" rx="8" fill="#b45309" />
+    <rect x="225" y="74" width="190" height="104" rx="14" fill="#dc2626" stroke="#facc15" stroke-width="4" />
+
+    <!-- Burning Stove in Kitchen! -->
+    <rect x="28" y="54" width="60" height="46" rx="6" fill="#475569" stroke="#1e293b" stroke-width="3" />
+    <circle cx="46" cy="72" r="9" fill="#0f172a" />
+    <circle cx="70" cy="72" r="9" fill="#0f172a" />
+    <!-- Fire! -->
+    <path d="M58 68 C40 38, 62 12, 74 36 C86 16, 102 42, 78 68 Z" fill="#f97316" />
+    <path d="M62 66 C52 48, 64 30, 70 46 C76 32, 86 48, 74 66 Z" fill="#fde047" />
+
+    <!-- Sofa & JBL Speaker -->
+    <rect x="330" y="58" width="110" height="42" rx="10" fill="#16a34a" stroke="#14532d" stroke-width="3" />
+    <rect x="422" y="136" width="34" height="46" rx="7" fill="#1e293b" stroke="#0f172a" stroke-width="3" />
+    <circle cx="439" cy="151" r="9" fill="#ef4444" />
+    <circle cx="439" cy="170" r="6" fill="#facc15" />
+    <text x="415" y="128" font-size="20" fill="#facc15">♪</text>
+    <text x="448" y="118" font-size="18" fill="#4ade80">♫</text>
+  </g>
+
+  <!-- Main Happy Monkey (Center-Right) -->
+  <g transform="translate(360, 210)">
+    <!-- Plumbob (Green Banana Diamond) -->
+    <polygon points="0,-122 18,-90 0,-58 -18,-90" fill="url(#plumbob)" stroke="#ecfccb" stroke-width="2.5" />
+    <line x1="0" y1="-122" x2="0" y2="-58" stroke="#dcfce7" stroke-width="1.5" opacity="0.8" />
+    <!-- Ears -->
+    <circle cx="-34" cy="-16" r="14" fill="#92400e" stroke="#451a03" stroke-width="3" />
+    <circle cx="34" cy="-16" r="14" fill="#92400e" stroke="#451a03" stroke-width="3" />
+    <!-- Body -->
+    <ellipse cx="0" cy="30" rx="28" ry="30" fill="#92400e" stroke="#451a03" stroke-width="3" />
+    <ellipse cx="0" cy="32" rx="16" ry="20" fill="#fde68a" />
+    <!-- Head -->
+    <circle cx="0" cy="-14" r="30" fill="#92400e" stroke="#451a03" stroke-width="3" />
+    <ellipse cx="0" cy="-8" rx="22" ry="18" fill="#fde68a" />
+    <!-- Juliet Sunglasses -->
+    <rect x="-24" y="-27" width="21" height="12" rx="4" fill="#06b6d4" stroke="#0f172a" stroke-width="2.5" />
+    <rect x="3" y="-27" width="21" height="12" rx="4" fill="#06b6d4" stroke="#0f172a" stroke-width="2.5" />
+    <line x1="-3" y1="-22" x2="3" y2="-22" stroke="#0f172a" stroke-width="3" />
+    <!-- Big Smile -->
+    <path d="M-11 -2 Q0 10 11 -2" fill="none" stroke="#451a03" stroke-width="3" stroke-linecap="round" />
+    <!-- Banana in hand -->
+    <path d="M24 20 Q42 8 38 -8" fill="none" stroke="#facc15" stroke-width="8" stroke-linecap="round" />
+  </g>
+
+  <!-- Panicking Chef Monkey (Left) -->
+  <g transform="translate(205, 224)">
+    <!-- Red/Orange Plumbob -->
+    <polygon points="0,-116 16,-88 0,-60 -16,-88" fill="url(#plumbobRed)" stroke="#fef08a" stroke-width="2" />
+    <!-- Thought bubble -->
+    <rect x="-56" y="-128" width="44" height="32" rx="12" fill="#ffffff" stroke="#334155" stroke-width="2.5" />
+    <text x="-45" y="-105" font-size="20">🔥</text>
+    <!-- Ears -->
+    <circle cx="-30" cy="-14" r="12" fill="#b45309" stroke="#451a03" stroke-width="3" />
+    <circle cx="30" cy="-14" r="12" fill="#b45309" stroke="#451a03" stroke-width="3" />
+    <!-- Body -->
+    <ellipse cx="0" cy="26" rx="24" ry="26" fill="#b45309" stroke="#451a03" stroke-width="3" />
+    <!-- Head -->
+    <circle cx="0" cy="-14" r="26" fill="#b45309" stroke="#451a03" stroke-width="3" />
+    <ellipse cx="0" cy="-9" rx="19" ry="15" fill="#fed7aa" />
+    <!-- Crown -->
+    <polygon points="-15,-36 -10,-52 -2,-40 4,-54 12,-40 16,-50 18,-36" fill="#facc15" stroke="#854d0e" stroke-width="2" />
+    <!-- Derpy Panicked Eyes -->
+    <circle cx="-9" cy="-18" r="6" fill="#fff" stroke="#1e293b" stroke-width="2" />
+    <circle cx="9" cy="-18" r="7" fill="#fff" stroke="#1e293b" stroke-width="2" />
+    <circle cx="-8" cy="-17" r="2.5" fill="#0f172a" />
+    <circle cx="11" cy="-19" r="2.5" fill="#0f172a" />
+    <!-- Open scream mouth -->
+    <ellipse cx="0" cy="-2" rx="7" ry="6" fill="#7f1d1d" />
+  </g>
+
+  <!-- Title Banner -->
+  <g transform="translate(320, 44)">
+    <rect x="-215" y="-26" width="430" height="52" rx="26" fill="#0f172a" fill-opacity="0.88" stroke="#4ade80" stroke-width="3" />
+    <text x="0" y="-1" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="900" font-size="22" fill="#fef08a">
+      🐒 OS MACACOS: VIDA NA ÁRVORE
+    </text>
+    <text x="0" y="18" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="700" font-size="11" fill="#86efac">
+      SIMULADOR DE CAOS NA REPÚBLICA • SOLO &amp; CO-OP 6P
+    </text>
+  </g>
+
+  <!-- Needs pills at bottom -->
+  <g transform="translate(135, 326)">
+    <rect x="0" y="0" width="370" height="24" rx="12" fill="#0f172a" fill-opacity="0.88" stroke="#facc15" stroke-width="2" />
+    <text x="185" y="16" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="800" font-size="12" fill="#fef08a">
+      🍌 Fome • ⚡ Energia • 🚿 Higiene • 🚽 Bexiga • 🎮 Diversão • 💬 Social
+    </text>
+  </g>
+</svg>
