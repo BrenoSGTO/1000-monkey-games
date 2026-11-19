@@ -1,0 +1,28 @@
+{
+  "slug": "monkey-cells",
+  "title": "Hollow Chimp: Masmorra da Banana",
+  "subtitle": "Roguelite de ação e plataforma com Pogo, Frigideira e Gorilão CEO!",
+  "inspiredBy": "Dead Cells & Hollow Knight",
+  "description": "Encarne o Macaco Cavaleiro de capacete de coco e capa de folha de bananeira! Domine wall-jump, esquiva com iframe, pogo-jump em espinhos e inimigos, encha seu Potássio para comer bananas e derrote o Gorilão de Terno (CEO da Faria Lima) — sozinho ou em Co-op P2P com Empurrão Amigo!",
+  "category": "acao",
+  "tags": ["roguelite", "metroidvania", "plataforma", "boss-fight", "coop", "pogo"],
+  "emoji": "⚔️",
+  "accentColor": "#facc15",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop",
+    "maxPlayers": 4,
+    "summary": "Co-op P2P para 2 a 4 macacos na masmorra com dano sincronizado, Revive na Bananada e toggle de Empurrão Amigo!"
+  },
+  "controls": [
+    "A / D ou Setas: Correr e deslizar na parede",
+    "W / Espaço: Pulo, Pulo Duplo e Wall-Jump",
+    "Shift / K: Esquiva / Rolamento com invencibilidade",
+    "J / Z / Clique: Atacar (S + J no ar = Pogo-Jump!)",
+    "Segurar Q / F: Comer Banana e curar HP (gasta Potássio)",
+    "E: Abrir baús, trocar arma e entrar no portal"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
