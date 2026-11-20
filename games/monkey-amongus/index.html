@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Entre Macacos: Quem Roubou a Banana? — Click Macacos</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #050814;
+        color: #f8fafc;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      #app {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      canvas#game-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .ma-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 500;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(2, 6, 23, 0.78);
+        backdrop-filter: blur(5px);
+        padding: 16px;
+      }
+      .ma-overlay.open {
+        display: flex;
+      }
+      .ma-card {
+        background: #0f172a;
+        border: 3px solid #facc15;
+        border-radius: 20px;
+        padding: 20px;
+        width: 100%;
+        max-width: 780px;
+        max-height: 92vh;
+        overflow-y: auto;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+        color: #f8fafc;
+      }
+      .ma-btn {
+        background: #1e293b;
+        color: #f8fafc;
+        border: 2px solid #475569;
+        border-radius: 12px;
+        padding: 9px 14px;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
+      }
+      .ma-btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        border-color: #facc15;
+      }
+      .ma-btn:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+      .ma-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .ma-btn.primary {
+        background: #facc15;
+        color: #111827;
+        border-color: #fef08a;
+      }
+      .ma-btn.danger {
+        background: #dc2626;
+        color: #ffffff;
+        border-color: #fca5a5;
+      }
+      .ma-btn.success {
+        background: #16a34a;
+        color: #ffffff;
+        border-color: #86efac;
+      }
+      .ma-input {
+        background: #020617;
+        color: #f8fafc;
+        border: 2px solid #334155;
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 13px;
+        outline: none;
+        user-select: text;
+        -webkit-user-select: text;
+      }
+      .ma-input:focus {
+        border-color: #facc15;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <defs>
+    <radialGradient id="spaceBg" cx="50%" cy="45%" r="75%">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="55%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </radialGradient>
+    <linearGradient id="alarmGlow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ef4444" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#facc15" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="visor" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#bae6fd"/>
+      <stop offset="55%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <!-- Space background -->
+  <rect width="640" height="360" fill="url(#spaceBg)"/>
+  <circle cx="320" cy="180" r="240" fill="url(#alarmGlow)"/>
+
+  <!-- Stars -->
+  <g fill="#ffffff">
+    <circle cx="48" cy="42" r="2" opacity="0.9"/>
+    <circle cx="115" cy="88" r="1.5" opacity="0.6"/>
+    <circle cx="188" cy="34" r="2.2" opacity="0.8"/>
+    <circle cx="272" cy="52" r="1.3" opacity="0.7"/>
+    <circle cx="410" cy="36" r="2" opacity="0.85"/>
+    <circle cx="520" cy="65" r="2.4" opacity="0.9"/>
+    <circle cx="595" cy="44" r="1.6" opacity="0.65"/>
+    <circle cx="62" cy="215" r="1.5" opacity="0.7"/>
+    <circle cx="585" cy="195" r="2" opacity="0.8"/>
+    <circle cx="140" cy="325" r="1.8" opacity="0.7"/>
+    <circle cx="495" cy="318" r="2.1" opacity="0.75"/>
+    <circle cx="36" cy="138" r="1.2" opacity="0.5"/>
+  </g>
+
+  <!-- Floating Banana Planet & Ship silhouette -->
+  <g transform="translate(545 102) rotate(-18)">
+    <path d="M-28 8 C-14 -24, 18 -26, 30 2 C12 -6, -8 -4, -28 8 Z" fill="#facc15" stroke="#ca8a04" stroke-width="2.5"/>
+    <circle cx="-12" cy="-8" r="3" fill="#fef08a"/>
+  </g>
+
+  <!-- Spaceship deck platform -->
+  <ellipse cx="320" cy="288" rx="255" ry="52" fill="#1e293b" stroke="#475569" stroke-width="4"/>
+  <ellipse cx="320" cy="282" rx="232" ry="40" fill="#334155"/>
+  <!-- Vent grate -->
+  <g transform="translate(278 272)">
+    <rect x="0" y="0" width="84" height="26" rx="5" fill="#0f172a" stroke="#64748b" stroke-width="2.5"/>
+    <line x1="12" y1="6" x2="72" y2="6" stroke="#475569" stroke-width="3" stroke-linecap="round"/>
+    <line x1="12" y1="13" x2="72" y2="13" stroke="#475569" stroke-width="3" stroke-linecap="round"/>
+    <line x1="12" y1="20" x2="72" y2="20" stroke="#475569" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- Peeled banana skeleton on floor -->
+  <g transform="translate(320 262)" filter="url(#shadow)">
+    <path d="M-24 10 C-14 -4, 14 -4, 24 10 L14 14 L0 8 L-14 14 Z" fill="#facc15" stroke="#111827" stroke-width="2.5"/>
+    <rect x="-5" y="-14" width="10" height="20" rx="4" fill="#f8fafc" stroke="#111827" stroke-width="2.5"/>
+    <circle cx="-4" cy="-16" r="4" fill="#f8fafc" stroke="#111827" stroke-width="2"/>
+    <circle cx="4" cy="-16" r="4" fill="#f8fafc" stroke="#111827" stroke-width="2"/>
+  </g>
+
+  <!-- Left Monkey (Red Impostor with suspicious grin & pointing) -->
+  <g transform="translate(155 205)" filter="url(#shadow)">
+    <!-- Tail -->
+    <path d="M-38 25 C-65 15, -72 -15, -52 -24" fill="none" stroke="#92400e" stroke-width="8" stroke-linecap="round"/>
+    <!-- Backpack -->
+    <rect x="-54" y="-12" width="22" height="54" rx="10" fill="#b91c1c" stroke="#111827" stroke-width="4"/>
+    <!-- Ears -->
+    <circle cx="-38" cy="-32" r="14" fill="#b45309" stroke="#111827" stroke-width="4"/>
+    <circle cx="-38" cy="-32" r="7" fill="#fde68a"/>
+    <circle cx="38" cy="-32" r="14" fill="#b45309" stroke="#111827" stroke-width="4"/>
+    <circle cx="38" cy="-32" r="7" fill="#fde68a"/>
+    <!-- Body -->
+    <rect x="-36" y="-44" width="72" height="96" rx="34" fill="#ef4444" stroke="#111827" stroke-width="4"/>
+    <!-- Legs -->
+    <rect x="-30" y="38" width="24" height="28" rx="10" fill="#dc2626" stroke="#111827" stroke-width="4"/>
+    <rect x="6" y="38" width="24" height="28" rx="10" fill="#dc2626" stroke="#111827" stroke-width="4"/>
+    <!-- Visor -->
+    <rect x="-8" y="-26" width="52" height="32" rx="15" fill="url(#visor)" stroke="#111827" stroke-width="4"/>
+    <ellipse cx="14" cy="-16" rx="14" ry="5" fill="#ffffff" opacity="0.65"/>
+    <!-- Suspicious eyes inside visor -->
+    <circle cx="12" cy="-9" r="5" fill="#ffffff" stroke="#111827" stroke-width="2"/>
+    <circle cx="14" cy="-9" r="2.2" fill="#111827"/>
+    <circle cx="29" cy="-9" r="5" fill="#ffffff" stroke="#111827" stroke-width="2"/>
+    <circle cx="31" cy="-9" r="2.2" fill="#111827"/>
+    <line x1="6" y1="-17" x2="20" y2="-13" stroke="#111827" stroke-width="3" stroke-linecap="round"/>
+    <line x1="36" y1="-17" x2="22" y2="-13" stroke="#111827" stroke-width="3" stroke-linecap="round"/>
+    <!-- Pointing arm -->
+    <path d="M32 6 L72 -4" stroke="#ef4444" stroke-width="14" stroke-linecap="round"/>
+    <path d="M32 6 L72 -4" stroke="#111827" stroke-width="4" stroke-linecap="round" opacity="0.25"/>
+    <circle cx="74" cy="-5" r="8" fill="#ef4444" stroke="#111827" stroke-width="3.5"/>
+    <!-- Banana peel hat -->
+    <path d="M-20 -44 C-14 -68, 12 -70, 22 -44 Z" fill="#facc15" stroke="#111827" stroke-width="3.5"/>
+  </g>
+
+  <!-- Right Monkey (Yellow Crewmate shocked) -->
+  <g transform="translate(485 208)" filter="url(#shadow)">
+    <!-- Tail -->
+    <path d="M38 25 C64 12, 68 -18, 48 -26" fill="none" stroke="#92400e" stroke-width="8" stroke-linecap="round"/>
+    <!-- Backpack -->
+    <rect x="32" y="-12" width="22" height="54" rx="10" fill="#ca8a04" stroke="#111827" stroke-width="4"/>
+    <!-- Ears -->
+    <circle cx="-38" cy="-30" r="14" fill="#b45309" stroke="#111827" stroke-width="4"/>
+    <circle cx="-38" cy="-30" r="7" fill="#fde68a"/>
+    <circle cx="38" cy="-30" r="14" fill="#b45309" stroke="#111827" stroke-width="4"/>
+    <circle cx="38" cy="-30" r="7" fill="#fde68a"/>
+    <!-- Body -->
+    <rect x="-36" y="-44" width="72" height="96" rx="34" fill="#facc15" stroke="#111827" stroke-width="4"/>
+    <!-- Legs -->
+    <rect x="-30" y="38" width="24" height="28" rx="10" fill="#eab308" stroke="#111827" stroke-width="4"/>
+    <rect x="6" y="38" width="24" height="28" rx="10" fill="#eab308" stroke="#111827" stroke-width="4"/>
+    <!-- Visor -->
+    <rect x="-44" y="-26" width="52" height="32" rx="15" fill="url(#visor)" stroke="#111827" stroke-width="4"/>
+    <ellipse cx="-22" cy="-16" rx="14" ry="5" fill="#ffffff" opacity="0.65"/>
+    <!-- Googly eyes -->
+    <circle cx="-28" cy="-9" r="6" fill="#ffffff" stroke="#111827" stroke-width="2"/>
+    <circle cx="-30" cy="-8" r="2.5" fill="#111827"/>
+    <circle cx="-11" cy="-9" r="6" fill="#ffffff" stroke="#111827" stroke-width="2"/>
+    <circle cx="-13" cy="-10" r="2.5" fill="#111827"/>
+    <!-- Pointing arm back -->
+    <path d="M-32 6 L-72 -4" stroke="#facc15" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="-74" cy="-5" r="8" fill="#facc15" stroke="#111827" stroke-width="3.5"/>
+    <!-- Crown -->
+    <polygon points="-20,-42 -24,-64 -8,-52 0,-68 8,-52 24,-64 20,-42" fill="#fbbf24" stroke="#111827" stroke-width="3"/>
+  </g>
+
+  <!-- Center Background Monkey (Cyan peering) -->
+  <g transform="translate(320 165) scale(0.75)" filter="url(#shadow)">
+    <circle cx="-36" cy="-28" r="13" fill="#b45309" stroke="#111827" stroke-width="4"/>
+    <circle cx="36" cy="-28" r="13" fill="#b45309" stroke="#111827" stroke-width="4"/>
+    <rect x="-34" y="-42" width="68" height="84" rx="32" fill="#38bdf8" stroke="#111827" stroke-width="4"/>
+    <rect x="-24" y="-24" width="48" height="28" rx="13" fill="url(#visor)" stroke="#111827" stroke-width="4"/>
+    <circle cx="-8" cy="-10" r="4.5" fill="#fff" stroke="#111827" stroke-width="2"/>
+    <circle cx="-7" cy="-10" r="2" fill="#111827"/>
+    <circle cx="10" cy="-10" r="4.5" fill="#fff" stroke="#111827" stroke-width="2"/>
+    <circle cx="11" cy="-10" r="2" fill="#111827"/>
+  </g>
+
+  <!-- SUS speech bubble -->
+  <g transform="translate(320 105)">
+    <rect x="-52" y="-22" width="104" height="32" rx="16" fill="#ef4444" stroke="#111827" stroke-width="3"/>
+    <text x="0" y="-1" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="16" fill="#ffffff">SUS DEMAIS!</text>
+  </g>
+
+  <!-- Title Banner -->
+  <g transform="translate(320 48)">
+    <rect x="-235" y="-28" width="470" height="52" rx="16" fill="#0f172a" fill-opacity="0.88" stroke="#facc15" stroke-width="3.5"/>
+    <text x="0" y="-3" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="25" fill="#facc15" letter-spacing="0.5">ENTRE MACACOS</text>
+    <text x="0" y="16" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="12" fill="#fca5a5" letter-spacing="1.5">QUEM ROUBOU A BANANA?</text>
+  </g>
+</svg>
