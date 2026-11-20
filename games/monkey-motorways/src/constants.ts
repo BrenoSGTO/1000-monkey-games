@@ -1,4 +1,4 @@
-import type { MonkeyColor, ToolKind, UpgradeOption } from './types';
+import type { BuildingShape, MonkeyColor, ToolKind, UpgradeOption } from './types';
 
 export const GRID_COLS = 28;
 export const GRID_ROWS = 18;
@@ -8,10 +8,14 @@ export const DAYS_PER_WEEK = 7;
 
 export const WEEKDAY_NAMES = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'] as const;
 
+export const DELIVERY_MILESTONES = [100, 250, 500, 1000] as const;
+
 export interface ColorTheme {
   id: MonkeyColor;
   label: string;
   fruitEmoji: string;
+  shape: BuildingShape;
+  shapeLabel: string;
   fill: string;
   dark: string;
   light: string;
@@ -24,6 +28,8 @@ export const MONKEY_COLORS: Record<MonkeyColor, ColorTheme> = {
     id: 'yellow',
     label: 'Banana Ouro',
     fruitEmoji: '🍌',
+    shape: 'circle',
+    shapeLabel: '●',
     fill: '#facc15',
     dark: '#a16207',
     light: '#fef08a',
@@ -32,8 +38,10 @@ export const MONKEY_COLORS: Record<MonkeyColor, ColorTheme> = {
   },
   red: {
     id: 'red',
-    label: 'Açaí Turbinado',
-    fruitEmoji: '🍓',
+    label: 'Manga Rubra',
+    fruitEmoji: '🥭',
+    shape: 'diamond',
+    shapeLabel: '◆',
     fill: '#ef4444',
     dark: '#991b1b',
     light: '#fecaca',
@@ -44,6 +52,8 @@ export const MONKEY_COLORS: Record<MonkeyColor, ColorTheme> = {
     id: 'blue',
     label: 'Coco Gelado',
     fruitEmoji: '🥥',
+    shape: 'hex',
+    shapeLabel: '⬡',
     fill: '#38bdf8',
     dark: '#0369a1',
     light: '#bae6fd',
@@ -54,6 +64,8 @@ export const MONKEY_COLORS: Record<MonkeyColor, ColorTheme> = {
     id: 'purple',
     label: 'Uva Maluca',
     fruitEmoji: '🍇',
+    shape: 'pentagon',
+    shapeLabel: '▲',
     fill: '#a855f7',
     dark: '#6b21a8',
     light: '#e9d5ff',
@@ -62,8 +74,10 @@ export const MONKEY_COLORS: Record<MonkeyColor, ColorTheme> = {
   },
   green: {
     id: 'green',
-    label: 'Abacate Zen',
-    fruitEmoji: '🥑',
+    label: 'Melancia Zen',
+    fruitEmoji: '🍉',
+    shape: 'octagon',
+    shapeLabel: '■',
     fill: '#22c55e',
     dark: '#166534',
     light: '#bbf7d0',
@@ -76,49 +90,56 @@ export const COLOR_UNLOCK_ORDER: MonkeyColor[] = ['yellow', 'red', 'blue', 'purp
 
 export const MARKET_NAMES: Record<MonkeyColor, string[]> = {
   yellow: ['Feira da Banana', 'Quitanda Bananão', 'Atacadão Chimp'],
-  red: ['Açaí do Morrote', 'Point do Morango', 'Empório Rubro'],
+  red: ['Empório da Manga', 'Point Rubro', 'Barraca Manga Rosa'],
   blue: ['Quiosque do Coco', 'Geladinho Azul', 'Água de Cipó'],
-  purple: ['Banca da Jabuticaba', 'Uva da Selva', 'Adega Símia'],
-  green: ['Mercadão Abacate', 'Hortifruti Selva', 'Verde Macaco'],
+  purple: ['Banca da Uva', 'Parreiral da Selva', 'Adega Símia'],
+  green: ['Mercadão Melancia', 'Hortifruti Selva', 'Verde Macaco'],
 };
 
 export const RAGE_EMOJIS = ['🤬', '🍌', '💩', '💢', '🐒', '📢'];
 
-export const RAGE_QUIPS = [
-  'ANDA LOGO!!',
-  'CADÊ O DETRAN?!',
-  'BUZINA MAIS!',
-  'TRÂNSITO DE BANANA!',
-  'PREFEITO CALVO!',
-  'SÓ QUERO MEU AÇAÍ!',
-  'ENGARRAFAMENTO MONSTRO!',
-  'VOU JOGAR COCO!',
+export const RAGE_BUBBLES = [
+  '📢 BIIIP!',
+  '🤬 ANDA LOGO!',
+  '🐒 CADÊ O DETRAN?!',
+  '🍌 SEM BANANA!',
+  '💢 TRAVOU TUDO!',
+  '🥥 VOU JOGAR COCO!',
+  '🚧 PREFEITO CALVO!',
+  '🔥 HORA DO RUSH!',
 ];
+
+export const PING_PRESETS = [
+  { id: 'jam', emoji: '🚨', text: 'Engarrafou aqui!', short: 'Engarrafou!' },
+  { id: 'bridge', emoji: '🌉', text: 'Precisa de ponte!', short: 'Ponte!' },
+  { id: 'roundabout', emoji: '🔄', text: 'Põe rotatória!', short: 'Rotatória!' },
+  { id: 'nice', emoji: '👏', text: 'Boa!', short: 'Boa!' },
+] as const;
 
 export const TOOL_META: Record<ToolKind, { label: string; hotkey: string; icon: string; desc: string }> = {
   road: {
     label: 'Estrada',
     hotkey: '1',
     icon: '🛣️',
-    desc: 'Arraste para traçar estradas e pontes sobre rios',
+    desc: 'Arraste para pré-visualizar e solte para construir (Ctrl+Z desfaz)',
   },
   light: {
     label: 'Semáforo',
     hotkey: '2',
     icon: '🚦',
-    desc: 'Clique em cruzamentos para organizar o fluxo',
+    desc: 'Clique em cruzamentos para alternar o fluxo entre direções',
   },
   roundabout: {
     label: 'Rotatória',
     hotkey: '3',
     icon: '🔄',
-    desc: 'Clique em um nó de estrada para criar rotatória',
+    desc: 'Clique em um nó de estrada para fluxo circular sem paradas',
   },
   motorway: {
     label: 'Cipó Express',
     hotkey: '4',
     icon: '🌿',
-    desc: 'Arraste de um ponto a outro por cima de tudo!',
+    desc: 'Arraste de um ponto a outro por cima de rios, prédios e trânsito!',
   },
   erase: {
     label: 'Borracha',
@@ -126,12 +147,19 @@ export const TOOL_META: Record<ToolKind, { label: string; hotkey: string; icon: 
     icon: '🧹',
     desc: 'Clique/arraste para apagar e recuperar peças (ou botão direito)',
   },
+  ping: {
+    label: 'Pingar',
+    hotkey: 'P',
+    icon: '📣',
+    desc: 'Clique no mapa ou aperte P no cursor para mandar um alerta rápido!',
+  },
 };
 
 export const UPGRADE_POOL: Omit<UpgradeOption, 'id'>[] = [
   {
     title: 'Kit Bambu na Água',
     subtitle: '+22 Estradas • +1 Ponte de Bambu',
+    description: 'Estradas ligam casas aos mercados. Pontes de Bambu cruzam rios e canais (1 ponte por quadrante de água).',
     emoji: '🌉',
     roads: 22,
     bridges: 1,
@@ -142,6 +170,7 @@ export const UPGRADE_POOL: Omit<UpgradeOption, 'id'>[] = [
   {
     title: 'Pacote DETRAN da Selva',
     subtitle: '+18 Estradas • +2 Semáforos',
+    description: 'Semáforos organizam cruzamentos movimentados, alternando verde/vermelho para evitar colisões e filas.',
     emoji: '🚦',
     roads: 18,
     bridges: 0,
@@ -152,6 +181,7 @@ export const UPGRADE_POOL: Omit<UpgradeOption, 'id'>[] = [
   {
     title: 'Girador de Cabeça',
     subtitle: '+16 Estradas • +1 Rotatória',
+    description: 'Rotatórias mantêm os carros girando continuamente sem sinal vermelho — perfeito para avenidas centrais!',
     emoji: '🔄',
     roads: 16,
     bridges: 0,
@@ -162,6 +192,7 @@ export const UPGRADE_POOL: Omit<UpgradeOption, 'id'>[] = [
   {
     title: 'Via Expressa de Cipó',
     subtitle: '+12 Estradas • +1 Cipó Express',
+    description: 'Cipó Express cria uma ponte aérea super rápida por cima de tudo: rios, prédios e engarrafamentos!',
     emoji: '🌿',
     roads: 12,
     bridges: 0,
@@ -171,9 +202,10 @@ export const UPGRADE_POOL: Omit<UpgradeOption, 'id'>[] = [
   },
   {
     title: 'Mutirão do Asfalto',
-    subtitle: '+30 Estradas (Piche de Banana)',
+    subtitle: '+32 Estradas (Piche de Banana)',
+    description: 'Estoque massivo de asfalto para expandir bairros novos e criar desvios paralelos longe do rush!',
     emoji: '🛣️',
-    roads: 30,
+    roads: 32,
     bridges: 0,
     lights: 0,
     roundabouts: 0,

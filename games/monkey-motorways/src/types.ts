@@ -1,12 +1,18 @@
 export type MonkeyColor = 'yellow' | 'red' | 'blue' | 'purple' | 'green';
 
-export type MapId = 'rio-de-bananeiro' | 'sao-chimpulo';
+export type MapId =
+  | 'rio-de-bananeiro'
+  | 'sao-chimpulo'
+  | 'arquipelago-macacos'
+  | 'marginal-tiete-selva';
 
 export type TileKind = 'land' | 'water' | 'tree' | 'rock';
 
-export type ToolKind = 'road' | 'light' | 'roundabout' | 'motorway' | 'erase';
+export type ToolKind = 'road' | 'light' | 'roundabout' | 'motorway' | 'erase' | 'ping';
 
 export type SimSpeed = 0 | 1 | 2;
+
+export type BuildingShape = 'circle' | 'diamond' | 'hex' | 'pentagon' | 'octagon';
 
 export interface GridCoord {
   x: number;
@@ -50,7 +56,7 @@ export interface Market {
 export interface TrafficLight {
   x: number;
   y: number;
-  /** 0 = vertical/NE-SW green, 1 = horizontal/NW-SE green */
+  /** 0 = N-S / NW-SE green, 1 = E-W / NE-SW green */
   phase: 0 | 1;
   timer: number;
 }
@@ -97,6 +103,11 @@ export interface Car {
   moodEmoji: string;
   moodTimer: number;
   orphanedTimer: number;
+  /** Client-side visual smoothing offsets (not sent over network) */
+  vxOffset?: number;
+  vyOffset?: number;
+  vAngleOffset?: number;
+  isOnMotorway?: boolean;
 }
 
 export interface Inventory {
@@ -111,6 +122,7 @@ export interface UpgradeOption {
   id: string;
   title: string;
   subtitle: string;
+  description: string;
   emoji: string;
   roads: number;
   bridges: number;
@@ -140,6 +152,23 @@ export interface Particle {
   life: number;
   maxLife: number;
   emoji?: string;
+  isConfetti?: boolean;
+  rot?: number;
+  vRot?: number;
+  gravity?: number;
+}
+
+export interface MapPing {
+  id: string;
+  playerId: string;
+  playerName: string;
+  playerColor: string;
+  gx: number;
+  gy: number;
+  emoji: string;
+  text: string;
+  life: number;
+  maxLife: number;
 }
 
 export interface RemoteCursor {
@@ -151,6 +180,30 @@ export interface RemoteCursor {
   tool: ToolKind;
   drawing: boolean;
   lastSeen: number;
+}
+
+export interface PlayerContribution {
+  id: string;
+  name: string;
+  color: string;
+  roadsBuilt: number;
+  bridgesBuilt: number;
+  lightsBuilt: number;
+  roundaboutsBuilt: number;
+  motorwaysBuilt: number;
+  erasedCount: number;
+  pingsSent: number;
+}
+
+export interface BuildHistoryEvent {
+  t: number;
+  kind: 'house' | 'market' | 'road' | 'light' | 'roundabout' | 'motorway';
+  x: number;
+  y: number;
+  bx?: number;
+  by?: number;
+  color?: MonkeyColor;
+  isBridge?: boolean;
 }
 
 export interface MapDefinition {
@@ -165,6 +218,52 @@ export interface MapDefinition {
   startingInventory: Inventory;
   /** Decorative palm/rock positions generated deterministically */
   decorSeed: number;
+  initialClusterAnchor: GridCoord;
+  colorAnchors?: Partial<
+    Record<MonkeyColor, { market: GridCoord; house1: GridCoord; house2?: GridCoord }>
+  >;
+  rushMultiplier: number;
+  bridgeBias?: boolean;
+}
+
+export interface CompactCarState {
+  id: string;
+  color: MonkeyColor;
+  x: number;
+  y: number;
+  angle: number;
+  speed: number;
+  state: Car['state'];
+  isOnMotorway: boolean;
+  rage: number;
+  moodEmoji: string;
+  moodTimer: number;
+  orphanedTimer: number;
+}
+
+export interface CompactMarketState {
+  id: string;
+  isMega: boolean;
+  pins: DemandPin[];
+  overload: number;
+  demandInterval: number;
+}
+
+export interface DynamicTickSnapshot {
+  day: number;
+  dayProgress: number;
+  week: number;
+  deliveries: number;
+  speed: SimSpeed;
+  prePauseSpeed: 1 | 2;
+  inventory: Inventory;
+  lights: TrafficLight[];
+  markets: CompactMarketState[];
+  cars: CompactCarState[];
+  networkVersion: number;
+  upgradeVotes: Record<string, number>;
+  lastProcessedSeq: Record<string, number>;
+  playerStats: Record<string, PlayerContribution>;
 }
 
 export interface GameSnapshot {
@@ -177,6 +276,8 @@ export interface GameSnapshot {
   speed: SimSpeed;
   prePauseSpeed: 1 | 2;
   inventory: Inventory;
+  unlockedColors: MonkeyColor[];
+  milestonesHit: number[];
   roadEdges: string[];
   lights: TrafficLight[];
   roundabouts: Roundabout[];
@@ -185,23 +286,45 @@ export interface GameSnapshot {
   markets: Market[];
   cars: Car[];
   pendingUpgrades: UpgradeOption[] | null;
+  upgradeVotes: Record<string, number>;
+  playerStats: Record<string, PlayerContribution>;
+  lastProcessedSeq: Record<string, number>;
+  buildHistory: BuildHistoryEvent[];
   gameOverReason: string | null;
   gameOverMarketId: string | null;
   networkVersion: number;
 }
 
+export interface NetActor {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export type NetMessage =
-  | { kind: 'action:road-add'; ax: number; ay: number; bx: number; by: number }
-  | { kind: 'action:road-erase-edge'; ax: number; ay: number; bx: number; by: number }
-  | { kind: 'action:erase-cell'; gx: number; gy: number }
-  | { kind: 'action:light-toggle'; gx: number; gy: number }
-  | { kind: 'action:roundabout-toggle'; gx: number; gy: number }
-  | { kind: 'action:motorway-add'; ax: number; ay: number; bx: number; by: number }
-  | { kind: 'action:motorway-remove'; id: string }
+  | { kind: 'action:road-add'; ax: number; ay: number; bx: number; by: number; seq?: number; actor?: NetActor }
+  | { kind: 'action:road-erase-edge'; ax: number; ay: number; bx: number; by: number; seq?: number; actor?: NetActor }
+  | { kind: 'action:erase-cell'; gx: number; gy: number; seq?: number; actor?: NetActor }
+  | { kind: 'action:light-toggle'; gx: number; gy: number; seq?: number; actor?: NetActor }
+  | { kind: 'action:roundabout-toggle'; gx: number; gy: number; seq?: number; actor?: NetActor }
+  | { kind: 'action:motorway-add'; ax: number; ay: number; bx: number; by: number; seq?: number; actor?: NetActor }
+  | { kind: 'action:motorway-remove'; id: string; seq?: number; actor?: NetActor }
   | { kind: 'action:speed'; speed: SimSpeed }
+  | { kind: 'action:vote-upgrade'; index: number; actor?: NetActor }
   | { kind: 'action:pick-upgrade'; index: number }
   | { kind: 'action:start-game'; mapId: MapId }
   | { kind: 'action:request-sync' }
   | { kind: 'cursor'; gx: number; gy: number; tool: ToolKind; drawing: boolean }
+  | { kind: 'event:ping'; gx: number; gy: number; emoji: string; text: string; actor?: NetActor }
+  | {
+      kind: 'event:fx';
+      fx: 'delivery' | 'horn' | 'mega' | 'milestone' | 'overload-warn';
+      x?: number;
+      y?: number;
+      color?: MonkeyColor;
+      text?: string;
+      value?: number;
+    }
   | { kind: 'event:toast'; message: string; tone?: 'banana' | 'chaos' | 'info' }
+  | { kind: 'sync:tick'; tick: DynamicTickSnapshot }
   | { kind: 'sync:snapshot'; snapshot: GameSnapshot };

@@ -15,12 +15,12 @@
     "summary": "Despachantes simultâneos desenhando ruas, pontes e cipós no mesmo mapa"
   },
   "controls": [
-    "Botão esquerdo (arrastar): desenhar estrada / conectar ferramenta",
-    "Botão direito (clicar/arrastar): apagar estrada ou remover item",
-    "1-5: trocar ferramenta (Estrada, Semáforo, Rotatória, Cipó, Borracha)",
+    "Botão esquerdo (arrastar): pré-visualizar e traçar estradas e pontes",
+    "Botão direito (clicar/arrastar): apagar item ou estrada • Ctrl+Z: desfazer",
+    "1-5: ferramentas (Estrada, Semáforo, Rotatória, Cipó, Borracha) • P: Ping no mapa",
     "Espaço: pausar • F: velocidade 1x / 2x • N: modo Dia / Noite"
   ],
   "thumbnail": "thumbnail.svg",
   "status": "playable",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }

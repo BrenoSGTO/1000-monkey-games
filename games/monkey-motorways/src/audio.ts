@@ -73,7 +73,7 @@ class MotorwaysAudio {
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(pitch, start);
       osc.frequency.setValueAtTime(pitch * 1.06, start + 0.03);
-      g.gain.setValueAtTime(0.055, start);
+      g.gain.setValueAtTime(0.05, start);
       g.gain.exponentialRampToValueAtTime(0.001, start + 0.07);
       osc.connect(g);
       g.connect(ctx.destination);
@@ -99,21 +99,63 @@ class MotorwaysAudio {
     osc.stop(t + 0.14);
   }
 
-  playWarning(): void {
+  playWarning(urgent = false): void {
     const ctx = this.getCtx();
     if (!ctx) return;
     const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const g = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(520, t);
-    osc.frequency.setValueAtTime(440, t + 0.07);
-    g.gain.setValueAtTime(0.05, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-    osc.connect(g);
-    g.connect(ctx.destination);
-    osc.start(t);
-    osc.stop(t + 0.16);
+    const notes = urgent ? [660, 520, 660] : [540, 440];
+    notes.forEach((freq, i) => {
+      const start = t + i * 0.1;
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      g.gain.setValueAtTime(urgent ? 0.065 : 0.045, start);
+      g.gain.exponentialRampToValueAtTime(0.001, start + 0.09);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.095);
+    });
+  }
+
+  playPing(): void {
+    const ctx = this.getCtx();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    [740, 987.77].forEach((freq, i) => {
+      const start = t + i * 0.065;
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      g.gain.setValueAtTime(0.07, start);
+      g.gain.exponentialRampToValueAtTime(0.001, start + 0.14);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.15);
+    });
+  }
+
+  playMilestone(): void {
+    monkeyAudio.play('fanfare', 0.25);
+    const ctx = this.getCtx();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+      const start = t + i * 0.07;
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, start);
+      g.gain.setValueAtTime(0.08, start);
+      g.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.24);
+    });
   }
 
   playPlaceTool(): void {
