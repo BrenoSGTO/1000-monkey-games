@@ -1,17 +1,26 @@
 import { findRoadPath, generateMap, getAdjacentRoads, gridToWorld, inBounds } from './map';
 import {
+  DECREE_PAIRS,
   GRID_SIZE,
   MILESTONES,
   TOOL_MAP,
   type ActiveDisaster,
-  type BuildingType,
   type ChimpTweet,
   type CitySnapshot,
   type CityStats,
+  type DecreeState,
   type DisasterType,
+  type EconomyBreakdown,
+  type GameMode,
+  type GuideMission,
+  type IncomingDisaster,
+  type MapPing,
   type Particle,
+  type PlayerContribution,
+  type RciDemand,
   type TileData,
   type ToolType,
+  type UndoEntry,
   type Vehicle,
   type VehicleKind,
 } from './types';
@@ -21,7 +30,12 @@ export interface SimHooks {
   onToast: (msg: string, tone?: 'banana' | 'chaos' | 'info') => void;
   onSound: (sound: MonkeySoundName, vol?: number) => void;
   onMilestone: (name: string, bonus: number) => void;
+  onMissionComplete: (mission: GuideMission) => void;
   onCrisis: (reason: 'bankrupt' | 'rebellion') => void;
+  onAutoDisaster: (type: DisasterType, seedX: number, seedY: number) => void;
+  onIncomingDisaster: (incoming: IncomingDisaster) => void;
+  onStartDecreeVote: (id: number, pairIndex: number, duration: number) => void;
+  onDesyncResync: () => void;
   onScoreCheckpoint: (score: number, stats: CityStats) => void;
 }
 
@@ -38,12 +52,31 @@ const HANDLES = [
 
 export class CitySimulation {
   public seed: number;
+  public mode: GameMode;
   public grid: TileData[][];
   public stats: CityStats;
+  public rciDemand: RciDemand = { residential: 80, commercial: 40, industrial: 35 };
+  public economy: EconomyBreakdown = {
+    houseIncome: 0,
+    marketIncome: 0,
+    factoryIncome: 0,
+    deliveryIncome: 0,
+    roadUpkeep: 0,
+    powerUpkeep: 0,
+    parkUpkeep: 0,
+    dumpUpkeep: 0,
+    decreeDelta: 0,
+    netPerTick: 0,
+  };
   public vehicles: Vehicle[] = [];
   public disasters: ActiveDisaster[] = [];
+  public incomingDisaster: IncomingDisaster | null = null;
   public tweets: ChimpTweet[] = [];
   public particles: Particle[] = [];
+  public pings: MapPing[] = [];
+  public contributions = new Map<string, PlayerContribution>();
+  public completedMissionIds = new Set<string>();
+  public decree: DecreeState;
   public screenShake = 0;
   public simSpeed: 0 | 1 | 2 = 1;
   public crisisTriggered = false;
@@ -51,9 +84,11 @@ export class CitySimulation {
   private hooks: SimHooks;
   private econTimer = 0;
   private vehicleSpawnTimer = 0;
-  private tweetTimer = 3.5;
-  private autoDisasterTimer = 48;
+  private tweetTimer = 4.5;
+  private autoDisasterTimer = 65;
+  private decreeTimer = 50;
   private scoreTimer = 0;
+  private deliveryBucket = 0;
   private nextId = 1;
   private roadTiles: Array<{ gx: number; gy: number }> = [];
   private houseTiles: TileData[] = [];
@@ -61,24 +96,37 @@ export class CitySimulation {
   private factoryTiles: TileData[] = [];
   private lastBuildActor: { name: string; tool: ToolType } | null = null;
 
-  constructor(seed: number, hooks: SimHooks) {
+  constructor(seed: number, hooks: SimHooks, mode: GameMode = 'classic') {
     this.seed = seed;
+    this.mode = mode;
     this.hooks = hooks;
     this.grid = generateMap(seed);
     this.stats = this.createInitialStats();
+    this.decree = this.createIdleDecree();
     this.rebuildTileCaches();
     this.recomputeAurasAndPower();
     this.pushTweet({
       handle: '@chimpanze_fiscal',
       avatar: '🧐',
-      text: 'Novo Prefeito assumiu! Bora ver se sai metrópole ou favela de banana 🍌',
+      text: 'Prefeitura da Selva inaugurada! Construa uma Usina ⚡ perto da avenida para começar.',
       tone: 'meme',
     });
   }
 
+  private createIdleDecree(): DecreeState {
+    return {
+      phase: 'idle',
+      id: 0,
+      options: DECREE_PAIRS[0],
+      votes: {},
+      remaining: 0,
+      activeOption: null,
+    };
+  }
+
   private createInitialStats(): CityStats {
     return {
-      bananas: 550,
+      bananas: this.mode === 'sandbox' ? 99999 : 600,
       incomePerTick: 0,
       population: 0,
       happiness: 75,
@@ -95,46 +143,85 @@ export class CitySimulation {
       milestoneIndex: 0,
       bankruptTimer: 0,
       rebellionTimer: 0,
+      unpoweredCount: 0,
+      noRoadCount: 0,
+      damagedCount: 0,
     };
   }
 
-  reset(newSeed: number): void {
+  reset(newSeed: number, mode: GameMode = this.mode): void {
     this.seed = newSeed;
+    this.mode = mode;
     this.grid = generateMap(newSeed);
     this.stats = this.createInitialStats();
     this.vehicles = [];
     this.disasters = [];
+    this.incomingDisaster = null;
     this.particles = [];
+    this.pings = [];
     this.tweets = [];
+    this.contributions.clear();
+    this.completedMissionIds.clear();
+    this.decree = this.createIdleDecree();
     this.screenShake = 0;
     this.crisisTriggered = false;
     this.econTimer = 0;
-    this.autoDisasterTimer = 48;
+    this.deliveryBucket = 0;
+    this.autoDisasterTimer = 65;
+    this.decreeTimer = 50;
     this.rebuildTileCaches();
     this.recomputeAurasAndPower();
     this.pushTweet({
       handle: '@macaco_slop',
       avatar: '🍌',
-      text: 'Prefeitura zerada! Prometeram metrô e entregaram estrada de terra 🛣️',
+      text:
+        mode === 'sandbox'
+          ? 'Modo Sandbox liberado! Bananas infinitas na conta da prefeitura 🌴'
+          : 'Nova gestão começou! Siga o Guia do Prefeito à esquerda 📋',
       tone: 'meme',
     });
   }
 
   getTileCost(gx: number, gy: number, tool: ToolType): number {
     if (!inBounds(gx, gy)) return 0;
+    if (this.mode === 'sandbox') return 0;
+    if (tool === 'inspect') return 0;
     const tile = this.grid[gy][gx];
+    if (tool === 'bulldozer') {
+      if (tile.building && tile.building !== 'townhall') return 0;
+      if (!tile.building && tile.terrain === 'forest') return TOOL_MAP.bulldozer.cost;
+      return 0;
+    }
     const base = TOOL_MAP[tool].cost;
     if (tool === 'road' && tile.terrain === 'water') {
-      return base * 2; // Ponte sobre o rio
+      return base * 2;
     }
     return base;
   }
 
+  getBulldozeRefund(gx: number, gy: number): number {
+    if (!inBounds(gx, gy) || this.mode === 'sandbox') return 0;
+    const tile = this.grid[gy][gx];
+    if (!tile.building || tile.building === 'townhall') return 0;
+    return Math.floor(TOOL_MAP[tile.building].cost * 0.5);
+  }
+
+  getRepairCost(gx: number, gy: number): number {
+    if (!inBounds(gx, gy) || this.mode === 'sandbox') return 0;
+    const tile = this.grid[gy][gx];
+    if (!tile.building || !tile.damaged) return 0;
+    return Math.max(10, Math.round(TOOL_MAP[tile.building].cost * 0.25));
+  }
+
   canApplyTool(gx: number, gy: number, tool: ToolType): { ok: boolean; reason?: string } {
     if (!inBounds(gx, gy)) return { ok: false };
+    if (tool === 'inspect') return { ok: true };
     const tile = this.grid[gy][gx];
 
     if (tool === 'bulldozer') {
+      if (tile.building === 'townhall') {
+        return { ok: false, reason: 'A Prefeitura é tombada pelo IPHAN Primata!' };
+      }
       if (!tile.building && tile.terrain !== 'forest') {
         return { ok: false };
       }
@@ -142,13 +229,37 @@ export class CitySimulation {
     }
 
     if (tile.building === tool) return { ok: false };
+    if (tile.building === 'townhall') {
+      return { ok: false, reason: '🏛️ Prefeitura da Selva! Use Inspecionar (0).' };
+    }
     if (tile.building !== null) {
-      return { ok: false, reason: 'Use o Demolidor 💥 antes!' };
+      return { ok: false, reason: 'Ocupado! Use Inspecionar (0) ou Demolir (8).' };
     }
     if (tool !== 'road' && tile.terrain === 'water') {
-      return { ok: false, reason: 'Só dá pra construir Ponte (Estrada) na água!' };
+      return { ok: false, reason: 'Só dá pra construir Ponte (Estrada) no rio!' };
     }
     return { ok: true };
+  }
+
+  private recordContribution(
+    name: string,
+    color: string,
+    delta: Partial<Omit<PlayerContribution, 'name' | 'color'>>,
+  ): void {
+    const existing = this.contributions.get(name) ?? {
+      name,
+      color,
+      built: 0,
+      roads: 0,
+      demolished: 0,
+      bananasDelta: 0,
+    };
+    existing.color = color || existing.color;
+    existing.built += delta.built ?? 0;
+    existing.roads += delta.roads ?? 0;
+    existing.demolished += delta.demolished ?? 0;
+    existing.bananasDelta += delta.bananasDelta ?? 0;
+    this.contributions.set(name, existing);
   }
 
   applyTool(
@@ -157,38 +268,73 @@ export class CitySimulation {
     tool: ToolType,
     actorName: string,
     isRemote: boolean,
-  ): boolean {
+    actorColor = '#facc15',
+    isHost = true,
+  ): UndoEntry | null {
+    if (tool === 'inspect') return null;
     const check = this.canApplyTool(gx, gy, tool);
     if (!check.ok) {
       if (!isRemote && check.reason && tool !== 'road') {
         this.hooks.onToast(check.reason, 'info');
       }
-      return false;
+      return null;
     }
 
     const cost = this.getTileCost(gx, gy, tool);
-    if (!isRemote && this.stats.bananas < cost) {
-      this.hooks.onToast(`Falta Banana! Precisa de 🍌${cost}`, 'chaos');
-      this.hooks.onSound('rage', 0.22);
-      return false;
+    const refund = tool === 'bulldozer' ? this.getBulldozeRefund(gx, gy) : 0;
+
+    if (this.mode !== 'sandbox' && this.stats.bananas < cost) {
+      if (!isRemote) {
+        this.hooks.onToast(`Falta Banana! Precisa de 🍌${cost}`, 'chaos');
+        this.hooks.onSound('rage', 0.22);
+      } else if (isHost) {
+        this.hooks.onDesyncResync();
+      }
+      return null;
     }
 
     const tile = this.grid[gy][gx];
-    const { wx, wy } = gridToWorld(gx, gy);
+    const snapshotTile = {
+      gx,
+      gy,
+      terrain: tile.terrain,
+      building: tile.building,
+      level: tile.level,
+      damaged: tile.damaged,
+      builtBy: tile.builtBy,
+    };
 
-    this.stats.bananas -= cost;
+    const { wx, wy } = gridToWorld(gx, gy);
+    let bananaDelta = 0;
+
+    if (this.mode !== 'sandbox') {
+      this.stats.bananas = this.stats.bananas - cost + refund;
+      bananaDelta = cost - refund; // reverse delta for undo
+    }
+
     this.lastBuildActor = { name: actorName, tool };
 
     if (tool === 'bulldozer') {
       const hadBuilding = tile.building !== null;
       tile.building = null;
       tile.level = 1;
+      tile.damaged = false;
+      tile.levelUpTimer = 0;
       tile.builtBy = undefined;
       if (!hadBuilding && tile.terrain === 'forest') {
         tile.terrain = 'grass';
       }
+      this.recordContribution(actorName, actorColor, {
+        demolished: 1,
+        bananasDelta: refund - cost,
+      });
       this.spawnBurst(wx, wy - 6, hadBuilding ? '#f97316' : '#4ade80', 14, 'smoke');
-      this.spawnFloatingText(wx, wy - 20, hadBuilding ? '💥 KABUM!' : '🪓 Desmatou!', '#fca5a5');
+      const label = hadBuilding
+        ? refund > 0
+          ? `💥 +${refund}🍌 (50%)`
+          : '💥 KABUM!'
+        : `🪓 -${cost}🍌`;
+      this.spawnFloatingText(wx, wy - 20, label, refund > 0 ? '#4ade80' : '#fca5a5');
       this.screenShake = Math.max(this.screenShake, hadBuilding ? 7 : 3);
       this.hooks.onSound(hadBuilding ? 'explosion' : 'slap', 0.24);
     } else {
@@ -197,17 +343,186 @@ export class CitySimulation {
       }
       tile.building = tool;
       tile.level = 1;
+      tile.damaged = false;
+      tile.levelUpTimer = 0;
       tile.builtBy = actorName;
+
+      this.recordContribution(actorName, actorColor, {
+        built: tool === 'road' ? 0 : 1,
+        roads: tool === 'road' ? 1 : 0,
+        bananasDelta: -cost,
+      });
 
       const def = TOOL_MAP[tool];
       this.spawnBurst(wx, wy - 8, def.color, 9, 'spark');
-      this.spawnFloatingText(wx, wy - 18, `-${cost}🍌`, '#fde047');
+      if (cost > 0) {
+        this.spawnFloatingText(wx, wy - 18, `-${cost}🍌`, '#fde047');
+      } else {
+        this.spawnFloatingText(wx, wy - 18, `${def.emoji} Construído!`, '#4ade80');
+      }
       this.hooks.onSound(tool === 'power' || tool === 'park' ? 'banana' : 'click', 0.22);
     }
 
     this.rebuildTileCaches();
     this.recomputeAurasAndPower();
+    this.checkMissions();
+
+    return {
+      label: TOOL_MAP[tool].shortName,
+      bananaDelta,
+      tiles: [snapshotTile],
+    };
+  }
+
+  applyRoadBatch(
+    coords: Array<{ gx: number; gy: number }>,
+    actorName: string,
+    actorColor: string,
+    isRemote: boolean,
+    isHost = true,
+  ): UndoEntry | null {
+    const validCoords: Array<{ gx: number; gy: number; cost: number }> = [];
+    const seen = new Set<string>();
+    let totalCost = 0;
+
+    for (const c of coords) {
+      const k = `${c.gx},${c.gy}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      if (!this.canApplyTool(c.gx, c.gy, 'road').ok) continue;
+      const cost = this.getTileCost(c.gx, c.gy, 'road');
+      validCoords.push({ gx: c.gx, gy: c.gy, cost });
+      totalCost += cost;
+    }
+
+    if (validCoords.length === 0) return null;
+
+    if (this.mode !== 'sandbox' && this.stats.bananas < totalCost) {
+      if (!isRemote) {
+        this.hooks.onToast(`Falta Banana para essa avenida! Precisa de 🍌${totalCost}`, 'chaos');
+        this.hooks.onSound('rage', 0.22);
+      } else if (isHost) {
+        this.hooks.onDesyncResync();
+      }
+      return null;
+    }
+
+    const undoTiles: UndoEntry['tiles'] = [];
+    for (const c of validCoords) {
+      const tile = this.grid[c.gy][c.gx];
+      undoTiles.push({
+        gx: c.gx,
+        gy: c.gy,
+        terrain: tile.terrain,
+        building: tile.building,
+        level: tile.level,
+        damaged: tile.damaged,
+        builtBy: tile.builtBy,
+      });
+      if (tile.terrain === 'forest') tile.terrain = 'grass';
+      tile.building = 'road';
+      tile.level = 1;
+      tile.damaged = false;
+      tile.builtBy = actorName;
+
+      const { wx, wy } = gridToWorld(c.gx, c.gy);
+      this.spawnBurst(wx, wy - 4, '#94a3b8', 4, 'spark');
+    }
+
+    if (this.mode !== 'sandbox') {
+      this.stats.bananas -= totalCost;
+    }
+    this.recordContribution(actorName, actorColor, {
+      roads: validCoords.length,
+      bananasDelta: -totalCost,
+    });
+
+    const last = validCoords[validCoords.length - 1];
+    const { wx, wy } = gridToWorld(last.gx, last.gy);
+    this.spawnFloatingText(
+      wx,
+      wy - 20,
+      totalCost > 0 ? `🛣️ ${validCoords.length}x (-${totalCost}🍌)` : `🛣️ ${validCoords.length}x`,
+      '#fde047',
+    );
+    this.hooks.onSound('click', 0.24);
+    this.lastBuildActor = { name: actorName, tool: 'road' };
+
+    this.rebuildTileCaches();
+    this.recomputeAurasAndPower();
+    this.checkMissions();
+
+    return {
+      label: `Estrada (${validCoords.length}x)`,
+      bananaDelta: this.mode === 'sandbox' ? 0 : totalCost,
+      tiles: undoTiles,
+    };
+  }
+
+  repairTile(gx: number, gy: number, actorName: string, isRemote: boolean, isHost = true): boolean {
+    if (!inBounds(gx, gy)) return false;
+    const tile = this.grid[gy][gx];
+    if (!tile.building || !tile.damaged) return false;
+    const cost = this.getRepairCost(gx, gy);
+    if (this.mode !== 'sandbox' && this.stats.bananas < cost) {
+      if (!isRemote) {
+        this.hooks.onToast(`Falta Banana para reparar! Precisa de 🍌${cost}`, 'chaos');
+        this.hooks.onSound('rage', 0.2);
+      } else if (isHost) {
+        this.hooks.onDesyncResync();
+      }
+      return false;
+    }
+    if (this.mode !== 'sandbox') {
+      this.stats.bananas -= cost;
+    }
+    tile.damaged = false;
+    const { wx, wy } = gridToWorld(gx, gy);
+    this.spawnBurst(wx, wy - 10, '#4ade80', 10, 'spark');
+    this.spawnFloatingText(wx, wy - 22, cost > 0 ? `🔧 Reparado (-${cost}🍌)` : '🔧 Reparado!', '#4ade80');
+    this.hooks.onSound('banana', 0.22);
+    this.hooks.onToast(`🔧 ${actorName} reparou ${TOOL_MAP[tile.building].name}!`, 'info');
+    this.recomputeAurasAndPower();
     return true;
+  }
+
+  applyUndo(entry: UndoEntry): boolean {
+    for (const item of entry.tiles) {
+      if (!inBounds(item.gx, item.gy)) continue;
+      const t = this.grid[item.gy][item.gx];
+      t.terrain = item.terrain;
+      t.building = item.building;
+      t.level = item.level;
+      t.damaged = item.damaged;
+      t.builtBy = item.builtBy;
+      t.levelUpTimer = 0;
+      const { wx, wy } = gridToWorld(item.gx, item.gy);
+      this.spawnBurst(wx, wy - 6, '#38bdf8', 5, 'spark');
+    }
+    if (this.mode !== 'sandbox') {
+      this.stats.bananas += entry.bananaDelta;
+    }
+    this.rebuildTileCaches();
+    this.recomputeAurasAndPower();
+    this.hooks.onSound('boing', 0.18);
+    return true;
+  }
+
+  addPing(gx: number, gy: number, actorName: string, color: string): void {
+    if (!inBounds(gx, gy)) return;
+    this.pings.push({
+      id: this.nextId++,
+      gx,
+      gy,
+      actorName,
+      color,
+      life: 4.5,
+      maxLife: 4.5,
+    });
+    const { wx, wy } = gridToWorld(gx, gy);
+    this.spawnBurst(wx, wy, color, 2, 'ring');
+    this.hooks.onSound('click', 0.24);
+    this.hooks.onToast(`📍 ${actorName} marcou o mapa em (${gx}, ${gy})!`, 'info');
   }
 
   private rebuildTileCaches(): void {
@@ -237,35 +552,49 @@ export class CitySimulation {
     let houseCount = 0;
     let marketCount = 0;
     let factoryCount = 0;
+    let damagedCount = 0;
+
+    const activeDecree = this.decree.phase === 'active' ? this.decree.activeOption : null;
+    const powerMult = activeDecree ? activeDecree.powerMult : 1;
+    const parkMult = activeDecree ? activeDecree.parkMult : 1;
+    const extraPollution = activeDecree ? activeDecree.extraPollution : 0;
+    const decreeHappBonus = activeDecree ? activeDecree.happinessBonus : 0;
 
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
         const t = this.grid[y][x];
         t.powered = false;
-        t.pollution = 0;
+        t.pollution = extraPollution;
         t.localHappiness = 66;
         t.connectedToRoad = getAdjacentRoads(this.grid, x, y).length > 0;
 
         if (!t.building) continue;
+        if (t.damaged) damagedCount++;
+
         switch (t.building) {
           case 'road':
             roadCount++;
             break;
-          case 'power':
-            powerPlants.push(t);
+          case 'townhall':
             t.powered = true;
             break;
+          case 'power':
+            if (!t.damaged) {
+              powerPlants.push(t);
+              t.powered = true;
+            }
+            break;
           case 'park':
-            parks.push(t);
+            if (!t.damaged) parks.push(t);
             consumers.push(t);
             break;
           case 'factory':
-            factories.push(t);
+            if (!t.damaged) factories.push(t);
             consumers.push(t);
             factoryCount++;
             break;
           case 'dump':
-            dumps.push(t);
+            if (!t.damaged) dumps.push(t);
             break;
           case 'house':
             consumers.push(t);
@@ -279,7 +608,7 @@ export class CitySimulation {
       }
     }
 
-    const powerProduced = powerPlants.length * TOOL_MAP.power.powerGen;
+    const powerProduced = Math.round(powerPlants.length * TOOL_MAP.power.powerGen * powerMult);
     let powerDemand = 0;
     const inRangeConsumers: Array<{ tile: TileData; dist: number; use: number }> = [];
 
@@ -307,17 +636,19 @@ export class CitySimulation {
       }
     }
 
-    // Apply pollution, dump stink & park happiness auras
+    let unpoweredCount = 0;
+    let noRoadCount = 0;
+
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
         const t = this.grid[y][x];
-        let happ = 65;
+        let happ = 66 + decreeHappBonus;
 
         for (const f of factories) {
           const d = Math.hypot(x - f.gx, y - f.gy);
           if (d <= TOOL_MAP.factory.radius) {
             const factor = 1 - d / (TOOL_MAP.factory.radius + 0.5);
-            t.pollution += Math.round(40 * factor);
+            t.pollution += Math.round(42 * factor);
             happ -= 32 * factor;
           }
         }
@@ -335,16 +666,24 @@ export class CitySimulation {
           const d = Math.hypot(x - park.gx, y - park.gy);
           if (d <= TOOL_MAP.park.radius) {
             const factor = 1 - d / (TOOL_MAP.park.radius + 0.5);
-            happ += 34 * factor;
+            happ += 34 * factor * parkMult;
           }
         }
 
-        if (t.building && t.building !== 'road' && t.building !== 'dump') {
-          if (!t.powered && TOOL_MAP[t.building].powerUse > 0) happ -= 28;
-          if (!t.connectedToRoad && t.building !== 'power') happ -= 18;
+        if (t.building && t.building !== 'road' && t.building !== 'dump' && t.building !== 'townhall') {
+          if (!t.powered && TOOL_MAP[t.building].powerUse > 0) {
+            happ -= 28;
+            unpoweredCount++;
+          }
+          if (!t.connectedToRoad && t.building !== 'power') {
+            happ -= 18;
+            noRoadCount++;
+          }
+          if (t.damaged) {
+            happ -= 25;
+          }
         }
 
-        // Nearby road traffic penalty
         const adj = getAdjacentRoads(this.grid, x, y);
         let maxAdjTraffic = 0;
         for (const r of adj) {
@@ -364,40 +703,307 @@ export class CitySimulation {
     this.stats.houseCount = houseCount;
     this.stats.marketCount = marketCount;
     this.stats.factoryCount = factoryCount;
+    this.stats.unpoweredCount = unpoweredCount;
+    this.stats.noRoadCount = noRoadCount;
+    this.stats.damagedCount = damagedCount;
     this.stats.garbageLoad = houseCount * 2 + marketCount * 2 + factoryCount * 3;
     this.stats.garbageCapacity = 10 + dumps.length * 16;
+
+    // Immediate population & happiness feedback so placing a house updates stats right away
+    const garbagePenalty = this.stats.garbageLoad > this.stats.garbageCapacity ? 12 : 0;
+    let pop = 0;
+    let happSum = 0;
+    let happCount = 0;
+    for (const h of this.houseTiles) {
+      const effectiveHapp = Math.max(0, h.localHappiness - garbagePenalty);
+      const housePop = h.damaged
+        ? 0
+        : h.powered && h.connectedToRoad
+          ? 8 * h.level
+          : h.powered || h.connectedToRoad
+            ? 4
+            : 2;
+      pop += housePop;
+      happSum += effectiveHapp;
+      happCount++;
+    }
+    this.stats.population = pop;
+    this.stats.happiness = happCount > 0 ? Math.max(0, Math.min(100, Math.round(happSum / happCount))) : 75;
+
+    // Update RCI Demand
+    const resRaw =
+      houseCount < 3
+        ? 86
+        : 50 + (marketCount * 3 + factoryCount * 4 + 2 - houseCount) * 11 + (this.stats.happiness - 58) * 0.5;
+    const comRaw = 30 + (pop / 12 + factoryCount * 0.8 - marketCount) * 24;
+    const indRaw = 28 + (pop / 18 + marketCount * 0.7 - factoryCount) * 25;
+    this.rciDemand = {
+      residential: Math.max(8, Math.min(98, Math.round(resRaw))),
+      commercial: Math.max(8, Math.min(98, Math.round(comRaw))),
+      industrial: Math.max(8, Math.min(98, Math.round(indRaw))),
+    };
+
+    // Estimate economy breakdown immediately
+    this.computeEconomyPreview();
+  }
+
+  private computeEconomyPreview(): EconomyBreakdown {
+    const strikeActive = this.disasters.some((d) => d.type === 'strike');
+    const garbagePenalty = this.stats.garbageLoad > this.stats.garbageCapacity ? 12 : 0;
+    const activeDecree = this.decree.phase === 'active' ? this.decree.activeOption : null;
+    const incomeMult = activeDecree ? activeDecree.incomeMult : 1;
+
+    let houseIncome = 0;
+    let marketIncome = 0;
+    let factoryIncome = 0;
+
+    for (const h of this.houseTiles) {
+      if (h.damaged) continue;
+      const effectiveHapp = Math.max(0, h.localHappiness - garbagePenalty);
+      const tax =
+        h.powered && h.connectedToRoad
+          ? (2.2 + h.level * 1.6) * (0.55 + effectiveHapp / 150)
+          : 0.5;
+      houseIncome += strikeActive ? tax * 0.35 : tax;
+    }
+
+    for (const m of this.marketTiles) {
+      if (!m.damaged && m.powered && m.connectedToRoad) {
+        marketIncome += strikeActive ? 2 : 6;
+      }
+    }
+
+    for (const f of this.factoryTiles) {
+      if (!f.damaged && f.powered && f.connectedToRoad) {
+        factoryIncome += strikeActive ? 6 : 18;
+      }
+    }
+
+    let powerCount = 0;
+    let parkCount = 0;
+    let dumpCount = 0;
+    for (let y = 0; y < GRID_SIZE; y++) {
+      for (let x = 0; x < GRID_SIZE; x++) {
+        const b = this.grid[y][x].building;
+        if (b === 'power') powerCount++;
+        else if (b === 'park') parkCount++;
+        else if (b === 'dump') dumpCount++;
+      }
+    }
+
+    const roadUpkeep = Math.max(0, (this.stats.roadCount - 8) * TOOL_MAP.road.upkeep);
+    const powerUpkeep = powerCount * TOOL_MAP.power.upkeep;
+    const parkUpkeep = parkCount * TOOL_MAP.park.upkeep;
+    const dumpUpkeep = dumpCount * TOOL_MAP.dump.upkeep;
+
+    const baseIncome = houseIncome + marketIncome + factoryIncome;
+    const decreeIncome = baseIncome * incomeMult;
+    const decreeDelta = Math.round(decreeIncome - baseIncome);
+    const totalUpkeep = roadUpkeep + powerUpkeep + parkUpkeep + dumpUpkeep;
+    const netPerTick = Math.round(decreeIncome - totalUpkeep);
+
+    this.economy = {
+      houseIncome: Math.round(houseIncome),
+      marketIncome: Math.round(marketIncome),
+      factoryIncome: Math.round(factoryIncome),
+      deliveryIncome: this.deliveryBucket,
+      roadUpkeep: Math.round(roadUpkeep * 10) / 10,
+      powerUpkeep: Math.round(powerUpkeep * 10) / 10,
+      parkUpkeep: Math.round(parkUpkeep * 10) / 10,
+      dumpUpkeep: Math.round(dumpUpkeep * 10) / 10,
+      decreeDelta,
+      netPerTick,
+    };
+    this.stats.incomePerTick = netPerTick;
+    return this.economy;
+  }
+
+  getMissions(): GuideMission[] {
+    let powerCount = 0;
+    let parkCount = 0;
+    for (let y = 0; y < GRID_SIZE; y++) {
+      for (let x = 0; x < GRID_SIZE; x++) {
+        const b = this.grid[y][x].building;
+        if (b === 'power') powerCount++;
+        else if (b === 'park') parkCount++;
+      }
+    }
+    const workingHouses = this.houseTiles.filter((h) => h.powered && h.connectedToRoad && !h.damaged).length;
+    const workingMarkets = this.marketTiles.filter((m) => m.powered && m.connectedToRoad && !m.damaged).length;
+
+    return [
+      {
+        id: 'm1_power',
+        title: '1. Construa 1 Usina de Casca',
+        hint: 'Selecione ⚡ Usina (5) e coloque perto da Avenida das Bananas.',
+        reward: 60,
+        toolHint: 'power',
+        done: this.completedMissionIds.has('m1_power'),
+        current: Math.min(1, powerCount),
+        target: 1,
+      },
+      {
+        id: 'm2_roads',
+        title: '2. Expanda as Estradas (10+)',
+        hint: 'Use 🛣️ Estrada (1) e arraste em L para abrir novos quarteirões.',
+        reward: 50,
+        toolHint: 'road',
+        done: this.completedMissionIds.has('m2_roads'),
+        current: Math.min(10, this.stats.roadCount),
+        target: 10,
+      },
+      {
+        id: 'm3_houses',
+        title: '3. 3 Barracos com Luz e Estrada',
+        hint: 'Coloque 🏠 Barracos (2) ao lado da estrada dentro da aura azul!',
+        reward: 80,
+        toolHint: 'house',
+        done: this.completedMissionIds.has('m3_houses'),
+        current: Math.min(3, workingHouses),
+        target: 3,
+      },
+      {
+        id: 'm4_market',
+        title: '4. Abra 1 Feira de Banana',
+        hint: 'Construa 🍌 Feira (3) ligada à estrada e com energia para lucrar!',
+        reward: 90,
+        toolHint: 'market',
+        done: this.completedMissionIds.has('m4_market'),
+        current: Math.min(1, workingMarkets),
+        target: 1,
+      },
+      {
+        id: 'm5_pop25',
+        title: '5. Chegue a 25 Macacos!',
+        hint: 'Construa mais Barracos ou suba a felicidade para evoluírem.',
+        reward: 100,
+        toolHint: 'house',
+        done: this.completedMissionIds.has('m5_pop25'),
+        current: Math.min(25, this.stats.population),
+        target: 25,
+      },
+      {
+        id: 'm6_civic',
+        title: '6. Erga Estátua 🗿 ou Fábrica 🏭',
+        hint: '🗿 Estátua (6) sobe felicidade; 🏭 Fábrica (4) gera muita grana!',
+        reward: 120,
+        toolHint: 'park',
+        done: this.completedMissionIds.has('m6_civic'),
+        current: Math.min(1, parkCount + this.stats.factoryCount),
+        target: 1,
+      },
+    ];
+  }
+
+  private checkMissions(): void {
+    const missions = this.getMissions();
+    for (const m of missions) {
+      if (!m.done && m.current >= m.target) {
+        this.completedMissionIds.add(m.id);
+        if (this.mode !== 'sandbox') {
+          this.stats.bananas += m.reward;
+        }
+        this.hooks.onMissionComplete(m);
+        this.hooks.onSound('fanfare', 0.24);
+      }
+    }
+  }
+
+  getActiveWarnings(): Array<{ level: 'crit' | 'warn'; text: string }> {
+    const out: Array<{ level: 'crit' | 'warn'; text: string }> = [];
+    if (this.stats.damagedCount > 0) {
+      out.push({
+        level: 'crit',
+        text: `🔧 ${this.stats.damagedCount} prédio(s) danificado(s)! Use 🔍 Inspecionar (0) para reparar.`,
+      });
+    }
+    if (this.stats.noRoadCount > 0) {
+      out.push({
+        level: 'crit',
+        text: `🛣️ ${this.stats.noRoadCount} prédio(s) sem acesso à estrada!`,
+      });
+    }
+    if (this.stats.unpoweredCount > 0) {
+      out.push({
+        level: 'warn',
+        text: `⚡ ${this.stats.unpoweredCount} prédio(s) sem luz! Construa mais Usinas (5) por perto.`,
+      });
+    }
+    if (this.stats.garbageLoad > this.stats.garbageCapacity) {
+      out.push({
+        level: 'warn',
+        text: `🗑️ Lixo alto (${this.stats.garbageLoad}/${this.stats.garbageCapacity})! Construa Lixão de Coco (7) longe das casas.`,
+      });
+    }
+    if (this.stats.powerDemand > this.stats.powerProduced && this.stats.powerProduced > 0) {
+      out.push({
+        level: 'warn',
+        text: `⚡ Rede sobrecarregada (${this.stats.powerProduced}/${this.stats.powerDemand})!`,
+      });
+    }
+    return out;
   }
 
   update(dt: number, isHost: boolean): void {
-    // Decay screen shake even when paused
     this.screenShake = Math.max(0, this.screenShake - dt * 18);
     this.updateParticles(dt);
+
+    // Decay map pings & level-up timers
+    this.pings = this.pings.filter((p) => {
+      p.life -= dt;
+      return p.life > 0;
+    });
+    for (let y = 0; y < GRID_SIZE; y++) {
+      for (let x = 0; x < GRID_SIZE; x++) {
+        const t = this.grid[y][x];
+        if (t.levelUpTimer > 0) t.levelUpTimer = Math.max(0, t.levelUpTimer - dt);
+      }
+    }
 
     if (this.simSpeed === 0 || this.crisisTriggered) return;
     const sdt = dt * this.simSpeed;
 
     this.updateVehicles(sdt);
-    this.updateDisasters(sdt, isHost);
+    this.updateDisasters(sdt);
+    this.updateIncomingDisaster(sdt, isHost);
+    this.updateDecree(sdt, isHost);
 
     this.econTimer += sdt;
-    if (this.econTimer >= 1.4) {
-      this.econTimer -= 1.4;
+    if (this.econTimer >= 1.5) {
+      this.econTimer -= 1.5;
       this.tickEconomy(isHost);
     }
 
     this.tweetTimer -= sdt;
     if (this.tweetTimer <= 0) {
-      this.tweetTimer = 6.5 + Math.random() * 4.5;
+      this.tweetTimer = 7 + Math.random() * 4.5;
       this.maybeGenerateContextualTweet();
     }
 
-    this.autoDisasterTimer -= sdt;
-    if (this.autoDisasterTimer <= 0) {
-      this.autoDisasterTimer = 55 + Math.random() * 35;
-      if (isHost && this.stats.population >= 15) {
-        const types: DisasterType[] = ['strike', 'coconut_rain', 'trio_eletrico', 'giant_gorilla'];
-        const pick = types[Math.floor(Math.random() * types.length)];
-        this.triggerDisaster(pick, 'Mãe Selva', Math.random(), Math.random());
+    // Auto disasters delayed until pop >= 45 (Milestone 2+) and disabled in Sandbox
+    if (this.mode !== 'sandbox' && this.stats.population >= 45 && !this.incomingDisaster) {
+      this.autoDisasterTimer -= sdt;
+      if (this.autoDisasterTimer <= 0) {
+        this.autoDisasterTimer = 65 + Math.random() * 35;
+        if (isHost) {
+          const types: DisasterType[] = ['strike', 'coconut_rain', 'trio_eletrico', 'giant_gorilla'];
+          const pick = types[Math.floor(Math.random() * types.length)];
+          const titles: Record<DisasterType, string> = {
+            strike: '🪧 Greve dos Macacos se aproximando!',
+            coconut_rain: '🥥 Nuvem de Cocos detectada no radar!',
+            trio_eletrico: '🎶 Trio Elétrico entrando na cidade!',
+            giant_gorilla: '🦍 Tremores! Gorilão de Pelúcia chegando!',
+          };
+          const incoming: IncomingDisaster = {
+            type: pick,
+            title: titles[pick],
+            countdown: 5.0,
+            seedX: Math.random(),
+            seedY: Math.random(),
+          };
+          this.setIncomingDisaster(incoming);
+          this.hooks.onIncomingDisaster(incoming);
+        }
       }
     }
 
@@ -409,58 +1015,139 @@ export class CitySimulation {
     }
   }
 
+  setIncomingDisaster(incoming: IncomingDisaster): void {
+    this.incomingDisaster = incoming;
+    this.hooks.onToast(`⚠️ ALERTA (5s): ${incoming.title}`, 'chaos');
+    this.hooks.onSound('rage', 0.2);
+  }
+
+  private updateIncomingDisaster(dt: number, isHost: boolean): void {
+    if (!this.incomingDisaster) return;
+    this.incomingDisaster.countdown -= dt;
+    if (this.incomingDisaster.countdown <= 0) {
+      const d = this.incomingDisaster;
+      this.incomingDisaster = null;
+      if (isHost) {
+        this.triggerDisaster(d.type, 'Mãe Selva', d.seedX, d.seedY);
+        this.hooks.onAutoDisaster(d.type, d.seedX, d.seedY);
+      }
+    }
+  }
+
+  startDecreeVote(id: number, pairIndex: number, duration: number): void {
+    const options = DECREE_PAIRS[pairIndex % DECREE_PAIRS.length];
+    this.decree = {
+      phase: 'voting',
+      id,
+      options,
+      votes: {},
+      remaining: duration,
+      activeOption: null,
+    };
+    this.hooks.onToast(`🗳️ Votação de Decreto: ${options[0].emoji} vs ${options[1].emoji}!`, 'info');
+    this.hooks.onSound('click', 0.22);
+  }
+
+  castDecreeVote(decreeId: number, optionIndex: 0 | 1, voterId: string, voterName: string, isSinglePlayer: boolean): void {
+    if (this.decree.phase !== 'voting' || this.decree.id !== decreeId) return;
+    this.decree.votes[voterId] = optionIndex;
+    const opt = this.decree.options[optionIndex];
+    this.hooks.onToast(`🗳️ ${voterName} votou em ${opt.emoji} ${opt.title}`, 'info');
+    if (isSinglePlayer) {
+      this.finalizeDecreeVote();
+    }
+  }
+
+  private finalizeDecreeVote(): void {
+    let v0 = 0;
+    let v1 = 0;
+    for (const v of Object.values(this.decree.votes)) {
+      if (v === 0) v0++;
+      else v1++;
+    }
+    const winner = v1 > v0 ? this.decree.options[1] : this.decree.options[0];
+    this.decree.phase = 'active';
+    this.decree.activeOption = winner;
+    this.decree.remaining = 24;
+    this.recomputeAurasAndPower();
+    this.hooks.onToast(`📜 Decreto Aprovado: ${winner.emoji} ${winner.title}!`, 'banana');
+    this.hooks.onSound('fanfare', 0.25);
+    this.pushTweet({
+      handle: '@chimpanze_fiscal',
+      avatar: '📜',
+      text: `DECRETO APROVADO: "${winner.title}"! (${winner.summary})`,
+      tone: 'meme',
+    });
+  }
+
+  private updateDecree(dt: number, isHost: boolean): void {
+    if (this.decree.phase === 'idle') {
+      if (this.stats.population >= 15) {
+        this.decreeTimer -= dt;
+        if (this.decreeTimer <= 0) {
+          this.decreeTimer = 55;
+          if (isHost) {
+            const id = this.nextId++;
+            const pairIndex = Math.floor(Math.random() * DECREE_PAIRS.length);
+            this.startDecreeVote(id, pairIndex, 12);
+            this.hooks.onStartDecreeVote(id, pairIndex, 12);
+          }
+        }
+      }
+      return;
+    }
+
+    this.decree.remaining -= dt;
+    if (this.decree.remaining <= 0) {
+      if (this.decree.phase === 'voting') {
+        this.finalizeDecreeVote();
+      } else {
+        this.decree = this.createIdleDecree();
+        this.recomputeAurasAndPower();
+        this.hooks.onToast('📜 O Decreto Maluco expirou!', 'info');
+      }
+    }
+  }
+
   getScore(): number {
-    return Math.max(0, Math.floor(this.stats.population * 10 + Math.max(0, this.stats.bananas)));
+    const safeBananas = this.mode === 'sandbox' ? 0 : Math.max(0, this.stats.bananas);
+    return Math.max(0, Math.floor(this.stats.population * 12 + safeBananas));
   }
 
   private tickEconomy(isHost: boolean): void {
     this.recomputeAurasAndPower();
     this.stats.day += 1;
 
-    const strikeActive = this.disasters.some((d) => d.type === 'strike');
     const garbagePenalty = this.stats.garbageLoad > this.stats.garbageCapacity ? 12 : 0;
 
-    let pop = 0;
-    let happSum = 0;
-    let happCount = 0;
-    let income = 0;
-
     for (const h of this.houseTiles) {
+      if (h.damaged) continue;
       const effectiveHapp = Math.max(0, h.localHappiness - garbagePenalty);
       if (h.powered && h.connectedToRoad) {
-        if (effectiveHapp >= 80 && h.level < 3 && Math.random() < 0.25) h.level++;
-        else if (effectiveHapp >= 66 && h.level < 2 && Math.random() < 0.3) h.level++;
+        const prev = h.level;
+        if (effectiveHapp >= 78 && h.level < 3 && Math.random() < 0.25) h.level++;
+        else if (effectiveHapp >= 65 && h.level < 2 && Math.random() < 0.3) h.level++;
         else if (effectiveHapp < 35 && h.level > 1 && Math.random() < 0.25) h.level--;
-      }
-      const housePop = h.powered && h.connectedToRoad ? 8 * h.level : h.powered || h.connectedToRoad ? 4 : 2;
-      pop += housePop;
-      happSum += effectiveHapp;
-      happCount++;
-
-      const tax = h.powered && h.connectedToRoad ? (2 + h.level * 1.5) * (0.5 + effectiveHapp / 150) : 0.5;
-      income += strikeActive ? tax * 0.35 : tax;
-    }
-
-    for (const m of this.marketTiles) {
-      if (m.powered && m.connectedToRoad) {
-        income += strikeActive ? 2 : 5;
+        if (h.level > prev) {
+          h.levelUpTimer = 3.5;
+          const { wx, wy } = gridToWorld(h.gx, h.gy);
+          this.spawnFloatingText(wx, wy - 36, `⬆️ Nível ${h.level}!`, '#4ade80');
+        }
       }
     }
 
     for (const f of this.factoryTiles) {
-      if (f.powered && f.connectedToRoad) {
-        income += strikeActive ? 6 : 16;
+      if (!f.damaged && f.powered && f.connectedToRoad) {
         const { wx, wy } = gridToWorld(f.gx, f.gy);
         this.spawnBurst(wx, wy - 28, '#a3e635', 2, 'stink');
       }
     }
 
-    // Stink particles from dumps & ambient traffic metric
     let totalTraffic = 0;
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
         const t = this.grid[y][x];
-        if (t.building === 'dump') {
+        if (t.building === 'dump' && !t.damaged) {
           const { wx, wy } = gridToWorld(x, y);
           this.spawnBurst(wx, wy - 10, '#84cc16', 2, 'stink');
         }
@@ -470,31 +1157,28 @@ export class CitySimulation {
       }
     }
 
-    // Upkeep
-    let upkeep = this.stats.roadCount * 0.15;
-    for (let y = 0; y < GRID_SIZE; y++) {
-      for (let x = 0; x < GRID_SIZE; x++) {
-        const b = this.grid[y][x].building;
-        if (b === 'power') upkeep += 3;
-        else if (b === 'park') upkeep += 1.5;
-        else if (b === 'dump') upkeep += 1;
-      }
+    const econ = this.computeEconomyPreview();
+    this.deliveryBucket = 0;
+    if (this.mode !== 'sandbox') {
+      this.stats.bananas = Math.round(this.stats.bananas + econ.netPerTick);
+    } else {
+      this.stats.bananas = 99999;
     }
 
-    const net = Math.round(income - upkeep);
-    this.stats.incomePerTick = net;
-    this.stats.bananas = Math.round(this.stats.bananas + net);
-    this.stats.population = pop;
-    this.stats.happiness = happCount > 0 ? Math.max(0, Math.min(100, Math.round(happSum / happCount))) : 75;
+    this.recomputeAurasAndPower();
     this.stats.trafficCongestion =
       this.roadTiles.length > 0 ? Math.min(100, Math.round((totalTraffic / this.roadTiles.length) * 42)) : 0;
 
+    this.checkMissions();
+
     // Check milestones
     const nextIdx = this.stats.milestoneIndex + 1;
-    if (nextIdx < MILESTONES.length && pop >= MILESTONES[nextIdx].popRequired) {
+    if (nextIdx < MILESTONES.length && this.stats.population >= MILESTONES[nextIdx].popRequired) {
       this.stats.milestoneIndex = nextIdx;
       const ms = MILESTONES[nextIdx];
-      this.stats.bananas += ms.bonusBananas;
+      if (this.mode !== 'sandbox') {
+        this.stats.bananas += ms.bonusBananas;
+      }
       this.hooks.onMilestone(`${ms.badge} ${ms.name}`, ms.bonusBananas);
       this.hooks.onSound('fanfare', 0.3);
       this.hooks.onScoreCheckpoint(this.getScore(), this.stats);
@@ -506,10 +1190,10 @@ export class CitySimulation {
       });
     }
 
-    // Check bankruptcy / rebellion (host or solo)
-    if (isHost) {
+    // Check bankruptcy / rebellion (host or solo, classic/local2p)
+    if (isHost && this.mode !== 'sandbox') {
       if (this.stats.bananas < -150) {
-        this.stats.bankruptTimer += 1.4;
+        this.stats.bankruptTimer += 1.5;
         if (this.stats.bankruptTimer >= 12) {
           this.crisisTriggered = true;
           this.hooks.onCrisis('bankrupt');
@@ -519,7 +1203,7 @@ export class CitySimulation {
       }
 
       if (this.stats.population >= 24 && this.stats.happiness < 18) {
-        this.stats.rebellionTimer += 1.4;
+        this.stats.rebellionTimer += 1.5;
         if (this.stats.rebellionTimer >= 14) {
           this.crisisTriggered = true;
           this.hooks.onCrisis('rebellion');
@@ -531,13 +1215,11 @@ export class CitySimulation {
   }
 
   private updateVehicles(dt: number): void {
-    // Decay traffic heat
     for (const r of this.roadTiles) {
-      const t = this.grid[r.gx][r.gy];
+      const t = this.grid[r.gy][r.gx];
       t.trafficLoad = Math.max(0, t.trafficLoad - dt * 1.15);
     }
 
-    // Spawn vehicles between houses and markets/factories
     this.vehicleSpawnTimer -= dt;
     if (this.vehicleSpawnTimer <= 0 && this.vehicles.length < 44) {
       this.vehicleSpawnTimer = Math.max(0.28, 1.3 - this.houseTiles.length * 0.06);
@@ -546,17 +1228,17 @@ export class CitySimulation {
 
     const activeCoconutRain = this.disasters.some((d) => d.type === 'coconut_rain');
 
-    // Update vehicle positions
     const alive: Vehicle[] = [];
     for (const v of this.vehicles) {
       if (v.pathIndex >= v.path.length - 1) {
-        // Delivered!
         if (v.kind === 'banana_car' || v.kind === 'monkey_bus') {
-          this.stats.bananas += 6;
+          if (this.mode !== 'sandbox') this.stats.bananas += 6;
+          this.deliveryBucket += 6;
           const { wx, wy } = gridToWorld(v.gx, v.gy);
           this.spawnFloatingText(wx, wy - 14, '+6🍌', '#fde047');
         } else if (v.kind === 'pacoca_truck') {
-          this.stats.bananas += 9;
+          if (this.mode !== 'sandbox') this.stats.bananas += 9;
+          this.deliveryBucket += 9;
           const { wx, wy } = gridToWorld(v.gx, v.gy);
           this.spawnFloatingText(wx, wy - 14, '+9🍌', '#d8b4fe');
         }
@@ -566,12 +1248,10 @@ export class CitySimulation {
       const curNode = v.path[v.pathIndex];
       const nextNode = v.path[v.pathIndex + 1];
 
-      // Check if tile ahead still has road
       if (!inBounds(nextNode.gx, nextNode.gy) || this.grid[nextNode.gy][nextNode.gx].building !== 'road') {
         continue;
       }
 
-      // Check congestion ahead
       let blocked = false;
       for (const other of this.vehicles) {
         if (other.id === v.id) continue;
@@ -628,8 +1308,8 @@ export class CitySimulation {
   }
 
   private trySpawnVehicle(): void {
-    const origins = [...this.houseTiles, ...this.factoryTiles];
-    const dests = [...this.marketTiles, ...this.houseTiles];
+    const origins = [...this.houseTiles, ...this.factoryTiles].filter((t) => !t.damaged);
+    const dests = [...this.marketTiles, ...this.houseTiles].filter((t) => !t.damaged);
     if (origins.length === 0 || dests.length === 0) return;
 
     const origin = origins[Math.floor(Math.random() * origins.length)];
@@ -664,7 +1344,12 @@ export class CitySimulation {
       speed: kind === 'monkey_bus' ? 1.55 : kind === 'pacoca_truck' ? 1.35 : 2.1,
       stuckTime: 0,
       honkCooldown: 1,
-      color: kind === 'banana_car' ? '#facc15' : kind === 'pacoca_truck' ? '#c084fc' : colors[Math.floor(Math.random() * colors.length)],
+      color:
+        kind === 'banana_car'
+          ? '#facc15'
+          : kind === 'pacoca_truck'
+            ? '#c084fc'
+            : colors[Math.floor(Math.random() * colors.length)],
     });
   }
 
@@ -678,7 +1363,6 @@ export class CitySimulation {
 
     const duration = type === 'trio_eletrico' ? 20 : type === 'strike' ? 16 : 13;
 
-    // Pick start/end across the map for Giant Gorilla
     const startEdge = Math.floor(seedX * 2);
     const gx0 = startEdge === 0 ? -1 : Math.floor(seedX * GRID_SIZE);
     const gy0 = startEdge === 0 ? Math.floor(seedY * GRID_SIZE) : -1;
@@ -730,10 +1414,10 @@ export class CitySimulation {
     }
 
     const tweetMap: Record<DisasterType, string> = {
-      strike: `GREVE GERAL! Queremos jornada 4x3 e banana grátis na firma! 🪧🍌 (${actorName} decretou caos)`,
+      strike: `GREVE GERAL! Queremos jornada 4x3 e banana grátis na firma! 🪧🍌 (${actorName})`,
       coconut_rain: `TÁ CHOVENDO COCO NA MINHA CABEÇA SOCORRO 🥥💥`,
       trio_eletrico: `BOTARAM UM TRIO ELÉTRICO NA RUA DA FEIRA, NINGUÉM PASSA 🎶🚌`,
-      giant_gorilla: `SOCORRO TEM UM GORILÃO DE PELÚCIA GIGANTE PISANDO NO BAIRRO!! 🦍💜`,
+      giant_gorilla: `SOCORRO TEM UM GORILÃO DE PELÚCIA GIGANTE DANIFICANDO O BAIRRO!! 🦍💜`,
     };
     this.pushTweet({
       handle: '@sagui_calvo',
@@ -743,7 +1427,7 @@ export class CitySimulation {
     });
   }
 
-  private updateDisasters(dt: number, _isHost: boolean): void {
+  private updateDisasters(dt: number): void {
     const active: ActiveDisaster[] = [];
     for (const d of this.disasters) {
       d.remaining -= dt;
@@ -768,13 +1452,11 @@ export class CitySimulation {
           this.spawnBurst(wx, wy, '#c084fc', 6, 'ring');
           if (inBounds(gx, gy)) {
             const tile = this.grid[gy][gx];
-            if (tile.building && tile.building !== 'road') {
-              tile.building = null;
-              tile.level = 1;
+            if (tile.building && tile.building !== 'road' && tile.building !== 'townhall' && !tile.damaged) {
+              tile.damaged = true;
               this.spawnBurst(wx, wy - 8, '#f97316', 14, 'smoke');
-              this.spawnFloatingText(wx, wy - 24, 'PISOTEOU!! 💥', '#fb7185');
-              this.hooks.onSound('explosion', 0.22);
-              this.rebuildTileCaches();
+              this.spawnFloatingText(wx, wy - 24, 'DANIFICOU! 🔧', '#fb7185');
+              this.hooks.onSound('explosion', 0.2);
               this.recomputeAurasAndPower();
             }
           }
@@ -818,18 +1500,24 @@ export class CitySimulation {
   }
 
   private maybeGenerateContextualTweet(): void {
-    const unpoweredHouses = this.houseTiles.filter((h) => !h.powered).length;
-    const disconnectedHouses = this.houseTiles.filter((h) => !h.connectedToRoad).length;
-    const pollutedHouses = this.houseTiles.filter((h) => h.pollution >= 18).length;
-
+    const pollutedHouses = this.houseTiles.filter((h) => h.pollution >= 22).length;
     const candidates: Array<Omit<ChimpTweet, 'id' | 'likes' | 'timeLabel'>> = [];
+
+    if (this.stats.damagedCount > 0) {
+      candidates.push({
+        handle: '@gorila_clt',
+        avatar: '🔧',
+        text: `Tem ${this.stats.damagedCount} prédio(s) amassado(s) pelo Gorilão! Clica com Inspecionar (0) pra reparar!`,
+        tone: 'rage',
+      });
+    }
 
     if (this.stats.trafficCongestion >= 35) {
       candidates.push(
         {
           handle: '@sagui_calvo',
           avatar: '🐒',
-          text: '3 HORAS NO TRANSITO PRA COMPRAR BANANA, FORA PREFEITO!',
+          text: '3 HORAS NO TRÂNSITO PRA COMPRAR BANANA, ABRE MAIS RUA PREFEITO!',
           tone: 'rage',
         },
         {
@@ -841,19 +1529,19 @@ export class CitySimulation {
       );
     }
 
-    if (unpoweredHouses > 0) {
+    if (this.stats.unpoweredCount > 0) {
       candidates.push({
         handle: '@gorila_clt',
-        avatar: '🦍',
-        text: 'Sem luz na minha rua de novo #PrefeituraSlop ⚡🤬',
+        avatar: '⚡',
+        text: `${this.stats.unpoweredCount} prédio(s) sem luz! Coloca uma Usina de Casca (5) perto deles!`,
         tone: 'rage',
       });
     }
 
-    if (disconnectedHouses > 0) {
+    if (this.stats.noRoadCount > 0) {
       candidates.push({
         handle: '@tia_do_cipo',
-        avatar: '🌿',
+        avatar: '🛣️',
         text: 'Construíram meu barraco no meio do mato SEM ESTRADA, vou de cipó trabalhar??',
         tone: 'rage',
       });
@@ -862,8 +1550,8 @@ export class CitySimulation {
     if (pollutedHouses > 0) {
       candidates.push({
         handle: '@mico_dev',
-        avatar: '🤢',
-        text: 'Cheiro de paçoca queimada e chorume de coco entrando na janela 💀🥥',
+        avatar: '☁️',
+        text: 'Cheiro de paçoca queimada e coco entrando na janela! Afasta a Fábrica/Lixão! 🤢',
         tone: 'rage',
       });
     }
@@ -872,16 +1560,16 @@ export class CitySimulation {
       candidates.push({
         handle: '@chimpanze_fiscal',
         avatar: '🗑️',
-        text: 'Cadê o Lixão de Coco?? Tem casca de banana até no teto da prefeitura!',
+        text: 'Lixo transbordando! Construa um Lixão de Coco (7) longe das casas!',
         tone: 'rage',
       });
     }
 
-    if (this.stats.bananas < 40) {
+    if (this.mode !== 'sandbox' && this.stats.bananas < 45) {
       candidates.push({
         handle: '@orangotango_coach',
         avatar: '📉',
-        text: 'Prefeitura falida! Muda o mindset prefeito, faz mais Feira de Banana!',
+        text: 'Cofre apertado! Faz mais Feira de Banana (3) ou Fábrica de Paçoca (4)!',
         tone: 'meme',
       });
     }
@@ -897,7 +1585,7 @@ export class CitySimulation {
         {
           handle: '@macaco_slop',
           avatar: '✨',
-          text: 'Melhor gestão primata da história! Imposto baixo e banana gelada!',
+          text: 'Melhor gestão primata da história! Luz ligada e banana gelada!',
           tone: 'love',
         },
       );
@@ -908,7 +1596,7 @@ export class CitySimulation {
       candidates.push({
         handle: '@mico_dev',
         avatar: '🏗️',
-        text: `${this.lastBuildActor.name} acabou de usar ${def.emoji} ${def.shortName} sem licitação KKKKK`,
+        text: `${this.lastBuildActor.name} usou ${def.emoji} ${def.shortName} sem licitação KKKKK`,
         tone: 'meme',
       });
       this.lastBuildActor = null;
@@ -919,7 +1607,7 @@ export class CitySimulation {
         {
           handle: '@macaco_slop',
           avatar: '🍌',
-          text: 'Alguém sabe que horas passa o ônibus das bananas na Av. Principal?',
+          text: 'Alguém sabe que horas passa o ônibus das bananas na Av. das Bananas?',
           tone: 'meme',
         },
         {
@@ -979,8 +1667,8 @@ export class CitySimulation {
       vy: -22,
       vz: 0,
       z: 0,
-      life: 1.25,
-      maxLife: 1.25,
+      life: 1.3,
+      maxLife: 1.3,
       size: 12,
       color,
       text,
@@ -1025,16 +1713,27 @@ export class CitySimulation {
             terrain: t.terrain,
             building: t.building,
             level: t.level,
+            damaged: t.damaged,
             builtBy: t.builtBy,
           });
         }
       }
     }
+    const contribObj: Record<string, PlayerContribution> = {};
+    for (const [k, v] of this.contributions) {
+      contribObj[k] = { ...v };
+    }
     return {
       seed: this.seed,
+      mode: this.mode,
+      simSpeed: this.simSpeed,
       bananas: this.stats.bananas,
       day: this.stats.day,
       highestMilestone: this.stats.milestoneIndex,
+      completedMissionIds: Array.from(this.completedMissionIds),
+      contributions: contribObj,
+      decree: { ...this.decree, votes: { ...this.decree.votes } },
+      incomingDisaster: this.incomingDisaster ? { ...this.incomingDisaster } : null,
       tiles,
     };
   }
@@ -1042,6 +1741,8 @@ export class CitySimulation {
   importSnapshot(snap: CitySnapshot, preserveVehicles = false): void {
     const seedChanged = this.seed !== snap.seed;
     this.seed = snap.seed;
+    this.mode = snap.mode;
+    this.simSpeed = snap.simSpeed;
     if (seedChanged) {
       this.grid = generateMap(snap.seed);
     } else {
@@ -1049,6 +1750,7 @@ export class CitySimulation {
         for (let x = 0; x < GRID_SIZE; x++) {
           this.grid[y][x].building = null;
           this.grid[y][x].level = 1;
+          this.grid[y][x].damaged = false;
           this.grid[y][x].builtBy = undefined;
         }
       }
@@ -1059,12 +1761,24 @@ export class CitySimulation {
         t.terrain = item.terrain;
         t.building = item.building;
         t.level = item.level;
+        t.damaged = item.damaged;
         t.builtBy = item.builtBy;
       }
     }
     this.stats.bananas = snap.bananas;
     this.stats.day = snap.day;
     this.stats.milestoneIndex = snap.highestMilestone;
+    this.completedMissionIds = new Set(snap.completedMissionIds ?? []);
+    this.contributions.clear();
+    if (snap.contributions) {
+      for (const [k, v] of Object.entries(snap.contributions)) {
+        this.contributions.set(k, { ...v });
+      }
+    }
+    if (snap.decree) {
+      this.decree = { ...snap.decree, votes: { ...snap.decree.votes } };
+    }
+    this.incomingDisaster = snap.incomingDisaster ?? null;
     if (seedChanged || !preserveVehicles) {
       this.vehicles = [];
     }

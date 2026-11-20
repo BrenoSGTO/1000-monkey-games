@@ -7,9 +7,14 @@ export type BuildingType =
   | 'factory'
   | 'power'
   | 'park'
-  | 'dump';
+  | 'dump'
+  | 'townhall';
 
-export type ToolType = BuildingType | 'bulldozer';
+export type ToolType = BuildingType | 'bulldozer' | 'inspect';
+
+export type OverlayMode = 'normal' | 'power' | 'happiness' | 'pollution';
+
+export type GameMode = 'classic' | 'local2p' | 'sandbox';
 
 export interface ToolDef {
   id: ToolType;
@@ -18,10 +23,12 @@ export interface ToolDef {
   shortName: string;
   emoji: string;
   cost: number;
+  upkeep: number;
   color: string;
   radius: number;
   powerUse: number;
   powerGen: number;
+  inDock: boolean;
   description: string;
 }
 
@@ -31,17 +38,34 @@ export const TILE_H = 32;
 
 export const TOOLS: ToolDef[] = [
   {
+    id: 'inspect',
+    key: '0',
+    name: 'Inspecionar / Reparar',
+    shortName: 'Inspec.',
+    emoji: '🔍',
+    cost: 0,
+    upkeep: 0,
+    color: '#38bdf8',
+    radius: 0,
+    powerUse: 0,
+    powerGen: 0,
+    inDock: true,
+    description: 'Clique em qualquer prédio ou terreno para ver status, lucro, energia, dono e reparar danos.',
+  },
+  {
     id: 'road',
     key: '1',
     name: 'Estrada / Ponte',
     shortName: 'Estrada',
     emoji: '🛣️',
     cost: 10,
+    upkeep: 0.15,
     color: '#64748b',
     radius: 0,
     powerUse: 0,
     powerGen: 0,
-    description: 'Conecta sozinha com curvas e cruzamentos! Vira ponte sobre o rio (custo 2x).',
+    inDock: true,
+    description: 'Arraste em L para traçar avenidas retas com prévia! Sobre o rio vira Ponte (2x custo).',
   },
   {
     id: 'house',
@@ -50,11 +74,13 @@ export const TOOLS: ToolDef[] = [
     shortName: 'Barraco',
     emoji: '🏠',
     cost: 40,
+    upkeep: 0,
     color: '#fb923c',
     radius: 0,
     powerUse: 1,
     powerGen: 0,
-    description: 'Residencial! Aumenta a população e paga imposto em Bananas (precisa de luz e estrada).',
+    inDock: true,
+    description: 'Residencial! Traz macacos e paga imposto (+2 a +7🍌). Precisa de Estrada + Luz!',
   },
   {
     id: 'market',
@@ -63,11 +89,13 @@ export const TOOLS: ToolDef[] = [
     shortName: 'Feira',
     emoji: '🍌',
     cost: 65,
+    upkeep: 0,
     color: '#facc15',
     radius: 0,
     powerUse: 2,
     powerGen: 0,
-    description: 'Comercial! Lucra quando carrinhos de banana chegam. Reclama de engarrafamento!',
+    inDock: true,
+    description: 'Comercial! Lucra +6🍌/ciclo e recebe carrinhos (+6🍌 por entrega). Precisa de Luz e Estrada!',
   },
   {
     id: 'factory',
@@ -76,11 +104,13 @@ export const TOOLS: ToolDef[] = [
     shortName: 'Fábrica',
     emoji: '🏭',
     cost: 110,
+    upkeep: 0,
     color: '#a855f7',
     radius: 3.5,
     powerUse: 3,
     powerGen: 0,
-    description: 'Industrial! Dá MUITA grana, mas solta nuvem tóxica de paçoca que irrita vizinhos.',
+    inDock: true,
+    description: 'Industrial! Lucra +18🍌/ciclo, mas solta nuvem tóxica (raio 3.5). Construa longe dos Barracos!',
   },
   {
     id: 'power',
@@ -89,11 +119,13 @@ export const TOOLS: ToolDef[] = [
     shortName: 'Usina',
     emoji: '⚡',
     cost: 130,
+    upkeep: 3,
     color: '#38bdf8',
     radius: 5.5,
     powerUse: 0,
     powerGen: 18,
-    description: 'Gera energia elétrica num raio de 5.5 quadras usando casca de banana queimada.',
+    inDock: true,
+    description: 'Gera 18⚡ num raio azul de 5.5 quadras. Manutenção: 3🍌/ciclo.',
   },
   {
     id: 'park',
@@ -102,11 +134,13 @@ export const TOOLS: ToolDef[] = [
     shortName: 'Praça',
     emoji: '🗿',
     cost: 75,
+    upkeep: 1.5,
     color: '#4ade80',
     radius: 4.2,
     powerUse: 1,
     powerGen: 0,
-    description: 'Lazer! Brilho da careca dourada e cipós aumentam a felicidade ao redor.',
+    inDock: true,
+    description: 'Lazer! Sobe a felicidade ao redor (raio 4.2) e ajuda Barracos a evoluírem! Manut: 1.5🍌.',
   },
   {
     id: 'dump',
@@ -115,11 +149,13 @@ export const TOOLS: ToolDef[] = [
     shortName: 'Lixão',
     emoji: '🥥',
     cost: 30,
+    upkeep: 1,
     color: '#84cc16',
     radius: 4.5,
     powerUse: 0,
     powerGen: 0,
-    description: 'Barato! Limpa o lixo da cidade, mas fede MUITO ao redor (ótimo pra trollar amigo!).',
+    inDock: true,
+    description: 'Limpa +16 de lixo da cidade, mas fede num raio de 4.5 quadras (ótimo pra trollar!). Manut: 1🍌.',
   },
   {
     id: 'bulldozer',
@@ -128,13 +164,32 @@ export const TOOLS: ToolDef[] = [
     shortName: 'Demolir',
     emoji: '💥',
     cost: 5,
+    upkeep: 0,
     color: '#ef4444',
     radius: 0,
     powerUse: 0,
     powerGen: 0,
-    description: 'Explode prédios, estradas ou árvores com fumaça e barulho satisfatório.',
+    inDock: true,
+    description: 'Demole prédios/estradas com REEMBOLSO DE 50%! Limpar árvores custa 5🍌.',
+  },
+  {
+    id: 'townhall',
+    key: '',
+    name: 'Prefeitura da Selva',
+    shortName: 'Prefeitura',
+    emoji: '🏛️',
+    cost: 0,
+    upkeep: 0,
+    color: '#fde047',
+    radius: 0,
+    powerUse: 0,
+    powerGen: 0,
+    inDock: false,
+    description: 'Sede oficial do governo primata! Ponto central da cidade (indestrutível).',
   },
 ];
+
+export const DOCK_TOOLS: ToolDef[] = TOOLS.filter((t) => t.inDock);
 
 export const TOOL_MAP: Record<ToolType, ToolDef> = Object.fromEntries(
   TOOLS.map((t) => [t.id, t]),
@@ -147,6 +202,10 @@ export interface TileData {
   building: BuildingType | null;
   /** 1..3 visual upgrade level for houses/markets based on happiness */
   level: number;
+  /** True when stomped by Giant Gorilla and needing repair */
+  damaged: boolean;
+  /** Visual timer (>0) when a building recently leveled up */
+  levelUpTimer: number;
   /** Computed each simulation tick */
   powered: boolean;
   connectedToRoad: boolean;
@@ -180,6 +239,14 @@ export interface Vehicle {
 }
 
 export type DisasterType = 'strike' | 'coconut_rain' | 'trio_eletrico' | 'giant_gorilla';
+
+export interface IncomingDisaster {
+  type: DisasterType;
+  title: string;
+  countdown: number;
+  seedX: number;
+  seedY: number;
+}
 
 export interface ActiveDisaster {
   id: number;
@@ -228,6 +295,16 @@ export interface Particle {
   kind: 'smoke' | 'spark' | 'stink' | 'confetti' | 'text' | 'ring';
 }
 
+export interface MapPing {
+  id: number;
+  gx: number;
+  gy: number;
+  actorName: string;
+  color: string;
+  life: number;
+  maxLife: number;
+}
+
 export interface Milestone {
   id: number;
   name: string;
@@ -244,6 +321,118 @@ export const MILESTONES: Milestone[] = [
   { id: 4, name: 'Império Slop', popRequired: 320, bonusBananas: 1500, badge: '👑' },
 ];
 
+export interface GuideMission {
+  id: string;
+  title: string;
+  hint: string;
+  reward: number;
+  toolHint: ToolType;
+  done: boolean;
+  current: number;
+  target: number;
+}
+
+export interface RciDemand {
+  /** 0..100 (50 = neutro) */
+  residential: number;
+  commercial: number;
+  industrial: number;
+}
+
+export interface EconomyBreakdown {
+  houseIncome: number;
+  marketIncome: number;
+  factoryIncome: number;
+  deliveryIncome: number;
+  roadUpkeep: number;
+  powerUpkeep: number;
+  parkUpkeep: number;
+  dumpUpkeep: number;
+  decreeDelta: number;
+  netPerTick: number;
+}
+
+export interface PlayerContribution {
+  name: string;
+  color: string;
+  built: number;
+  roads: number;
+  demolished: number;
+  bananasDelta: number;
+}
+
+export interface DecreeOption {
+  id: string;
+  title: string;
+  emoji: string;
+  summary: string;
+  happinessBonus: number;
+  incomeMult: number;
+  powerMult: number;
+  parkMult: number;
+  extraPollution: number;
+}
+
+export const DECREE_PAIRS: Array<[DecreeOption, DecreeOption]> = [
+  [
+    {
+      id: 'banana_holiday',
+      title: 'Feriado da Banana',
+      emoji: '🍌',
+      summary: '+18% Felicidade em toda cidade, -20% imposto por 24s',
+      happinessBonus: 18,
+      incomeMult: 0.8,
+      powerMult: 1,
+      parkMult: 1,
+      extraPollution: 0,
+    },
+    {
+      id: 'coconut_tax',
+      title: 'Imposto do Coco',
+      emoji: '🥥',
+      summary: '+45% Renda comercial/industrial, -10% Felicidade por 24s',
+      happinessBonus: -10,
+      incomeMult: 1.45,
+      powerMult: 1,
+      parkMult: 1,
+      extraPollution: 0,
+    },
+  ],
+  [
+    {
+      id: 'peel_overdrive',
+      title: 'Sobrecarga de Casca',
+      emoji: '⚡',
+      summary: '+50% Energia das Usinas, mas +10 Poluição geral por 24s',
+      happinessBonus: 0,
+      incomeMult: 1,
+      powerMult: 1.5,
+      parkMult: 1,
+      extraPollution: 10,
+    },
+    {
+      id: 'bald_glory',
+      title: 'Dia da Careca Brilhante',
+      emoji: '🗿',
+      summary: 'Estátuas dão DOBRO de felicidade e renda +15% por 24s',
+      happinessBonus: 8,
+      incomeMult: 1.15,
+      powerMult: 1,
+      parkMult: 2,
+      extraPollution: 0,
+    },
+  ],
+];
+
+export interface DecreeState {
+  phase: 'idle' | 'voting' | 'active';
+  id: number;
+  options: [DecreeOption, DecreeOption];
+  votes: Record<string, 0 | 1>;
+  remaining: number;
+  activeOption: DecreeOption | null;
+}
+
 export interface RemoteCursor {
   playerId: string;
   name: string;
@@ -254,17 +443,38 @@ export interface RemoteCursor {
   lastSeen: number;
 }
 
-export interface CitySnapshot {
-  seed: number;
-  bananas: number;
-  day: number;
-  highestMilestone: number;
+export interface UndoEntry {
+  label: string;
+  bananaDelta: number;
   tiles: Array<{
     gx: number;
     gy: number;
     terrain: TerrainType;
     building: BuildingType | null;
     level: number;
+    damaged: boolean;
+    builtBy?: string;
+  }>;
+}
+
+export interface CitySnapshot {
+  seed: number;
+  mode: GameMode;
+  simSpeed: 0 | 1 | 2;
+  bananas: number;
+  day: number;
+  highestMilestone: number;
+  completedMissionIds: string[];
+  contributions: Record<string, PlayerContribution>;
+  decree: DecreeState;
+  incomingDisaster: IncomingDisaster | null;
+  tiles: Array<{
+    gx: number;
+    gy: number;
+    terrain: TerrainType;
+    building: BuildingType | null;
+    level: number;
+    damaged: boolean;
     builtBy?: string;
   }>;
 }
@@ -276,6 +486,24 @@ export type CityNetMessage =
       gy: number;
       tool: ToolType;
       actorName: string;
+      actorColor: string;
+    }
+  | {
+      kind: 'road_batch';
+      coords: Array<{ gx: number; gy: number }>;
+      actorName: string;
+      actorColor: string;
+    }
+  | {
+      kind: 'repair_tile';
+      gx: number;
+      gy: number;
+      actorName: string;
+    }
+  | {
+      kind: 'undo_batch';
+      entry: UndoEntry;
+      actorName: string;
     }
   | {
       kind: 'cursor_move';
@@ -285,11 +513,48 @@ export type CityNetMessage =
       color: string;
     }
   | {
+      kind: 'map_ping';
+      gx: number;
+      gy: number;
+      actorName: string;
+      color: string;
+    }
+  | {
+      kind: 'set_speed';
+      speed: 0 | 1 | 2;
+      actorName: string;
+    }
+  | {
       kind: 'trigger_disaster';
       disasterType: DisasterType;
       actorName: string;
       seedX: number;
       seedY: number;
+    }
+  | {
+      kind: 'incoming_disaster';
+      incoming: IncomingDisaster;
+    }
+  | {
+      kind: 'decree_start_vote';
+      id: number;
+      pairIndex: number;
+      duration: number;
+    }
+  | {
+      kind: 'decree_vote';
+      decreeId: number;
+      optionIndex: 0 | 1;
+      voterId: string;
+      voterName: string;
+    }
+  | {
+      kind: 'crisis_event';
+      reason: 'bankrupt' | 'rebellion';
+    }
+  | {
+      kind: 'loan_rescue';
+      actorName: string;
     }
   | {
       kind: 'state_sync';
@@ -301,6 +566,7 @@ export type CityNetMessage =
   | {
       kind: 'reset_city';
       seed: number;
+      mode: GameMode;
       actorName: string;
     };
 
@@ -322,4 +588,7 @@ export interface CityStats {
   milestoneIndex: number;
   bankruptTimer: number;
   rebellionTimer: number;
+  unpoweredCount: number;
+  noRoadCount: number;
+  damagedCount: number;
 }
