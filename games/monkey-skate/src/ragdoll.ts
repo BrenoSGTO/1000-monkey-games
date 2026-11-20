@@ -364,7 +364,7 @@ export function stepRagdoll(
   // 5. Track how settled the ragdoll is
   const chest = ragdoll.nodes[1];
   const chestSpeed = Math.hypot(chest.x - chest.oldX, chest.y - chest.oldY) / Math.max(dt, 0.001);
-  if (chestSpeed < 45) {
+  if (chestSpeed < 80) {
     ragdoll.settleTime += dt;
   } else {
     ragdoll.settleTime = 0;

@@ -1,6 +1,8 @@
 import type {
   BananaPad,
   GrindRail,
+  LaunchLip,
+  StairVisual,
   TerrainPoint,
   TrackData,
   TrackId,
@@ -108,21 +110,16 @@ function buildPracaDaBanana(): TrackData {
   addCurve(terrain, 960, 260, 1140, 175, 8, (t) => t * t * (3 - 2 * t));
   terrain.push({ x: 1260, y: 175 });
   addCurve(terrain, 1260, 175, 1440, 260, 8, (t) => t * t * (3 - 2 * t));
-  // Staircase down
+  // Smooth skateable slope under staircase (visually rendered as crisp steps!)
   terrain.push({ x: 1720, y: 260 });
-  for (let s = 1; s <= 6; s++) {
-    const sx = 1720 + s * 42;
-    const sy = 260 + s * 22;
-    terrain.push({ x: sx - 36, y: sy - 22 });
-    terrain.push({ x: sx, y: sy });
-  }
+  terrain.push({ x: 1972, y: 392 });
   terrain.push({ x: 2320, y: 392 });
   // Big Central Half-Pipe Bowl
   addCurve(terrain, 2320, 392, 2560, 210, 14, (t) => t * t);
   terrain.push({ x: 2640, y: 210 });
-  addCurve(terrain, 2640, 210, 2880, 460, 16, (t) => t * t);
+  addCurve(terrain, 2640, 210, 2880, 460, 16, (t) => Math.sin(t * Math.PI * 0.5));
   terrain.push({ x: 3200, y: 460 });
-  addCurve(terrain, 3200, 460, 3440, 220, 16, (t) => 1 - (1 - t) * (1 - t));
+  addCurve(terrain, 3200, 460, 3440, 220, 16, (t) => 1 - Math.cos(t * Math.PI * 0.5));
   terrain.push({ x: 3560, y: 220 });
   addCurve(terrain, 3560, 220, 3760, 300, 10, (t) => t * t * (3 - 2 * t));
   // Street plaza with giant SUS kicker
@@ -134,6 +131,67 @@ function buildPracaDaBanana(): TrackData {
   // Right Mega Quarter-Pipe
   addCurve(terrain, 5160, 320, 5580, -180, 18, (t) => 1 - Math.cos(t * Math.PI * 0.5));
   addCurve(terrain, 5580, -180, 5680, -340, 8, (t) => t);
+
+  const stairs: StairVisual[] = [
+    { x0: 1720, y0: 260, x1: 1972, y1: 392, steps: 7 },
+  ];
+
+  const launchLips: LaunchLip[] = [
+    {
+      x: 52,
+      tolerance: 28,
+      direction: 'left',
+      minSpeed: 260,
+      vy: -680,
+      vxOverride: 165,
+      label: 'QUARTER-PIPE AIR! 🚀',
+    },
+    {
+      x: 2560,
+      tolerance: 24,
+      direction: 'right',
+      minSpeed: 320,
+      vy: -520,
+      vxBoost: 60,
+      label: 'LIP DO BOWL! 🔥',
+    },
+    {
+      x: 2640,
+      tolerance: 24,
+      direction: 'left',
+      minSpeed: 340,
+      vy: -560,
+      vxBoost: -80,
+      label: 'HALF-PIPE AIR! 🔥',
+    },
+    {
+      x: 3440,
+      tolerance: 24,
+      direction: 'right',
+      minSpeed: 340,
+      vy: -560,
+      vxBoost: 80,
+      label: 'HALF-PIPE AIR! 🔥',
+    },
+    {
+      x: 4458,
+      tolerance: 24,
+      direction: 'right',
+      minSpeed: 300,
+      vy: -610,
+      vxBoost: 110,
+      label: 'LANÇAMENTO SUS! 🚀',
+    },
+    {
+      x: 5565,
+      tolerance: 28,
+      direction: 'right',
+      minSpeed: 260,
+      vy: -700,
+      vxOverride: -175,
+      label: 'MEGA QUARTER-PIPE! 🚀',
+    },
+  ];
 
   const rails: GrindRail[] = [
     {
@@ -178,15 +236,15 @@ function buildPracaDaBanana(): TrackData {
   ];
 
   const propSpecs: Array<Omit<TrackProp, 'y'>> = [
-    { id: 'p-sign-1', kind: 'sign', x: 480, width: 22, height: 85, label: 'BANANA' },
-    { id: 'p-trash-1', kind: 'trash', x: 920, width: 34, height: 42 },
-    { id: 'p-car-1', kind: 'parked-car', x: 1560, width: 150, height: 58, label: 'CORSA', color: '#ef4444', roofRail: true },
-    { id: 'p-pole-1', kind: 'pole', x: 2140, width: 16, height: 190 },
-    { id: 'p-bench-1', kind: 'bench', x: 2250, width: 88, height: 30, roofRail: true },
-    { id: 'p-hotdog', kind: 'hotdog', x: 4580, width: 110, height: 68, label: 'DOGÃO', roofRail: true },
-    { id: 'p-tires-1', kind: 'tires', x: 4780, width: 64, height: 54 },
-    { id: 'p-billboard', kind: 'billboard', x: 4950, width: 130, height: 165, label: 'SUS 24H' },
-    { id: 'p-pole-2', kind: 'pole', x: 5110, width: 16, height: 195 },
+    { id: 'p-sign-1', kind: 'sign', x: 480, width: 22, height: 85, label: 'BANANA', solidInSkate: false },
+    { id: 'p-trash-1', kind: 'trash', x: 920, width: 34, height: 34, label: 'LIXEIRA', solidInSkate: true },
+    { id: 'p-car-1', kind: 'parked-car', x: 1560, width: 148, height: 50, label: 'CORSA', color: '#ef4444', roofRail: true, solidInSkate: true },
+    { id: 'p-pole-1', kind: 'pole', x: 2140, width: 16, height: 190, solidInSkate: false },
+    { id: 'p-bench-1', kind: 'bench', x: 2250, width: 88, height: 28, label: 'BANCO', roofRail: true, solidInSkate: true },
+    { id: 'p-hotdog', kind: 'hotdog', x: 4610, width: 108, height: 56, label: 'DOGÃO', roofRail: true, solidInSkate: true },
+    { id: 'p-tires-1', kind: 'tires', x: 4820, width: 58, height: 38, label: 'PNEUS', solidInSkate: true },
+    { id: 'p-billboard', kind: 'billboard', x: 4980, width: 130, height: 165, label: 'SUS 24H', solidInSkate: false },
+    { id: 'p-pole-2', kind: 'pole', x: 5120, width: 16, height: 195, solidInSkate: false },
   ];
 
   const props: TrackProp[] = propSpecs.map((spec) => {
@@ -202,8 +260,8 @@ function buildPracaDaBanana(): TrackData {
         label: prop.label ? `Teto ${prop.label}` : 'Banco da Praça',
         color: '#fde047',
         points: [
-          { x: prop.x - prop.width * 0.45, y: prop.y - prop.height },
-          { x: prop.x + prop.width * 0.45, y: prop.y - prop.height },
+          { x: prop.x - prop.width * 0.46, y: prop.y - prop.height },
+          { x: prop.x + prop.width * 0.46, y: prop.y - prop.height },
         ],
       });
     }
@@ -228,6 +286,8 @@ function buildPracaDaBanana(): TrackData {
     groundTopColor: '#facc15',
     spawnX: 620,
     terrain,
+    stairs,
+    launchLips,
     rails,
     props,
     turboBananas,
@@ -262,11 +322,24 @@ function buildLadeiraDoMorroSlop(): TrackData {
     { dx: 950, dy: 340, bump: false },
   ];
 
+  const launchLips: LaunchLip[] = [];
+
   for (const sec of sections) {
     const nx = curX + sec.dx;
     const ny = curY + sec.dy;
     if (sec.bump) {
       addCurve(terrain, curX, curY, nx, ny, 10, (t) => t * t);
+      if (sec.dy <= -65) {
+        launchLips.push({
+          x: nx,
+          tolerance: 24,
+          direction: 'right',
+          minSpeed: 420,
+          vy: -440,
+          vxBoost: 70,
+          label: 'VOOU NA LOMBADA! ⚡',
+        });
+      }
     } else {
       addCurve(terrain, curX, curY, nx, ny, 12, (t) => t * t * (3 - 2 * t));
     }
@@ -284,6 +357,27 @@ function buildLadeiraDoMorroSlop(): TrackData {
   terrain.push({ x: gapX + 1400, y: gapY + 340 });
   // Catch quarter-pipe at bottom
   addCurve(terrain, gapX + 1400, gapY + 340, gapX + 1850, gapY - 120, 16, (t) => 1 - Math.cos(t * Math.PI * 0.5));
+
+  launchLips.push(
+    {
+      x: gapX - 6,
+      tolerance: 26,
+      direction: 'right',
+      minSpeed: 380,
+      vy: -760,
+      vxBoost: 150,
+      label: 'SALTO DO ABISMO! 🚀',
+    },
+    {
+      x: gapX + 1835,
+      tolerance: 28,
+      direction: 'right',
+      minSpeed: 280,
+      vy: -650,
+      vxOverride: -150,
+      label: 'PAREDE FINAL! 🔥',
+    },
+  );
 
   const rails: GrindRail[] = [];
   const railStarts = [1250, 2950, 4800, 6800, 8900];
@@ -305,17 +399,17 @@ function buildLadeiraDoMorroSlop(): TrackData {
   }
 
   const propSpecs: Array<Omit<TrackProp, 'y'>> = [
-    { id: 'lp-1', kind: 'sign', x: 950, width: 22, height: 86, label: 'LADEIRA!' },
-    { id: 'lp-2', kind: 'pole', x: 2080, width: 16, height: 195 },
-    { id: 'lp-3', kind: 'tires', x: 2650, width: 66, height: 54 },
-    { id: 'lp-4', kind: 'pole', x: 3820, width: 16, height: 195 },
-    { id: 'lp-5', kind: 'sign', x: 4550, width: 22, height: 86, label: 'MACACO!' },
-    { id: 'lp-6', kind: 'trash', x: 5620, width: 36, height: 44 },
-    { id: 'lp-7', kind: 'pole', x: 6420, width: 16, height: 195 },
-    { id: 'lp-8', kind: 'billboard', x: 7620, width: 130, height: 165, label: 'FREIO ZERO' },
-    { id: 'lp-9', kind: 'pole', x: 8550, width: 16, height: 195 },
-    { id: 'lp-10', kind: 'parked-car', x: 9650, width: 150, height: 58, label: 'UNO ESCADA', color: '#f8fafc', roofRail: true },
-    { id: 'lp-11', kind: 'pole', x: 10450, width: 16, height: 195 },
+    { id: 'lp-1', kind: 'sign', x: 950, width: 22, height: 86, label: 'LADEIRA!', solidInSkate: false },
+    { id: 'lp-2', kind: 'pole', x: 2080, width: 16, height: 195, solidInSkate: false },
+    { id: 'lp-3', kind: 'tires', x: 2650, width: 58, height: 38, label: 'PNEUS', solidInSkate: true },
+    { id: 'lp-4', kind: 'pole', x: 3820, width: 16, height: 195, solidInSkate: false },
+    { id: 'lp-5', kind: 'sign', x: 4550, width: 22, height: 86, label: 'MACACO!', solidInSkate: false },
+    { id: 'lp-6', kind: 'trash', x: 5620, width: 34, height: 34, label: 'LIXEIRA', solidInSkate: true },
+    { id: 'lp-7', kind: 'pole', x: 6420, width: 16, height: 195, solidInSkate: false },
+    { id: 'lp-8', kind: 'billboard', x: 7620, width: 130, height: 165, label: 'FREIO ZERO', solidInSkate: false },
+    { id: 'lp-9', kind: 'pole', x: 8550, width: 16, height: 195, solidInSkate: false },
+    { id: 'lp-10', kind: 'parked-car', x: 9650, width: 148, height: 50, label: 'UNO ESCADA', color: '#f8fafc', roofRail: true, solidInSkate: true },
+    { id: 'lp-11', kind: 'pole', x: 10450, width: 16, height: 195, solidInSkate: false },
   ];
 
   const props: TrackProp[] = propSpecs.map((spec) => ({
@@ -330,8 +424,8 @@ function buildLadeiraDoMorroSlop(): TrackData {
         label: 'Teto do Uno com Escada',
         color: '#facc15',
         points: [
-          { x: prop.x - prop.width * 0.45, y: prop.y - prop.height },
-          { x: prop.x + prop.width * 0.45, y: prop.y - prop.height },
+          { x: prop.x - prop.width * 0.46, y: prop.y - prop.height },
+          { x: prop.x + prop.width * 0.46, y: prop.y - prop.height },
         ],
       });
     }
@@ -358,6 +452,8 @@ function buildLadeiraDoMorroSlop(): TrackData {
     groundTopColor: '#94a3b8',
     spawnX: 240,
     terrain,
+    stairs: [],
+    launchLips,
     rails,
     props,
     turboBananas,
@@ -387,6 +483,27 @@ function buildMegaRampaDaSelva(): TrackData {
   addCurve(terrain, 5200, 420, 5880, -480, 24, (t) => 1 - Math.cos(t * Math.PI * 0.5));
   terrain.push({ x: 5980, y: -760 });
 
+  const launchLips: LaunchLip[] = [
+    {
+      x: 2556,
+      tolerance: 26,
+      direction: 'right',
+      minSpeed: 360,
+      vy: -880,
+      vxBoost: 180,
+      label: 'VOO ESTRATOSFÉRICO! 🚀',
+    },
+    {
+      x: 5865,
+      tolerance: 30,
+      direction: 'right',
+      minSpeed: 300,
+      vy: -860,
+      vxOverride: -210,
+      label: 'MEGA QUARTER-PIPE DA SELVA! 🌴',
+    },
+  ];
+
   const rails: GrindRail[] = [
     {
       id: 'mega-sky-rail',
@@ -410,11 +527,11 @@ function buildMegaRampaDaSelva(): TrackData {
   ];
 
   const propSpecs: Array<Omit<TrackProp, 'y'>> = [
-    { id: 'mr-1', kind: 'billboard', x: 1580, width: 130, height: 170, label: 'VAI COM DEUS' },
-    { id: 'mr-2', kind: 'tires', x: 2860, width: 80, height: 60 },
-    { id: 'mr-3', kind: 'tires', x: 3060, width: 80, height: 60 },
-    { id: 'mr-4', kind: 'pole', x: 4700, width: 16, height: 210 },
-    { id: 'mr-5', kind: 'parked-car', x: 4920, width: 150, height: 58, label: 'AMBULÂNCIA', color: '#f8fafc', roofRail: true },
+    { id: 'mr-1', kind: 'billboard', x: 1580, width: 130, height: 170, label: 'VAI COM DEUS', solidInSkate: false },
+    { id: 'mr-2', kind: 'tires', x: 2860, width: 68, height: 40, label: 'PNEUS', solidInSkate: true },
+    { id: 'mr-3', kind: 'tires', x: 3060, width: 68, height: 40, label: 'PNEUS', solidInSkate: true },
+    { id: 'mr-4', kind: 'pole', x: 4700, width: 16, height: 210, solidInSkate: false },
+    { id: 'mr-5', kind: 'parked-car', x: 4920, width: 148, height: 50, label: 'AMBULÂNCIA', color: '#f8fafc', roofRail: true, solidInSkate: true },
   ];
 
   const props: TrackProp[] = propSpecs.map((spec) => ({
@@ -429,8 +546,8 @@ function buildMegaRampaDaSelva(): TrackData {
         label: 'Teto da Ambulância',
         color: '#fb7185',
         points: [
-          { x: prop.x - prop.width * 0.45, y: prop.y - prop.height },
-          { x: prop.x + prop.width * 0.45, y: prop.y - prop.height },
+          { x: prop.x - prop.width * 0.46, y: prop.y - prop.height },
+          { x: prop.x + prop.width * 0.46, y: prop.y - prop.height },
         ],
       });
     }
@@ -455,6 +572,8 @@ function buildMegaRampaDaSelva(): TrackData {
     groundTopColor: '#4ade80',
     spawnX: 250,
     terrain,
+    stairs: [],
+    launchLips,
     rails,
     props,
     turboBananas,

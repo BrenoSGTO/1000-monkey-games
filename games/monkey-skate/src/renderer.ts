@@ -6,6 +6,7 @@ import type {
   RagdollState,
   RemotePlayerState,
   SkaterMode,
+  StairVisual,
   ThrownBanana,
   TrackData,
   TrackProp,
@@ -23,12 +24,15 @@ export interface RenderLocalSkater {
   vy: number;
   angle: number;
   facing: 1 | -1;
-  ollieCharge: number;
+  crouching: boolean;
   activeTrick: TrickKind;
   trickTimer: number;
   boardFlip: number;
   grindBalance: number; // -1..1
+  manualBalance: number; // -1..1
   turboTimer: number;
+  invulnTimer: number;
+  ragdollRecoverIn: number | null;
   ragdoll: RagdollState;
 }
 
@@ -40,6 +44,7 @@ export interface RenderContextState {
   shakeX: number;
   shakeY: number;
   time: number;
+  countdownText: string | null;
   local: RenderLocalSkater;
   remotes: RemotePlayerState[];
   cars: MovingCar[];
@@ -74,34 +79,48 @@ export function renderGame(
   ctx.scale(camZoom, camZoom);
   ctx.translate(-camX, -camY);
 
-  const viewHalfW = (w * 0.5) / camZoom + 320;
+  const viewHalfW = (w * 0.5) / camZoom + 360;
   const viewMinX = camX - viewHalfW;
   const viewMaxX = camX + viewHalfW;
 
-  // 4. Props behind terrain (poles, billboards, signs, parked cars)
+  // 4. Scenery props behind terrain (poles, signs, billboards)
   for (const prop of track.props) {
+    if (prop.solidInSkate !== false) continue;
     if (prop.x + prop.width < viewMinX || prop.x - prop.width > viewMaxX) continue;
-    drawProp(ctx, prop);
+    drawProp(ctx, prop, true);
   }
 
   // 5. Terrain body & surface
-  drawTerrain(ctx, track, viewMinX, viewMaxX, camY + (h * 0.6) / camZoom + 500);
+  drawTerrain(ctx, track, viewMinX, viewMaxX, camY + (h * 0.6) / camZoom + 550);
 
-  // 6. Finish Banner for Ladeira
+  // 6. Visual staircases on smooth slope
+  for (const stair of track.stairs) {
+    if (stair.x1 < viewMinX || stair.x0 > viewMaxX) continue;
+    drawStairs(ctx, stair, track.groundTopColor);
+  }
+
+  // 7. Jumpable foreground props (trash, tires, bench, parked cars, hotdog)
+  for (const prop of track.props) {
+    if (prop.solidInSkate === false) continue;
+    if (prop.x + prop.width < viewMinX || prop.x - prop.width > viewMaxX) continue;
+    drawProp(ctx, prop, false);
+  }
+
+  // 8. Finish Banner for Ladeira
   if (track.finishX !== undefined) {
     drawFinishGate(ctx, track, track.finishX);
   }
 
-  // 7. Grind Rails
+  // 9. Grind Rails
   for (const rail of track.rails) {
     const first = rail.points[0];
     const last = rail.points[rail.points.length - 1];
     if (!first || !last) continue;
     if (last.x < viewMinX || first.x > viewMaxX) continue;
-    drawRail(ctx, rail.points, rail.color ?? '#facc15');
+    drawRail(ctx, rail.points, rail.color ?? '#facc15', rail.id.startsWith('roof-'));
   }
 
-  // 8. Turbo Banana Pads
+  // 10. Turbo Banana Pads
   for (const pad of track.turboBananas) {
     if (pad.x < viewMinX || pad.x > viewMaxX) continue;
     if (pad.cooldown <= 0) {
@@ -109,38 +128,38 @@ export function renderGame(
     }
   }
 
-  // 9. Player-thrown mischievous Banana Peels
+  // 11. Player-thrown mischievous Banana Peels
   for (const b of state.thrownBananas) {
     if (b.x < viewMinX || b.x > viewMaxX) continue;
     drawBananaItem(ctx, b.x, b.y - 8, false, time, b.ownerName);
   }
 
-  // 10. Moving Traffic Cars
+  // 12. Moving Traffic Cars
   for (const car of state.cars) {
     if (car.x + car.width < viewMinX || car.x - car.width > viewMaxX) continue;
     drawMovingCar(ctx, car, time);
   }
 
-  // 11. Remote Multiplayer Skaters
+  // 13. Remote Multiplayer Skaters
   for (const remote of state.remotes) {
     if (remote.snap.trackId !== track.id) continue;
     drawRemoteSkater(ctx, remote, time);
   }
 
-  // 12. Local Skater or Ragdoll
+  // 14. Local Skater or Ragdoll
   drawLocalSkater(ctx, state.local, time);
 
-  // 13. Particles
+  // 15. Particles
   for (const p of state.particles) {
     drawParticle(ctx, p);
   }
 
-  // 14. X-Ray Flashes
+  // 16. X-Ray Flashes
   for (const xr of state.xrays) {
     drawXrayFlash(ctx, xr);
   }
 
-  // 15. Floating Callouts
+  // 17. Floating Callouts
   for (const c of state.callouts) {
     const alpha = Math.min(1, c.life / (c.maxLife * 0.35));
     ctx.save();
@@ -158,6 +177,21 @@ export function renderGame(
   }
 
   ctx.restore();
+
+  // 18. Screen-space Countdown Overlay (for synchronized multiplayer duels & races)
+  if (state.countdownText) {
+    ctx.save();
+    ctx.translate(w * 0.5, h * 0.34);
+    ctx.font = '900 72px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = '#0f172a';
+    ctx.strokeText(state.countdownText, 0, 0);
+    ctx.fillStyle = state.countdownText.includes('DROPOU') ? '#4ade80' : '#fde047';
+    ctx.fillText(state.countdownText, 0, 0);
+    ctx.restore();
+  }
 }
 
 function drawParallaxBackground(
@@ -217,7 +251,6 @@ function drawParallaxBackground(
     const sx = i * spacing - camX * 0.32;
     const sy = baseHorizon + 26 + ((i * 37) % 35);
     if (track.id === 'ladeira' && i % 2 === 0) {
-      // Colorful morro houses silhouette
       const bh = 55 + ((i * 29) % 50);
       ctx.fillRect(sx - 28, sy - bh, 56, bh + 120);
       ctx.fillStyle = '#fde047';
@@ -225,7 +258,6 @@ function drawParallaxBackground(
       ctx.fillRect(sx + 6, sy - bh + 14, 8, 10);
       ctx.fillStyle = 'rgba(15, 23, 42, 0.5)';
     } else {
-      // Palm tree silhouette
       ctx.fillRect(sx - 4, sy - 76, 8, 130);
       ctx.beginPath();
       ctx.ellipse(sx - 22, sy - 74, 24, 7, -0.35, 0, Math.PI * 2);
@@ -290,16 +322,55 @@ function drawTerrain(
   ctx.restore();
 }
 
-function drawRail(ctx: CanvasRenderingContext2D, pts: { x: number; y: number }[], color: string): void {
+function drawStairs(ctx: CanvasRenderingContext2D, stair: StairVisual, accentColor: string): void {
+  const { x0, y0, x1, y1, steps } = stair;
+  const dx = (x1 - x0) / steps;
+  const dy = (y1 - y0) / steps;
   ctx.save();
-  // Support legs
-  ctx.strokeStyle = '#64748b';
-  ctx.lineWidth = 5;
-  for (let i = 0; i < pts.length; i++) {
+  ctx.fillStyle = '#334155';
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < steps; i++) {
+    const sx = x0 + dx * i;
+    const sy = y0 + dy * i;
     ctx.beginPath();
-    ctx.moveTo(pts[i].x, pts[i].y);
-    ctx.lineTo(pts[i].x, pts[i].y + 42);
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + dx, sy);
+    ctx.lineTo(sx + dx, sy + dy);
+    ctx.closePath();
+    ctx.fill();
     ctx.stroke();
+
+    // Subtle yellow curb nose per step
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy + 1);
+    ctx.lineTo(sx + dx, sy + 1);
+    ctx.stroke();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2;
+  }
+  ctx.restore();
+}
+
+function drawRail(
+  ctx: CanvasRenderingContext2D,
+  pts: { x: number; y: number }[],
+  color: string,
+  isRoofRail: boolean,
+): void {
+  ctx.save();
+  if (!isRoofRail) {
+    // Support legs
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 5;
+    for (let i = 0; i < pts.length; i++) {
+      ctx.beginPath();
+      ctx.moveTo(pts[i].x, pts[i].y);
+      ctx.lineTo(pts[i].x, pts[i].y + 42);
+      ctx.stroke();
+    }
   }
   // Rail bar
   ctx.beginPath();
@@ -310,17 +381,20 @@ function drawRail(ctx: CanvasRenderingContext2D, pts: { x: number; y: number }[]
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 11;
+  ctx.lineWidth = isRoofRail ? 7 : 11;
   ctx.stroke();
   ctx.strokeStyle = color;
-  ctx.lineWidth = 6;
+  ctx.lineWidth = isRoofRail ? 3.5 : 6;
   ctx.stroke();
   ctx.restore();
 }
 
-function drawProp(ctx: CanvasRenderingContext2D, prop: TrackProp): void {
+function drawProp(ctx: CanvasRenderingContext2D, prop: TrackProp, isScenery: boolean): void {
   const { x, y, width, height, kind } = prop;
   ctx.save();
+  if (isScenery) {
+    ctx.globalAlpha = 0.86;
+  }
   switch (kind) {
     case 'pole': {
       ctx.fillStyle = '#475569';
@@ -328,6 +402,10 @@ function drawProp(ctx: CanvasRenderingContext2D, prop: TrackProp): void {
       ctx.fillStyle = '#94a3b8';
       ctx.fillRect(x - 5, y - height, 36, 8);
       // Warm street lamp glow
+      ctx.fillStyle = 'rgba(253, 224, 71, 0.22)';
+      ctx.beginPath();
+      ctx.arc(x + 26, y - height + 10, 22, 0, Math.PI * 2);
+      ctx.fill();
       ctx.fillStyle = '#fde047';
       ctx.beginPath();
       ctx.arc(x + 26, y - height + 10, 8, 0, Math.PI * 2);
@@ -352,8 +430,8 @@ function drawProp(ctx: CanvasRenderingContext2D, prop: TrackProp): void {
     }
     case 'trash': {
       ctx.fillStyle = '#16a34a';
-      ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 2.5;
       ctx.fillRect(x - width * 0.5, y - height, width, height);
       ctx.strokeRect(x - width * 0.5, y - height, width, height);
       ctx.fillStyle = '#22c55e';
@@ -372,12 +450,14 @@ function drawProp(ctx: CanvasRenderingContext2D, prop: TrackProp): void {
       break;
     }
     case 'tires': {
-      for (let i = 0; i < 3; i++) {
+      const layers = 2;
+      const layerH = height / layers;
+      for (let i = 0; i < layers; i++) {
         ctx.fillStyle = i % 2 === 0 ? '#1e293b' : '#334155';
-        ctx.strokeStyle = '#020617';
-        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(x - width * 0.5, y - 18 * (i + 1), width, 17, 7);
+        ctx.roundRect(x - width * 0.5, y - layerH * (i + 1), width, layerH - 1, 7);
         ctx.fill();
         ctx.stroke();
       }
@@ -391,16 +471,15 @@ function drawProp(ctx: CanvasRenderingContext2D, prop: TrackProp): void {
       ctx.fillStyle = '#f97316';
       ctx.strokeStyle = '#0f172a';
       ctx.lineWidth = 3;
-      ctx.fillRect(x - width * 0.5, y - height + 18, width, height - 18);
-      ctx.strokeRect(x - width * 0.5, y - height + 18, width, height - 18);
-      // Striped awning
+      ctx.fillRect(x - width * 0.5, y - height + 16, width, height - 16);
+      ctx.strokeRect(x - width * 0.5, y - height + 16, width, height - 16);
       ctx.fillStyle = '#fef08a';
-      ctx.fillRect(x - width * 0.54, y - height, width * 1.08, 18);
-      ctx.strokeRect(x - width * 0.54, y - height, width * 1.08, 18);
+      ctx.fillRect(x - width * 0.54, y - height, width * 1.08, 16);
+      ctx.strokeRect(x - width * 0.54, y - height, width * 1.08, 16);
       ctx.fillStyle = '#0f172a';
       ctx.font = '900 13px system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('🌭 DOGÃO', x, y - 16);
+      ctx.fillText('🌭 DOGÃO', x, y - 14);
       break;
     }
     case 'billboard': {
@@ -470,7 +549,6 @@ function drawCarBody(
 function drawMovingCar(ctx: CanvasRenderingContext2D, car: MovingCar, time: number): void {
   ctx.save();
   drawCarBody(ctx, car.x, car.y, car.width, car.height, car.color, 'VRUM!');
-  // Headlight beam
   const beamX = car.x + car.dir * (car.width * 0.5);
   const grad = ctx.createLinearGradient(beamX, car.y - 24, beamX + car.dir * 95, car.y - 24);
   grad.addColorStop(0, 'rgba(254, 240, 138, 0.55)');
@@ -482,7 +560,6 @@ function drawMovingCar(ctx: CanvasRenderingContext2D, car: MovingCar, time: numb
   ctx.lineTo(beamX + car.dir * 95, car.y - 4);
   ctx.closePath();
   ctx.fill();
-  // Little roof siren flash
   if (Math.sin(time * 16) > 0) {
     ctx.fillStyle = '#facc15';
     ctx.beginPath();
@@ -528,7 +605,6 @@ function drawBananaItem(
     ctx.arc(0, 0, 22 + Math.sin(time * 8) * 3, 0, Math.PI * 2);
     ctx.fill();
   }
-  // Banana crescent
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 3;
   ctx.fillStyle = isTurbo ? '#fde047' : '#eab308';
@@ -559,7 +635,35 @@ function drawBananaItem(
 function drawLocalSkater(ctx: CanvasRenderingContext2D, sk: RenderLocalSkater, time: number): void {
   if (sk.mode === 'ragdoll' && sk.ragdoll.active) {
     drawRagdoll(ctx, sk.ragdoll, sk.color, sk.name, time);
+
+    // Quick recovery hint above ragdoll head
+    const head = sk.ragdoll.nodes[0];
+    if (head) {
+      ctx.save();
+      const label =
+        sk.ragdollRecoverIn !== null && sk.ragdollRecoverIn > 0.05
+          ? `Espaço / R: Levantar já! (auto ${sk.ragdollRecoverIn.toFixed(1)}s)`
+          : 'Espaço / R: Levantar agora!';
+      ctx.font = '800 12px system-ui, sans-serif';
+      const tw = ctx.measureText(label).width + 18;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(head.x - tw * 0.5, head.y - 54, tw, 24, 12);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#fef08a';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, head.x, head.y - 38);
+      ctx.restore();
+    }
     return;
+  }
+
+  ctx.save();
+  if (sk.invulnTimer > 0 && Math.sin(time * 28) > 0) {
+    ctx.globalAlpha = 0.55;
   }
 
   drawMonkeyOnBoard(ctx, {
@@ -568,50 +672,63 @@ function drawLocalSkater(ctx: CanvasRenderingContext2D, sk: RenderLocalSkater, t
     angle: sk.angle,
     facing: sk.facing,
     color: sk.color,
-    ollieCharge: sk.ollieCharge,
+    crouching: sk.crouching,
     activeTrick: sk.activeTrick,
     trickTimer: sk.trickTimer,
     boardFlip: sk.boardFlip,
     isGrinding: sk.mode === 'grinding',
+    isManual: sk.mode === 'manual',
     isTurbo: sk.turboTimer > 0,
     time,
   });
 
-  // Ollie charge bar under feet
-  if (sk.ollieCharge > 0.05) {
-    ctx.save();
-    ctx.translate(sk.x, sk.y + 18);
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-    ctx.fillRect(-26, 0, 52, 8);
-    ctx.fillStyle = sk.ollieCharge > 0.8 ? '#fb7185' : '#facc15';
-    ctx.fillRect(-24, 2, 48 * sk.ollieCharge, 4);
-    ctx.restore();
+  if (sk.name) {
+    drawNameTag(ctx, sk.x, sk.y - 96, sk.name, sk.color);
   }
+  ctx.restore();
 
   // Grind balance meter above monkey
   if (sk.mode === 'grinding') {
-    ctx.save();
-    ctx.translate(sk.x, sk.y - 98);
-    ctx.strokeStyle = 'rgba(15, 23, 42, 0.88)';
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.arc(0, 14, 28, Math.PI * 1.15, Math.PI * 1.85);
-    ctx.stroke();
-
-    ctx.strokeStyle = Math.abs(sk.grindBalance) > 0.72 ? '#fb7185' : '#4ade80';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(0, 14, 28, Math.PI * 1.15, Math.PI * 1.85);
-    ctx.stroke();
-
-    // Pointer dot
-    const a = Math.PI * 1.5 + sk.grindBalance * (Math.PI * 0.35);
-    ctx.fillStyle = '#fde047';
-    ctx.beginPath();
-    ctx.arc(Math.cos(a) * 28, 14 + Math.sin(a) * 28, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    drawBalanceArc(ctx, sk.x, sk.y - 102, sk.grindBalance, '#4ade80', 'GRIND');
+  } else if (sk.mode === 'manual') {
+    drawBalanceArc(ctx, sk.x, sk.y - 102, sk.manualBalance, '#c084fc', 'MANUAL');
   }
+}
+
+function drawBalanceArc(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  val: number,
+  safeColor: string,
+  tag: string,
+): void {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.strokeStyle = 'rgba(15, 23, 42, 0.88)';
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.arc(0, 14, 28, Math.PI * 1.15, Math.PI * 1.85);
+  ctx.stroke();
+
+  ctx.strokeStyle = Math.abs(val) > 0.78 ? '#fb7185' : safeColor;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(0, 14, 28, Math.PI * 1.15, Math.PI * 1.85);
+  ctx.stroke();
+
+  const clamped = Math.max(-1, Math.min(1, val));
+  const a = Math.PI * 1.5 + clamped * (Math.PI * 0.35);
+  ctx.fillStyle = '#fde047';
+  ctx.beginPath();
+  ctx.arc(Math.cos(a) * 28, 14 + Math.sin(a) * 28, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.font = '900 9px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#e2e8f0';
+  ctx.fillText(tag, 0, -20);
+  ctx.restore();
 }
 
 function drawRemoteSkater(ctx: CanvasRenderingContext2D, remote: RemotePlayerState, time: number): void {
@@ -644,7 +761,7 @@ function drawRemoteSkater(ctx: CanvasRenderingContext2D, remote: RemotePlayerSta
       capVy: 0,
       capAngle: 0,
       capSpin: 0,
-      capLost: true,
+      capLost: false,
       elapsed: 1,
       settleTime: 0,
       currentCrashScore: 0,
@@ -653,20 +770,21 @@ function drawRemoteSkater(ctx: CanvasRenderingContext2D, remote: RemotePlayerSta
     drawRagdoll(ctx, fakeRagdoll, remote.color, remote.name, time);
   } else {
     drawMonkeyOnBoard(ctx, {
-      x: s.x,
-      y: s.y,
-      angle: s.angle,
+      x: remote.renderX,
+      y: remote.renderY,
+      angle: remote.renderAngle,
       facing: s.facing,
       color: remote.color,
-      ollieCharge: s.ollieCharge,
+      crouching: s.crouching,
       activeTrick: s.activeTrick,
       trickTimer: s.trickTimer,
       boardFlip: s.boardFlip,
       isGrinding: s.mode === 'grinding',
+      isManual: s.mode === 'manual',
       isTurbo: false,
       time,
     });
-    drawNameTag(ctx, s.x, s.y - 95, remote.name, remote.color);
+    drawNameTag(ctx, remote.renderX, remote.renderY - 95, remote.name, remote.color);
   }
   ctx.restore();
 }
@@ -700,11 +818,12 @@ interface MonkeyBoardDrawOpts {
   angle: number;
   facing: 1 | -1;
   color: string;
-  ollieCharge: number;
+  crouching: boolean;
   activeTrick: TrickKind;
   trickTimer: number;
   boardFlip: number;
   isGrinding: boolean;
+  isManual: boolean;
   isTurbo: boolean;
   time: number;
 }
@@ -715,7 +834,14 @@ function drawMonkeyOnBoard(ctx: CanvasRenderingContext2D, o: MonkeyBoardDrawOpts
   ctx.rotate(o.angle);
   ctx.scale(o.facing, 1);
 
-  const crouch = o.ollieCharge * 13 + (o.activeTrick === 'bananagrab' ? 12 : 0);
+  if (o.isManual) {
+    // Pivot slightly on back wheels for tail manual look!
+    ctx.translate(-12, 0);
+    ctx.rotate(-0.28);
+    ctx.translate(12, 0);
+  }
+
+  const crouch = (o.crouching ? 12 : 0) + (o.activeTrick === 'bananagrab' ? 12 : 0);
   const christLift = o.activeTrick === 'christair' ? -18 : 0;
 
   // Tail
@@ -727,7 +853,7 @@ function drawMonkeyOnBoard(ctx: CanvasRenderingContext2D, o: MonkeyBoardDrawOpts
   ctx.quadraticCurveTo(-30, -30 + Math.sin(o.time * 10) * 8, -28, -48 + crouch);
   ctx.stroke();
 
-  // Skateboard (offset to side during Christ Air, spinning during Kickflip!)
+  // Skateboard
   ctx.save();
   if (o.activeTrick === 'christair') {
     ctx.translate(22, -32);
@@ -790,19 +916,17 @@ function drawMonkeyOnBoard(ctx: CanvasRenderingContext2D, o: MonkeyBoardDrawOpts
   ctx.lineWidth = 6.5;
   ctx.beginPath();
   if (o.activeTrick === 'christair') {
-    // T-pose!
     ctx.moveTo(-10, chestY + 6);
     ctx.lineTo(-32, chestY + 4);
     ctx.moveTo(10, chestY + 6);
     ctx.lineTo(30, chestY + 4);
   } else if (o.activeTrick === 'bananagrab') {
-    // Grabbing board!
     ctx.moveTo(10, chestY + 6);
     ctx.lineTo(18, -8);
     ctx.moveTo(-10, chestY + 6);
     ctx.lineTo(-22, chestY - 8);
   } else {
-    const wave = o.isGrinding ? Math.sin(o.time * 22) * 8 : 0;
+    const wave = o.isGrinding || o.isManual ? Math.sin(o.time * 22) * 8 : 0;
     ctx.moveTo(-10, chestY + 6);
     ctx.lineTo(-22, chestY + 12 + wave);
     ctx.moveTo(10, chestY + 6);
@@ -817,7 +941,6 @@ function drawMonkeyOnBoard(ctx: CanvasRenderingContext2D, o: MonkeyBoardDrawOpts
 }
 
 function drawSkateboard(ctx: CanvasRenderingContext2D, turbo: boolean): void {
-  // Wheels & Trucks
   ctx.fillStyle = '#94a3b8';
   ctx.fillRect(-16, -2, 6, 4);
   ctx.fillRect(10, -2, 6, 4);
@@ -830,7 +953,6 @@ function drawSkateboard(ctx: CanvasRenderingContext2D, turbo: boolean): void {
   ctx.fill();
   ctx.stroke();
 
-  // Deck
   ctx.fillStyle = '#facc15';
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 2.2;
@@ -856,7 +978,6 @@ function drawMonkeyHead(
   ctx.save();
   ctx.translate(x, y);
 
-  // Ears
   ctx.fillStyle = '#78350f';
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 2;
@@ -866,13 +987,11 @@ function drawMonkeyHead(
   ctx.fill();
   ctx.stroke();
 
-  // Skull
   ctx.beginPath();
   ctx.arc(0, 0, 13, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
-  // Tan face mask
   ctx.fillStyle = '#fde68a';
   ctx.beginPath();
   ctx.ellipse(1, 4, 10, 7, 0, 0, Math.PI * 2);
@@ -880,7 +999,6 @@ function drawMonkeyHead(
   ctx.arc(5, -2, 4.5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Eyes
   if (dizzy) {
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 2;
@@ -894,7 +1012,6 @@ function drawMonkeyHead(
     ctx.moveTo(7, -4);
     ctx.lineTo(3, 0);
     ctx.stroke();
-    // Screaming O mouth
     ctx.fillStyle = '#7f1d1d';
     ctx.beginPath();
     ctx.ellipse(1, 6, 4, 4.5, 0, 0, Math.PI * 2);
@@ -905,13 +1022,11 @@ function drawMonkeyHead(
     ctx.arc(-4, -2, 3.2, 0, Math.PI * 2);
     ctx.arc(5, -2, 3.2, 0, Math.PI * 2);
     ctx.fill();
-    // Goofy slightly cross-eyed pupils
     ctx.fillStyle = '#0f172a';
     ctx.beginPath();
     ctx.arc(-3, -2, 1.6, 0, Math.PI * 2);
     ctx.arc(6.2, -2.4, 1.6, 0, Math.PI * 2);
     ctx.fill();
-    // Grin
     ctx.strokeStyle = '#7f1d1d';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -919,7 +1034,6 @@ function drawMonkeyHead(
     ctx.stroke();
   }
 
-  // Backwards red cap
   if (hasCap) {
     ctx.fillStyle = '#ef4444';
     ctx.strokeStyle = '#0f172a';
@@ -929,7 +1043,6 @@ function drawMonkeyHead(
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    // Backwards visor
     ctx.fillStyle = '#dc2626';
     ctx.beginPath();
     ctx.moveTo(-11, -5);
@@ -954,14 +1067,12 @@ function drawRagdoll(
   const n = r.nodes;
   if (n.length < 11) return;
 
-  // 1. Tumbling skateboard
   ctx.save();
   ctx.translate(r.boardX, r.boardY);
   ctx.rotate(r.boardAngle);
   drawSkateboard(ctx, false);
   ctx.restore();
 
-  // 2. Flying cap
   if (r.capLost) {
     ctx.save();
     ctx.translate(r.capX, r.capY);
@@ -978,7 +1089,6 @@ function drawRagdoll(
     ctx.restore();
   }
 
-  // 3. Limbs
   ctx.save();
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -992,23 +1102,19 @@ function drawRagdoll(
     ctx.stroke();
   };
 
-  // Back arm & leg
   drawLimb(n[1], n[3], 8, '#78350f');
   drawLimb(n[3], n[4], 7, '#78350f');
   drawLimb(n[2], n[7], 9, '#78350f');
   drawLimb(n[7], n[8], 8, '#78350f');
 
-  // Torso hoodie between chest (1) and pelvis (2)
   drawLimb(n[1], n[2], 21, '#0f172a');
   drawLimb(n[1], n[2], 16, color);
 
-  // Front arm & leg
   drawLimb(n[1], n[5], 8, '#92400e');
   drawLimb(n[5], n[6], 7, '#92400e');
   drawLimb(n[2], n[9], 9, '#92400e');
   drawLimb(n[9], n[10], 8, '#92400e');
 
-  // Shoes & hands
   ctx.fillStyle = '#ef4444';
   ctx.beginPath();
   ctx.arc(n[8].x, n[8].y, 6, 0, Math.PI * 2);
@@ -1020,7 +1126,6 @@ function drawRagdoll(
   ctx.arc(n[6].x, n[6].y, 5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Head
   const headAngle = Math.atan2(n[1].y - n[0].y, n[1].x - n[0].x) - Math.PI * 0.5;
   ctx.save();
   ctx.translate(n[0].x, n[0].y);
@@ -1028,7 +1133,6 @@ function drawRagdoll(
   drawMonkeyHead(ctx, 0, 0, true, !r.capLost);
   ctx.restore();
 
-  // Dizzy stars above head
   for (let i = 0; i < 3; i++) {
     const a = time * 6 + i * ((Math.PI * 2) / 3);
     ctx.fillStyle = '#fde047';
@@ -1088,7 +1192,6 @@ function drawXrayFlash(ctx: CanvasRenderingContext2D, xr: XrayFlash): void {
   ctx.globalAlpha = t * 0.92;
   ctx.translate(xr.x, xr.y);
 
-  // Glowing cyan X-ray circle
   const grad = ctx.createRadialGradient(0, 0, 4, 0, 0, xr.radius);
   grad.addColorStop(0, 'rgba(56, 189, 248, 0.85)');
   grad.addColorStop(0.65, 'rgba(14, 165, 233, 0.45)');
@@ -1098,7 +1201,6 @@ function drawXrayFlash(ctx: CanvasRenderingContext2D, xr: XrayFlash): void {
   ctx.arc(0, 0, xr.radius, 0, Math.PI * 2);
   ctx.fill();
 
-  // Skeleton icon + crack lines
   ctx.strokeStyle = '#e0f2fe';
   ctx.lineWidth = 3;
   if (xr.part === 'skull') {
@@ -1111,7 +1213,6 @@ function drawXrayFlash(ctx: CanvasRenderingContext2D, xr: XrayFlash): void {
     ctx.arc(4, -4, 3, 0, Math.PI * 2);
     ctx.fill();
   } else {
-    // Broken bone
     ctx.beginPath();
     ctx.moveTo(-14, -6);
     ctx.lineTo(-2, -1);
@@ -1120,7 +1221,6 @@ function drawXrayFlash(ctx: CanvasRenderingContext2D, xr: XrayFlash): void {
     ctx.stroke();
   }
 
-  // Red fracture zigzag
   ctx.strokeStyle = '#fb7185';
   ctx.lineWidth = 2.5;
   ctx.beginPath();
