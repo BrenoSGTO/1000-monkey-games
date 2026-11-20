@@ -107,17 +107,20 @@ export function computeBeamCost(material: MaterialId, lengthPx: number): number 
 }
 
 export function stressColor(stress: number, fallbackColor: string): string {
-  if (stress <= 0.12) return fallbackColor;
-  if (stress < 0.45) {
-    // Blend green -> yellow
-    return lerpHex('#22c55e', '#eab308', (stress - 0.12) / 0.33);
+  const s = Math.max(0, stress);
+  if (s <= 0.02) {
+    return lerpHex(fallbackColor.startsWith('#') ? fallbackColor : '#22c55e', '#22c55e', 0.45);
   }
-  if (stress < 0.78) {
+  if (s < 0.35) {
+    // Blend green -> yellow
+    return lerpHex('#22c55e', '#eab308', s / 0.35);
+  }
+  if (s < 0.7) {
     // Blend yellow -> orange
-    return lerpHex('#eab308', '#f97316', (stress - 0.45) / 0.33);
+    return lerpHex('#eab308', '#f97316', (s - 0.35) / 0.35);
   }
   // Blend orange -> vivid red
-  return lerpHex('#f97316', '#ef4444', Math.min(1, (stress - 0.78) / 0.22));
+  return lerpHex('#f97316', '#ef4444', Math.min(1, (s - 0.7) / 0.28));
 }
 
 function lerpHex(hexA: string, hexB: string, t: number): string {

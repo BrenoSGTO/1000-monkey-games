@@ -1,5 +1,6 @@
 export type MaterialId = 'road' | 'bamboo' | 'vine' | 'steel' | 'spring';
 export type ToolId = MaterialId | 'eraser';
+export type MultiplayerMode = 'coop' | 'versus';
 
 export interface MaterialDef {
   id: MaterialId;
@@ -34,7 +35,9 @@ export interface BridgeNode {
   fixed: boolean;
   /** Computed total mass during simulation */
   mass: number;
-  /** Optional owner peer color */
+  /** Optional owner peer metadata */
+  authorId?: string;
+  authorName?: string;
   authorColor?: string;
 }
 
@@ -52,6 +55,8 @@ export interface BridgeBeam {
   broken: boolean;
   /** Visual bounce squish timer for mattress spring */
   springSquish: number;
+  authorId?: string;
+  authorName?: string;
   authorColor?: string;
 }
 
@@ -60,6 +65,8 @@ export interface SerializedNode {
   x: number;
   y: number;
   fixed: boolean;
+  authorId?: string;
+  authorName?: string;
   authorColor?: string;
 }
 
@@ -69,6 +76,8 @@ export interface SerializedBeam {
   nodeBId: string;
   material: MaterialId;
   cost: number;
+  authorId?: string;
+  authorName?: string;
   authorColor?: string;
 }
 
@@ -78,6 +87,9 @@ export interface VehicleSpec {
   kind: VehicleKind;
   name: string;
   spawnDelay: number;
+  direction?: 1 | -1;
+  spawnX?: number;
+  finishX?: number;
 }
 
 export interface TerrainSegment {
@@ -85,6 +97,14 @@ export interface TerrainSegment {
   y1: number;
   x2: number;
   y2: number;
+}
+
+export interface GhostHintBeam {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  material: MaterialId;
 }
 
 export interface LevelDef {
@@ -98,11 +118,19 @@ export interface LevelDef {
   finishX: number;
   spawnX: number;
   spawnY: number;
+  mirrorAxisX?: number;
   terrainSegments: TerrainSegment[];
   /** Polygon silhouettes for drawing cliffs/piers/towers */
   terrainPolygons: Array<{ points: Array<[number, number]>; kind: 'cliff' | 'pier' | 'tower' }>;
   anchors: Array<{ id: string; x: number; y: number }>;
   vehicles: VehicleSpec[];
+  ghostHint?: GhostHintBeam[];
+  jumpHazard?: {
+    x1: number;
+    x2: number;
+    topY: number;
+    label: string;
+  };
   boatHazard?: {
     startX: number;
     endX: number;
@@ -129,6 +157,8 @@ export interface VehicleRuntime {
   name: string;
   mass: number;
   driveSpeed: number;
+  direction: 1 | -1;
+  finishX: number;
   wheelRear: WheelPoint;
   wheelFront: WheelPoint;
   roof: { x: number; y: number; oldX: number; oldY: number };
@@ -136,6 +166,9 @@ export interface VehicleRuntime {
   chassisHeight: number;
   monkeyCount: number;
   ejected: boolean;
+  crashed: boolean;
+  crashTimer: number;
+  flippedTimer: number;
   finished: boolean;
   finishTimer: number;
   drowned: boolean;
@@ -210,6 +243,8 @@ export interface Crocodile {
   x: number;
   baseY: number;
   y: number;
+  minX: number;
+  maxX: number;
   dir: 1 | -1;
   speed: number;
   laughTimer: number;
@@ -236,11 +271,34 @@ export interface RemoteCursor {
   x: number;
   y: number;
   tool: ToolId;
+  dragStart?: { x: number; y: number } | null;
   lastSeen: number;
 }
 
+export interface DuelPlayerStatus {
+  peerId: string;
+  name: string;
+  color: string;
+  spent: number;
+  budget: number;
+  state: 'building' | 'testing' | 'passed' | 'failed';
+  maxStressPct: number;
+  updatedAt: number;
+  snapshot?: {
+    nodes: SerializedNode[];
+    beams: SerializedBeam[];
+  };
+}
+
 export type BridgeNetMessage =
-  | { kind: 'cursor'; x: number; y: number; tool: ToolId; color: string }
+  | {
+      kind: 'cursor';
+      x: number;
+      y: number;
+      tool: ToolId;
+      color: string;
+      dragStart?: { x: number; y: number } | null;
+    }
   | { kind: 'add_beam'; beam: SerializedBeam; nodeA: SerializedNode; nodeB: SerializedNode }
   | { kind: 'remove_beam'; beamId: string }
   | { kind: 'clear_bridge' }
@@ -248,13 +306,30 @@ export type BridgeNetMessage =
   | { kind: 'stop_sim' }
   | { kind: 'set_level'; levelIndex: number }
   | { kind: 'set_slowmo'; slowMo: boolean }
+  | { kind: 'set_mode'; gameMode: MultiplayerMode }
+  | {
+      kind: 'sim_result';
+      levelIndex: number;
+      outcome: 'won' | 'failed';
+      reason: string;
+      maxStressPct: number;
+      totalScore: number;
+      savedMonkeys: number;
+      drownedMonkeys: number;
+    }
+  | { kind: 'duel_status'; levelIndex: number; status: DuelPlayerStatus }
+  | { kind: 'reaction'; text: string; color: string; senderName: string }
   | {
       kind: 'sync_state';
+      gameMode: MultiplayerMode;
       levelIndex: number;
+      simRunning: boolean;
+      slowMo: boolean;
       nodes: SerializedNode[];
       beams: SerializedBeam[];
       totalScore: number;
       savedMonkeys: number;
       drownedMonkeys: number;
       completedLevels: number[];
+      duelRoster: DuelPlayerStatus[];
     };

@@ -1,10 +1,17 @@
-import { mountMonkeyHud, PeerRoom, type MonkeyHudHandle, type PeerEnvelope } from '@monkey-slop/sdk';
+import {
+  mountMonkeyHud,
+  PeerRoom,
+  type MonkeyHudHandle,
+  type PeerEnvelope,
+  type PlayerProfile,
+} from '@monkey-slop/sdk';
 import type { BridgeNetMessage, RemoteCursor, ToolId } from './types';
 
 export interface NetHandlers {
   onRemoteCursor: (cursor: RemoteCursor) => void;
   onRemoteMessage: (msg: BridgeNetMessage, senderId: string, senderName: string) => void;
   onPlayerJoinedAsHost: () => void;
+  onPlayersUpdated?: (players: PlayerProfile[]) => void;
 }
 
 export class BridgeNetClient {
@@ -17,6 +24,7 @@ export class BridgeNetClient {
     this.room = new PeerRoom<BridgeNetMessage>('monkey-polybridge', {
       onPlayersChange: (players) => {
         this.hud.setPlayers(players);
+        handlers.onPlayersUpdated?.(players);
         if (this.room.localPlayer.isHost && players.length > this.prevPlayerCount) {
           handlers.onPlayerJoinedAsHost();
         }
@@ -33,6 +41,7 @@ export class BridgeNetClient {
             x: msg.x,
             y: msg.y,
             tool: msg.tool,
+            dragStart: msg.dragStart ?? null,
             lastSeen: performance.now(),
           });
           return;
@@ -57,7 +66,12 @@ export class BridgeNetClient {
     this.room.send('bridge', msg);
   }
 
-  public sendCursor(x: number, y: number, tool: ToolId): void {
+  public sendCursor(
+    x: number,
+    y: number,
+    tool: ToolId,
+    dragStart?: { x: number; y: number } | null,
+  ): void {
     if (!this.isConnected()) return;
     const now = performance.now();
     if (now - this.lastCursorSent < 48) return;
@@ -68,6 +82,7 @@ export class BridgeNetClient {
       y,
       tool,
       color: this.room.localPlayer.color,
+      dragStart: dragStart ?? null,
     });
   }
 }

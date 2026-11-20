@@ -1,4 +1,5 @@
 import { monkeyAudio } from '@monkey-slop/sdk';
+import { WORLD_W } from './levels';
 import { MATERIALS } from './materials';
 import type {
   BoatRuntime,
@@ -14,6 +15,7 @@ import type {
   TerrainSegment,
   VehicleKind,
   VehicleRuntime,
+  VehicleSpec,
 } from './types';
 
 const GRAVITY = 560;
@@ -31,10 +33,20 @@ const SHOUTS = [
   'UUU-AAA-AAA!',
 ];
 
+interface DriveCandidate {
+  tx: number;
+  ty: number;
+  nA: BridgeNode | null;
+  nB: BridgeNode | null;
+  t: number;
+  priority: number;
+}
+
 export interface PhysicsCallbacks {
   onShake: (amount: number) => void;
   onMonkeySaved: (count: number) => void;
   onMonkeyDrowned: (count: number) => void;
+  onFirstBeamBreak?: (label: string) => void;
   onVictory: () => void;
   onFail: (reason: string) => void;
 }
@@ -42,6 +54,7 @@ export interface PhysicsCallbacks {
 export class BridgePhysicsWorld {
   public level: LevelDef;
   public nodes = new Map<string, BridgeNode>();
+  public orderedNodes: BridgeNode[] = [];
   public beams: BridgeBeam[] = [];
   public vehicles: VehicleRuntime[] = [];
   public ragdolls: RagdollMonkey[] = [];
@@ -54,6 +67,10 @@ export class BridgePhysicsWorld {
   public simTime = 0;
   public outcome: 'running' | 'won' | 'failed' = 'running';
   public failReason = '';
+  public currentMaxStress = 0;
+  public peakStressEver = 0;
+  public hasBrokenBeam = false;
+
   private beamImpulseAccum = new Map<string, number>();
   private beamSignedAccum = new Map<string, number>();
   private springCooldown = new Map<string, number>();
@@ -65,18 +82,74 @@ export class BridgePhysicsWorld {
     this.initAmbientCrocs();
   }
 
+  private computeOpenWaterSpans(): Array<{ minX: number; maxX: number }> {
+    const blocked: Array<[number, number]> = [];
+    const wy = this.level.waterY - 8;
+
+    for (const poly of this.level.terrainPolygons) {
+      if (poly.kind === 'tower') continue;
+      const xs = poly.points.map((p) => p[0]);
+      const ys = poly.points.map((p) => p[1]);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      if (maxY < wy || minY > this.level.waterY + 40) continue;
+
+      // Estimate horizontal extent at waterY using points near or below waterY
+      const activeXs: number[] = [];
+      for (let i = 0; i < poly.points.length; i++) {
+        const [x1, y1] = poly.points[i];
+        const [x2, y2] = poly.points[(i + 1) % poly.points.length];
+        if ((y1 <= wy && y2 >= wy) || (y2 <= wy && y1 >= wy)) {
+          if (Math.abs(y2 - y1) < 0.01) {
+            activeXs.push(x1, x2);
+          } else {
+            const t = (wy - y1) / (y2 - y1);
+            activeXs.push(x1 + (x2 - x1) * t);
+          }
+        }
+      }
+      if (activeXs.length >= 2) {
+        blocked.push([Math.min(...activeXs), Math.max(...activeXs)]);
+      } else {
+        blocked.push([Math.min(...xs), Math.max(...xs)]);
+      }
+    }
+
+    blocked.sort((a, b) => a[0] - b[0]);
+    const spans: Array<{ minX: number; maxX: number }> = [];
+    let cursor = 0;
+    for (const [bStart, bEnd] of blocked) {
+      if (bStart - cursor > 85) {
+        spans.push({ minX: cursor + 38, maxX: bStart - 38 });
+      }
+      cursor = Math.max(cursor, bEnd);
+    }
+    if (WORLD_W - cursor > 85) {
+      spans.push({ minX: cursor + 38, maxX: WORLD_W - 38 });
+    }
+
+    if (spans.length === 0) {
+      spans.push({ minX: 430, maxX: 770 });
+    }
+    return spans;
+  }
+
   private initAmbientCrocs(): void {
     this.crocodiles = [];
-    const spanStart = 340;
-    const spanEnd = 860;
-    const count = 3;
-    for (let i = 0; i < count; i++) {
+    const spans = this.computeOpenWaterSpans();
+    const totalCrocs = Math.max(2, Math.min(4, spans.length * 2));
+    for (let i = 0; i < totalCrocs; i++) {
+      const span = spans[i % spans.length];
+      const frac = totalCrocs === 1 ? 0.5 : (0.25 + ((i * 0.37) % 0.55));
+      const startX = span.minX + (span.maxX - span.minX) * frac;
       this.crocodiles.push({
-        x: spanStart + ((spanEnd - spanStart) / (count + 1)) * (i + 1),
+        x: startX,
         baseY: this.level.waterY + 14,
         y: this.level.waterY + 14,
+        minX: span.minX,
+        maxX: span.maxX,
         dir: i % 2 === 0 ? 1 : -1,
-        speed: 22 + i * 7,
+        speed: 20 + (i % 3) * 8,
         laughTimer: 0,
         biteTimer: 0,
         phase: i * 1.9,
@@ -91,7 +164,9 @@ export class BridgePhysicsWorld {
     this.simTime = 0;
     this.outcome = 'running';
     this.failReason = '';
-    this.vehicles = [];
+    this.currentMaxStress = 0;
+    this.peakStressEver = 0;
+    this.hasBrokenBeam = false;
     this.ragdolls = [];
     this.splinters = [];
     this.particles = [];
@@ -101,25 +176,38 @@ export class BridgePhysicsWorld {
     this.springCooldown.clear();
 
     this.nodes.clear();
-    for (const [id, n] of blueprintNodes) {
-      this.nodes.set(id, {
+    const sortedNodeEntries = Array.from(blueprintNodes.entries()).sort((a, b) =>
+      a[0].localeCompare(b[0]),
+    );
+    this.orderedNodes = [];
+    for (const [id, n] of sortedNodeEntries) {
+      const copy: BridgeNode = {
         ...n,
         x: n.homeX,
         y: n.homeY,
         oldX: n.homeX,
         oldY: n.homeY,
-      });
+      };
+      this.nodes.set(id, copy);
+      this.orderedNodes.push(copy);
     }
 
-    this.beams = blueprintBeams.map((b) => ({
-      ...b,
-      stress: 0,
-      signedStress: 0,
-      broken: false,
-      springSquish: 0,
-    }));
+    this.beams = blueprintBeams
+      .map((b) => ({
+        ...b,
+        stress: 0,
+        signedStress: 0,
+        broken: false,
+        springSquish: 0,
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id));
 
     this.computeNodeMasses();
+
+    // Parked preview vehicles in build mode so players see what they're building for!
+    this.vehicles = this.level.vehicles.map((spec, idx) =>
+      this.createVehicle(spec, idx, true),
+    );
 
     if (this.level.boatHazard) {
       const bh = this.level.boatHazard;
@@ -146,40 +234,49 @@ export class BridgePhysicsWorld {
     this.resetForBuild(blueprintNodes, blueprintBeams);
 
     this.vehicles = this.level.vehicles.map((spec, idx) =>
-      this.createVehicle(spec.kind, spec.name, idx, spec.spawnDelay),
+      this.createVehicle(spec, idx, false),
     );
   }
 
   private createVehicle(
-    kind: VehicleKind,
-    name: string,
+    spec: VehicleSpec,
     idx: number,
-    spawnDelay: number,
+    previewOnly: boolean,
   ): VehicleRuntime {
     const specs: Record<
       VehicleKind,
       { mass: number; speed: number; wheelBase: number; height: number; radius: number; monkeys: number }
     > = {
-      cart: { mass: 3.4, speed: 150, wheelBase: 44, height: 24, radius: 11, monkeys: 1 },
-      kombi: { mass: 6.0, speed: 132, wheelBase: 64, height: 32, radius: 13, monkeys: 4 },
-      tanker: { mass: 10.2, speed: 108, wheelBase: 78, height: 36, radius: 15, monkeys: 2 },
-      moped: { mass: 2.7, speed: 230, wheelBase: 36, height: 22, radius: 10, monkeys: 1 },
+      cart: { mass: 3.4, speed: 152, wheelBase: 44, height: 24, radius: 11, monkeys: 1 },
+      kombi: { mass: 6.0, speed: 134, wheelBase: 64, height: 32, radius: 13, monkeys: 4 },
+      tanker: { mass: 10.2, speed: 110, wheelBase: 78, height: 36, radius: 15, monkeys: 2 },
+      moped: { mass: 2.7, speed: 235, wheelBase: 36, height: 22, radius: 10, monkeys: 1 },
     };
-    const s = specs[kind];
-    const startX = this.level.spawnX - idx * 12;
+    const s = specs[spec.kind];
+    const dir: 1 | -1 = spec.direction ?? 1;
+    const baseSpawnX = spec.spawnX ?? this.level.spawnX;
+    // In build preview, stagger same-direction convoy vehicles nicely so both are visible
+    const sameDirBefore = this.level.vehicles
+      .slice(0, idx)
+      .filter((prev) => (prev.direction ?? 1) === dir).length;
+    const stagger = previewOnly ? sameDirBefore * 92 * dir : sameDirBefore * 12 * dir;
+    const startX = Math.max(58, Math.min(WORLD_W - 58, baseSpawnX - stagger));
     const groundY = this.sampleTerrainY(startX);
     const wy = groundY - s.radius - 1;
-    const rx = startX - s.wheelBase * 0.5;
-    const fx = startX + s.wheelBase * 0.5;
+    const rx = startX - s.wheelBase * 0.5 * dir;
+    const fx = startX + s.wheelBase * 0.5 * dir;
     const roofX = startX;
     const roofY = wy - s.height;
+    const finishX = spec.finishX ?? (dir === 1 ? this.level.finishX : 160);
 
     return {
-      id: `veh-${idx}-${kind}`,
-      kind,
-      name,
+      id: `veh-${idx}-${spec.kind}`,
+      kind: spec.kind,
+      name: spec.name,
       mass: s.mass,
       driveSpeed: s.speed,
+      direction: dir,
+      finishX,
       wheelRear: { x: rx, y: wy, oldX: rx, oldY: wy, radius: s.radius, angle: 0, grounded: false },
       wheelFront: { x: fx, y: wy, oldX: fx, oldY: wy, radius: s.radius, angle: 0, grounded: false },
       roof: { x: roofX, y: roofY, oldX: roofX, oldY: roofY },
@@ -187,12 +284,15 @@ export class BridgePhysicsWorld {
       chassisHeight: s.height,
       monkeyCount: s.monkeys,
       ejected: false,
+      crashed: false,
+      crashTimer: 0,
+      flippedTimer: 0,
       finished: false,
       finishTimer: 0,
       drowned: false,
       panicLevel: 0,
-      spawned: spawnDelay <= 0.01,
-      spawnTimer: spawnDelay,
+      spawned: previewOnly || spec.spawnDelay <= 0.01,
+      spawnTimer: previewOnly ? 0 : spec.spawnDelay,
       maxStressSeen: 0,
     };
   }
@@ -210,7 +310,7 @@ export class BridgePhysicsWorld {
   }
 
   private computeNodeMasses(): void {
-    for (const n of this.nodes.values()) {
+    for (const n of this.orderedNodes) {
       n.mass = 0.55;
     }
     for (const b of this.beams) {
@@ -256,7 +356,7 @@ export class BridgePhysicsWorld {
       }
     }
 
-    // Update Boat Hazard (Stage 6)
+    // Update Boat Hazard
     if (this.boat && this.level.boatHazard) {
       this.boat.x += this.boat.speed * fixedDt;
       if (this.boat.x > this.boat.endX) {
@@ -280,6 +380,7 @@ export class BridgePhysicsWorld {
         this.solveVehicleConstraints();
         this.solveVehicleCollisions(subDt, iter === 0);
         this.solveRagdollConstraints();
+        this.solveRagdollCollisions(subDt);
       }
     }
 
@@ -297,7 +398,7 @@ export class BridgePhysicsWorld {
 
   private integrateBridgeNodes(subDt: number): void {
     const gStep = GRAVITY * subDt * subDt;
-    for (const n of this.nodes.values()) {
+    for (const n of this.orderedNodes) {
       if (n.fixed) {
         n.x = n.homeX;
         n.y = n.homeY;
@@ -312,7 +413,6 @@ export class BridgePhysicsWorld {
       n.x += vx;
       n.y += vy + gStep;
 
-      // Water drag if node sinks into river
       if (n.y > this.level.waterY) {
         n.x -= vx * 0.08;
         n.y -= vy * 0.08;
@@ -344,9 +444,9 @@ export class BridgePhysicsWorld {
       // Moped turbo flame particles
       if (v.kind === 'moped' && !v.drowned && !v.ejected && Math.random() < 0.45) {
         this.particles.push({
-          x: v.wheelRear.x - 10,
+          x: v.wheelRear.x - 10 * v.direction,
           y: v.wheelRear.y - 6,
-          vx: -80 - Math.random() * 50,
+          vx: (-80 - Math.random() * 50) * v.direction,
           vy: -15 + (Math.random() - 0.5) * 30,
           size: 4 + Math.random() * 4,
           color: Math.random() < 0.5 ? '#f97316' : '#fde047',
@@ -399,7 +499,6 @@ export class BridgePhysicsWorld {
         nB.y -= corrY * fB;
       }
 
-      // Accumulate true physical impulse magnitude: |diff * stiffness| / wSum
       const impulse = (Math.abs(diff) * mat.stiffness) / wSum;
       this.beamImpulseAccum.set(b.id, (this.beamImpulseAccum.get(b.id) ?? 0) + impulse);
       this.beamSignedAccum.set(
@@ -416,26 +515,23 @@ export class BridgePhysicsWorld {
       const f = v.wheelFront;
       const t = v.roof;
 
-      // 1. Rear <-> Front wheelbase
       this.constrainPair(r, f, v.wheelBase, 0.96);
 
-      // 2. Wheels <-> Roof triangle
       const halfBase = v.wheelBase * 0.5;
       const diag = Math.hypot(halfBase, v.chassisHeight);
       this.constrainPair(r, t, diag, 0.94);
       this.constrainPair(f, t, diag, 0.94);
 
-      // Prevent chassis triangle from ever inverting
+      // Prevent chassis triangle from inverting relative to vehicle facing direction
       const cross = (f.x - r.x) * (t.y - r.y) - (f.y - r.y) * (t.x - r.x);
-      if (cross > -120) {
+      if (v.direction === 1 ? cross > -120 : cross < 120) {
         const mx = (r.x + f.x) * 0.5;
         const my = (r.y + f.y) * 0.5;
         const dx = f.x - r.x;
         const dy = f.y - r.y;
         const len = Math.hypot(dx, dy) || 1;
-        // Normal pointing "up" relative to wheel axle
-        const nx = dy / len;
-        const ny = -dx / len;
+        const nx = v.direction === 1 ? dy / len : -dy / len;
+        const ny = v.direction === 1 ? -dx / len : dx / len;
         t.x = mx + nx * v.chassisHeight;
         t.y = my + ny * v.chassisHeight;
       }
@@ -464,9 +560,14 @@ export class BridgePhysicsWorld {
       const wheels = [v.wheelRear, v.wheelFront];
 
       for (const w of wheels) {
+        let bestDrive: DriveCandidate | null = null;
+
         // 1. Terrain collisions
         for (const seg of this.level.terrainSegments) {
-          this.collideWheelWithTerrain(v, w, seg, subDt, applyDriveAndBounce);
+          const cand = this.collideWheelWithTerrain(v, w, seg, subDt);
+          if (cand && (!bestDrive || cand.priority > bestDrive.priority)) {
+            bestDrive = cand;
+          }
         }
 
         // 2. Driveable bridge beams (road & spring)
@@ -478,24 +579,50 @@ export class BridgePhysicsWorld {
           const nB = this.nodes.get(b.nodeBId);
           if (!nA || !nB) continue;
 
-          this.collideWheelWithBeam(v, w, b, nA, nB, subDt, applyDriveAndBounce);
+          const cand = this.collideWheelWithBeam(v, w, b, nA, nB, subDt, applyDriveAndBounce);
+          if (cand && (!bestDrive || cand.priority > bestDrive.priority)) {
+            bestDrive = cand;
+          }
+        }
+
+        // Apply drive impulse AT MOST ONCE per wheel per substep
+        if (applyDriveAndBounce && bestDrive && !v.ejected && !v.crashed && !v.drowned) {
+          this.applyWheelDrive(
+            v,
+            w,
+            bestDrive.tx,
+            bestDrive.ty,
+            subDt,
+            bestDrive.nA,
+            bestDrive.nB,
+            bestDrive.t,
+          );
         }
       }
+
+      // 3. Roof collisions with terrain & driveable beams so flipped cars don't sink into ground
+      this.collidePointWithWorld(v.roof, 7, subDt);
     }
   }
 
   private collideWheelWithTerrain(
-    v: VehicleRuntime,
+    _v: VehicleRuntime,
     w: VehicleRuntime['wheelRear'],
     seg: TerrainSegment,
     subDt: number,
-    applyDrive: boolean,
-  ): void {
+  ): DriveCandidate | null {
     const abx = seg.x2 - seg.x1;
     const aby = seg.y2 - seg.y1;
     const lenSq = abx * abx + aby * aby;
-    if (lenSq < 1) return;
+    if (lenSq < 1) return null;
     const len = Math.sqrt(lenSq);
+
+    const isHorizontal = Math.abs(abx) >= Math.abs(aby);
+    // Avoid catching wheels on the top corner lip of steep cliff walls when a bridge sags 2-3px
+    if (!isHorizontal) {
+      const topY = Math.min(seg.y1, seg.y2);
+      if (w.y < topY + 8) return null;
+    }
 
     const apx = w.x - seg.x1;
     const apy = w.y - seg.y1;
@@ -507,12 +634,12 @@ export class BridgePhysicsWorld {
     const dy = w.y - cy;
     const dist = Math.hypot(dx, dy);
     const contactR = w.radius + 1;
-    if (dist >= contactR || dist < 0.0001) return;
+    if (dist >= contactR || dist < 0.0001) return null;
 
-    // Outward normal (for top platforms, upward)
     let nx = dx / dist;
     let ny = dy / dist;
-    if (Math.abs(abx) > Math.abs(aby) && w.y < cy + 4) {
+    if (isHorizontal && w.y <= cy + 4) {
+      // Smooth upward normal even at cliff endpoints so sagged planks transition smoothly
       nx = aby / len;
       ny = -abx / len;
       if (ny > 0) {
@@ -533,9 +660,10 @@ export class BridgePhysicsWorld {
     }
     w.grounded = true;
 
-    if (applyDrive && !v.ejected && !v.drowned && ny < -0.35) {
-      this.applyWheelDrive(v, w, abx / len, aby / len, subDt, null, null, 0);
+    if (ny < -0.35) {
+      return { tx: abx / len, ty: aby / len, nA: null, nB: null, t: 0, priority: 1 };
     }
+    return null;
   }
 
   private collideWheelWithBeam(
@@ -546,8 +674,7 @@ export class BridgePhysicsWorld {
     nB: BridgeNode,
     subDt: number,
     applyDriveAndBounce: boolean,
-  ): void {
-    // Orient left-to-right for consistent top normal
+  ): DriveCandidate | null {
     const leftFirst = nA.x <= nB.x;
     const p1 = leftFirst ? nA : nB;
     const p2 = leftFirst ? nB : nA;
@@ -555,55 +682,51 @@ export class BridgePhysicsWorld {
     const abx = p2.x - p1.x;
     const aby = p2.y - p1.y;
     const lenSq = abx * abx + aby * aby;
-    if (lenSq < 4) return;
+    if (lenSq < 4) return null;
     const len = Math.sqrt(lenSq);
 
     const t = Math.max(0, Math.min(1, ((w.x - p1.x) * abx + (w.y - p1.y) * aby) / lenSq));
     const cx = p1.x + abx * t;
     const cy = p1.y + aby * t;
 
-    // Upward normal of left-to-right beam
     const nx = aby / len;
     const ny = -abx / len;
 
-    // Signed distance from beam centerline along upward normal
     const signedDist = (w.x - cx) * nx + (w.y - cy) * ny;
     const mat = MATERIALS[beam.material];
     const thicknessHalf = mat.thickness * 0.5;
     const targetClearance = w.radius + thicknessHalf;
 
-    // Only collide if wheel is on top side (prevents snapping upward from underneath)
     const perpDist = Math.hypot(w.x - cx, w.y - cy);
-    if (perpDist > targetClearance + 4) return;
-    if (signedDist < -w.radius * 0.7 || signedDist >= targetClearance) return;
+    if (perpDist > targetClearance + 4) return null;
+    if (signedDist < -w.radius * 0.7 || signedDist >= targetClearance) return null;
 
     const pen = targetClearance - signedDist;
     const wWheel = 1 / (v.mass * 0.5);
     const wA = p1.fixed ? 0 : (1 - t) / p1.mass;
     const wB = p2.fixed ? 0 : t / p2.mass;
-    const wTotal = wWheel + wA * (1 - t) + wB * t;
-    if (wTotal <= 0) return;
+    const wTotal = wWheel + (1 - t) * wA + t * wB;
+    if (wTotal <= 0) return null;
 
     const wheelShare = wWheel / wTotal;
-    // Move wheel & old pos together to resolve overlap with zero phantom bounce
+    const shareA = wA / wTotal;
+    const shareB = wB / wTotal;
+
     w.x += nx * pen * wheelShare;
     w.y += ny * pen * wheelShare;
     w.oldX += nx * pen * wheelShare;
     w.oldY += ny * pen * wheelShare;
 
-    // Cancel inward normal velocity & transfer momentum to bridge nodes
     const vDotN = ((w.x - w.oldX) * nx + (w.y - w.oldY) * ny) / subDt;
     if (vDotN < 0) {
       const j = -vDotN * subDt;
       w.oldX -= nx * j * wheelShare;
       w.oldY -= ny * j * wheelShare;
       if (!p1.fixed) {
-        const shareA = (wA * (1 - t)) / wTotal;
         p1.x -= nx * j * shareA;
         p1.y -= ny * j * shareA;
       }
       if (!p2.fixed) {
-        const shareB = (wB * t) / wTotal;
         p2.x -= nx * j * shareB;
         p2.y -= ny * j * shareB;
       }
@@ -613,56 +736,135 @@ export class BridgePhysicsWorld {
     v.maxStressSeen = Math.max(v.maxStressSeen, beam.stress);
 
     if (!p1.fixed) {
-      const shareA = (wA * (1 - t)) / wTotal;
       p1.x -= nx * pen * shareA;
       p1.y -= ny * pen * shareA;
       p1.oldX -= nx * pen * shareA;
       p1.oldY -= ny * pen * shareA;
     }
     if (!p2.fixed) {
-      const shareB = (wB * t) / wTotal;
       p2.x -= nx * pen * shareB;
       p2.y -= ny * pen * shareB;
       p2.oldX -= nx * pen * shareB;
       p2.oldY -= ny * pen * shareB;
     }
 
-    if (applyDriveAndBounce && !v.ejected && !v.drowned) {
-      this.applyWheelDrive(v, w, abx / len, aby / len, subDt, p1, p2, t);
+    if (
+      applyDriveAndBounce &&
+      !v.ejected &&
+      !v.crashed &&
+      !v.drowned &&
+      beam.material === 'spring' &&
+      (this.springCooldown.get(beam.id) ?? 0) <= 0
+    ) {
+      this.springCooldown.set(beam.id, 0.35);
+      beam.springSquish = 1.0;
+      const boostV = mat.bounceBoost * subDt;
+      const fwdX = (abx / len) * v.direction;
+      const launchX = Math.max(0.45, Math.abs(nx) * 0.25 + fwdX * 0.68) * v.direction * boostV;
+      const launchY = Math.min(-0.68, ny * 0.94) * boostV;
+      for (const pt of [v.wheelRear, v.wheelFront, v.roof]) {
+        pt.oldX -= launchX;
+        pt.oldY -= launchY;
+      }
+      if (!p1.fixed) p1.y += (1 - t) * 3;
+      if (!p2.fixed) p2.y += t * 3;
 
-      // Mattress Spring Launch!
-      if (beam.material === 'spring' && (this.springCooldown.get(beam.id) ?? 0) <= 0) {
-        this.springCooldown.set(beam.id, 0.35);
-        beam.springSquish = 1.0;
-        const boostV = mat.bounceBoost * subDt;
-        const fwdX = abx / len;
-        const launchX = Math.max(0.45, nx * 0.3 + fwdX * 0.68) * boostV;
-        const launchY = Math.min(-0.65, ny * 0.92) * boostV;
-        for (const pt of [v.wheelRear, v.wheelFront, v.roof]) {
-          pt.oldX -= launchX;
-          pt.oldY -= launchY;
+      monkeyAudio.play('boing', 0.28);
+      this.spawnFloatingText(cx, cy - 22, 'BOING!', '#38bdf8', 15);
+      for (let i = 0; i < 8; i++) {
+        this.particles.push({
+          x: cx,
+          y: cy,
+          vx: (Math.random() - 0.5) * 180,
+          vy: -80 - Math.random() * 140,
+          size: 3 + Math.random() * 3,
+          color: i % 2 === 0 ? '#38bdf8' : '#fef08a',
+          life: 0.4,
+          maxLife: 0.4,
+          gravity: 340,
+          kind: 'spark',
+          rotation: 0,
+          vRot: 0,
+        });
+      }
+    }
+
+    return {
+      tx: abx / len,
+      ty: aby / len,
+      nA: p1,
+      nB: p2,
+      t,
+      priority: 2,
+    };
+  }
+
+  private collidePointWithWorld(
+    pt: { x: number; y: number; oldX: number; oldY: number },
+    radius: number,
+    subDt: number,
+  ): void {
+    // Terrain segments
+    for (const seg of this.level.terrainSegments) {
+      const abx = seg.x2 - seg.x1;
+      const aby = seg.y2 - seg.y1;
+      const lenSq = abx * abx + aby * aby;
+      if (lenSq < 1) continue;
+      const t = Math.max(0, Math.min(1, ((pt.x - seg.x1) * abx + (pt.y - seg.y1) * aby) / lenSq));
+      const cx = seg.x1 + abx * t;
+      const cy = seg.y1 + aby * t;
+      const dx = pt.x - cx;
+      const dy = pt.y - cy;
+      const dist = Math.hypot(dx, dy);
+      if (dist < radius && dist > 0.0001) {
+        const nx = dx / dist;
+        const ny = dy / dist;
+        const pen = radius - dist;
+        pt.x += nx * pen;
+        pt.y += ny * pen;
+        const vDotN = ((pt.x - pt.oldX) * nx + (pt.y - pt.oldY) * ny) / subDt;
+        if (vDotN < 0) {
+          pt.oldX += nx * vDotN * subDt * 0.65;
+          pt.oldY += ny * vDotN * subDt * 0.65;
         }
-        // Recoil push down on spring nodes
-        if (!p1.fixed) p1.y += (1 - t) * 3;
-        if (!p2.fixed) p2.y += t * 3;
+        // Friction
+        pt.oldX += (pt.x - pt.oldX) * 0.14;
+      }
+    }
 
-        monkeyAudio.play('boing', 0.28);
-        this.spawnFloatingText(cx, cy - 22, 'BOING!', '#38bdf8', 15);
-        for (let i = 0; i < 8; i++) {
-          this.particles.push({
-            x: cx,
-            y: cy,
-            vx: (Math.random() - 0.5) * 180,
-            vy: -80 - Math.random() * 140,
-            size: 3 + Math.random() * 3,
-            color: i % 2 === 0 ? '#38bdf8' : '#fef08a',
-            life: 0.4,
-            maxLife: 0.4,
-            gravity: 340,
-            kind: 'spark',
-            rotation: 0,
-            vRot: 0,
-          });
+    // Intact driveable beams
+    for (const b of this.beams) {
+      if (b.broken) continue;
+      const mat = MATERIALS[b.material];
+      if (!mat.driveable) continue;
+      const nA = this.nodes.get(b.nodeAId);
+      const nB = this.nodes.get(b.nodeBId);
+      if (!nA || !nB) continue;
+
+      const abx = nB.x - nA.x;
+      const aby = nB.y - nA.y;
+      const lenSq = abx * abx + aby * aby;
+      if (lenSq < 4) continue;
+      const t = Math.max(0, Math.min(1, ((pt.x - nA.x) * abx + (pt.y - nA.y) * aby) / lenSq));
+      const cx = nA.x + abx * t;
+      const cy = nA.y + aby * t;
+      const dx = pt.x - cx;
+      const dy = pt.y - cy;
+      const dist = Math.hypot(dx, dy);
+      const targetR = radius + mat.thickness * 0.4;
+      if (dist < targetR && dist > 0.0001) {
+        const nx = dx / dist;
+        const ny = dy / dist;
+        const pen = targetR - dist;
+        pt.x += nx * pen * 0.8;
+        pt.y += ny * pen * 0.8;
+        if (!nA.fixed) {
+          nA.x -= nx * pen * 0.2 * (1 - t);
+          nA.y -= ny * pen * 0.2 * (1 - t);
+        }
+        if (!nB.fixed) {
+          nB.x -= nx * pen * 0.2 * t;
+          nB.y -= ny * pen * 0.2 * t;
         }
       }
     }
@@ -678,9 +880,9 @@ export class BridgePhysicsWorld {
     nB: BridgeNode | null,
     t: number,
   ): void {
-    // Ensure drive tangent always points right (+X)
-    const dirX = tx >= 0 ? tx : -tx;
-    const dirY = tx >= 0 ? ty : -ty;
+    const sign = tx * v.direction >= 0 ? 1 : -1;
+    const dirX = tx * sign;
+    const dirY = ty * sign;
 
     const vx = (w.x - w.oldX) / subDt;
     const vy = (w.y - w.oldY) / subDt;
@@ -691,9 +893,8 @@ export class BridgePhysicsWorld {
 
     w.oldX -= dirX * dv * subDt;
     w.oldY -= dirY * dv * subDt;
-    w.angle += (curTangential * subDt) / w.radius;
+    w.angle += (curTangential * subDt * v.direction) / w.radius;
 
-    // Equal and opposite traction reaction on bridge deck
     if (nA && nB) {
       const react = dv * subDt * 0.12;
       if (!nA.fixed) {
@@ -710,6 +911,7 @@ export class BridgePhysicsWorld {
   private evaluateBeamStress(subDt: number): void {
     const dt2 = subDt * subDt * SUBSTEPS;
     let brokeAny = false;
+    let stepMax = 0;
 
     for (const b of this.beams) {
       if (b.broken) continue;
@@ -724,6 +926,7 @@ export class BridgePhysicsWorld {
       const instantStress = Number.isFinite(limitN) ? forceN / limitN : 0;
       b.stress = b.stress * 0.88 + instantStress * 0.12;
       b.signedStress = isTension ? b.stress : -b.stress;
+      if (b.stress > stepMax) stepMax = b.stress;
 
       // Grace period of 0.18s so initial spawn settle doesn't snap
       if (this.simTime > 0.18 && b.stress >= 1.0) {
@@ -731,6 +934,9 @@ export class BridgePhysicsWorld {
         brokeAny = true;
       }
     }
+
+    this.currentMaxStress = stepMax;
+    this.peakStressEver = Math.max(this.peakStressEver, stepMax);
 
     if (brokeAny) {
       this.computeNodeMasses();
@@ -741,6 +947,12 @@ export class BridgePhysicsWorld {
     if (b.broken) return;
     b.broken = true;
     b.stress = 1;
+    this.peakStressEver = Math.max(this.peakStressEver, 1);
+
+    if (!this.hasBrokenBeam) {
+      this.hasBrokenBeam = true;
+      this.callbacks.onFirstBeamBreak?.(label);
+    }
 
     const nA = this.nodes.get(b.nodeAId);
     const nB = this.nodes.get(b.nodeBId);
@@ -841,7 +1053,7 @@ export class BridgePhysicsWorld {
 
   private evaluateVehicles(dt: number): void {
     let allFinished = this.vehicles.length > 0;
-    let anyDrowned = false;
+    let anyFailed = false;
 
     for (const v of this.vehicles) {
       if (!v.spawned) {
@@ -853,17 +1065,39 @@ export class BridgePhysicsWorld {
       const cy = (v.wheelRear.y + v.wheelFront.y) * 0.5;
       v.panicLevel = Math.max(v.panicLevel * 0.9, v.maxStressSeen);
 
-      // Check upside-down crash or water splash
-      const flipped = v.roof.y > cy + 8 && !v.wheelRear.grounded && !v.wheelFront.grounded;
+      // Upside-down flip detection regardless of altitude!
+      const isUpsideDown = v.roof.y > cy + 4;
+      if (isUpsideDown) {
+        v.flippedTimer += dt;
+      } else {
+        v.flippedTimer = Math.max(0, v.flippedTimer - dt * 2);
+      }
+
+      const flippedTooLong = v.flippedTimer > 0.45;
+      const outOfBounds = cx < -80 || cx > WORLD_W + 80 || cy > this.level.waterY + 120;
       const inWater = cy >= this.level.waterY - 4 || v.roof.y >= this.level.waterY;
 
-      if ((inWater || (flipped && cy > 475)) && !v.ejected) {
+      if ((inWater || flippedTooLong || outOfBounds) && !v.ejected) {
         this.ejectMonkeysFromVehicle(v);
+        if (flippedTooLong && !v.crashed) {
+          v.crashed = true;
+          v.crashTimer = 0;
+          if (!this.failReason) {
+            this.failReason = `${v.name} capotou de rodas pro ar na gambiarra!`;
+          }
+        }
+      }
+
+      if (v.crashed) {
+        v.crashTimer += dt;
+        if (v.crashTimer > 1.05) {
+          anyFailed = true;
+        }
       }
 
       if (inWater && !v.drowned) {
         v.drowned = true;
-        anyDrowned = true;
+        anyFailed = true;
         this.spawnWaterSplash(cx, this.level.waterY);
         monkeyAudio.play('explosion', 0.25);
         this.callbacks.onShake(9);
@@ -872,8 +1106,9 @@ export class BridgePhysicsWorld {
         }
       }
 
-      // Check finish line
-      if (!v.drowned && !v.ejected && cx >= this.level.finishX) {
+      // Check finish line respecting vehicle direction
+      const reachedFinish = v.direction === 1 ? cx >= v.finishX : cx <= v.finishX;
+      if (!v.drowned && !v.ejected && !v.crashed && reachedFinish) {
         if (!v.finished) {
           v.finished = true;
           v.finishTimer = 0;
@@ -891,9 +1126,9 @@ export class BridgePhysicsWorld {
       if (v.finished && v.finishTimer < 0.55) {
         allFinished = false;
       }
-      if (v.drowned) {
+      if (v.drowned || v.crashed) {
         allFinished = false;
-        anyDrowned = true;
+        if (v.drowned || v.crashTimer > 1.05) anyFailed = true;
       }
     }
 
@@ -915,7 +1150,7 @@ export class BridgePhysicsWorld {
       if (allFinished) {
         this.outcome = 'won';
         this.callbacks.onVictory();
-      } else if (anyDrowned) {
+      } else if (anyFailed) {
         this.outcome = 'failed';
         this.callbacks.onFail(this.failReason || 'A gambiarra desabou no rio dos jacarés!');
       } else if (this.simTime > 26) {
@@ -932,11 +1167,15 @@ export class BridgePhysicsWorld {
     const cy = v.roof.y;
     const tints = ['#92400e', '#78350f', '#a16207', '#b45309'];
 
+    // Roof delta is true per-substep displacement! Clamp to sane arc velocity.
+    const rawVx = v.roof.x - v.roof.oldX;
+    const rawVy = v.roof.y - v.roof.oldY;
+
     for (let i = 0; i < v.monkeyCount; i++) {
       const mx = cx + (i - (v.monkeyCount - 1) * 0.5) * 14;
       const my = cy - 6;
-      const vx = (Math.random() - 0.5) * 4 + (v.wheelFront.x - v.wheelRear.oldX) * 0.04;
-      const vy = -4.2 - Math.random() * 2.5;
+      const vx = Math.max(-2.2, Math.min(2.2, rawVx * 0.7 + (Math.random() - 0.5) * 0.85));
+      const vy = Math.max(-2.6, Math.min(0.8, rawVy * 0.5 - (0.85 + Math.random() * 0.65)));
 
       const makePart = (ox: number, oy: number): RagdollPart => ({
         x: mx + ox,
@@ -977,7 +1216,6 @@ export class BridgePhysicsWorld {
         if (p.y > this.level.waterY + 12) {
           p.x -= vx * 0.14;
           p.y -= vy * 0.22;
-          // Float gently on water
           p.y -= 280 * subDt * subDt;
         }
       }
@@ -991,6 +1229,14 @@ export class BridgePhysicsWorld {
       this.constrainPair(r.head, r.handR, 14, 0.8);
       this.constrainPair(r.hip, r.footL, 14, 0.8);
       this.constrainPair(r.hip, r.footR, 14, 0.8);
+    }
+  }
+
+  private solveRagdollCollisions(subDt: number): void {
+    for (const r of this.ragdolls) {
+      if (r.drowned) continue;
+      this.collidePointWithWorld(r.head, 5, subDt);
+      this.collidePointWithWorld(r.hip, 4.5, subDt);
     }
   }
 
@@ -1050,8 +1296,8 @@ export class BridgePhysicsWorld {
       vy: -36,
       text,
       color,
-      life: 1.25,
-      maxLife: 1.25,
+      life: 1.35,
+      maxLife: 1.35,
       size,
     });
   }
@@ -1093,11 +1339,11 @@ export class BridgePhysicsWorld {
     for (const c of this.crocodiles) {
       c.phase += dt * 2.2;
       c.x += c.dir * c.speed * dt;
-      if (c.x < 390) {
-        c.x = 390;
+      if (c.x <= c.minX) {
+        c.x = c.minX;
         c.dir = 1;
-      } else if (c.x > 810) {
-        c.x = 810;
+      } else if (c.x >= c.maxX) {
+        c.x = c.maxX;
         c.dir = -1;
       }
       c.y = c.baseY + Math.sin(c.phase) * 3.5;
