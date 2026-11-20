@@ -1,0 +1,27 @@
+{
+  "slug": "monkey-sims",
+  "title": "Os Macacos: Vida na Árvore",
+  "subtitle": "Cuide das 6 necessidades, mobílie a república e sobreviva ao caos primata!",
+  "inspiredBy": "The Sims",
+  "description": "Simulador de vida isométrico/top-down hilário numa Casa na Árvore! Crie seu macaco no CAS Express, gerencie Fome, Energia, Higiene, Bexiga, Diversão e Social sob o olhar do Plumbob de Banana, trabalhe de Estagiário de Cipó a CEO da Selva, mobílie a casa no Modo Construção e jogue Solo (controlando a família + roommates IA) ou Co-op P2P com até 6 macacos na mesma casa!",
+  "category": "simulacao",
+  "tags": ["simulacao", "life-sim", "casa", "construcao", "coop", "caos"],
+  "emoji": "🏡",
+  "accentColor": "#4ade80",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop",
+    "maxPlayers": 6,
+    "summary": "República Online P2P com até 6 macacos na mesma casa compartilhada, móveis sincronizados, festas na JBL e pegadinhas!"
+  },
+  "controls": [
+    "Clique Esquerdo: Andar no chão ou abrir menu de ações em móveis/macacos",
+    "Clique Direito / Meio / WASD: Mover câmera • Scroll: Zoom",
+    "Tecla B: Abrir Modo Compra & Decoração (R rotaciona móvel)",
+    "Tecla Tab: Alternar macaco controlado (Modo Família/Solo)",
+    "Teclas 1, 2, 3 / Espaço: Velocidade da simulação e Pausar"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
