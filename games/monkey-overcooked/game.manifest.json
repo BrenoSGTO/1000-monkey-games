@@ -1,0 +1,26 @@
+{
+  "slug": "monkey-overcooked",
+  "title": "Macaco na Chapa: Cozinha do Caos",
+  "subtitle": "Cozinha caótica cooperativa com macacos chefs, panelas em chamas e arremesso de bananas!",
+  "inspiredBy": "Overcooked",
+  "description": "Vista o chapéu de chef e tente sobreviver ao turno mais surtado da selva! Pique bananas e cocos, frite pastéis, bata açaí turbo, monte X-Macacos, arremesse ingredientes por cima do balcão, apague incêndios com o extintor e lave os pratos sujos antes que os pedidos estourem! Suporta Solo (2 chefs alternáveis no Tab), Co-op Local 2P no mesmo teclado e Online Co-op P2P para 2 a 4 chefs!",
+  "category": "acao",
+  "tags": ["cozinha", "coop", "caos", "arcade", "local-2p", "multiplayer"],
+  "emoji": "🍳",
+  "accentColor": "#f97316",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop",
+    "maxPlayers": 4,
+    "summary": "Co-op Online P2P para 2 a 4 chefs com sincronização autoritativa, gritos de cozinha (1-4) e arremesso de ingredientes — além de Co-op Local 2P no mesmo teclado e Solo com Tab!"
+  },
+  "controls": [
+    "Solo / Online: WASD ou Setas (mover), Espaço/E (pegar/soltar), F/J (picar/lavar/apagar fogo), Q/K (arremessar), Shift (dash)",
+    "Solo: Tab alterna instantaneamente entre os 2 chefs",
+    "Local 2P: Chef 1 WASD + E/F/Q/Shift | Chef 2 Setas + Enter(,)/.(M)//(N)/R-Shift",
+    "1 a 4: Gritos rápidos de cozinha (Tá queimando! Lava a louça! Joga banana! Corre!)"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}

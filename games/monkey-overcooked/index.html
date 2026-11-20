@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Macaco na Chapa: Cozinha do Caos — Click Macacos</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #1c1108;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        color: #fef3c7;
+        touch-action: none;
+      }
+      #app {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      canvas#game-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .mo-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 500;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 58px 16px 16px;
+        background: radial-gradient(circle at 50% 30%, rgba(124, 45, 18, 0.88), rgba(15, 10, 6, 0.94));
+        backdrop-filter: blur(5px);
+      }
+      .mo-overlay.hidden {
+        display: none;
+      }
+      .mo-card {
+        width: min(920px, 100%);
+        max-height: calc(100vh - 76px);
+        overflow-y: auto;
+        background: linear-gradient(180deg, #29180d 0%, #1a0f08 100%);
+        border: 3px solid #facc15;
+        border-radius: 20px;
+        padding: 20px 24px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
+      }
+      .mo-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .mo-title {
+        margin: 0;
+        font-size: clamp(22px, 3vw, 32px);
+        font-weight: 900;
+        color: #fde047;
+        text-shadow: 0 3px 0 #78350f;
+      }
+      .mo-sub {
+        margin: 4px 0 0;
+        font-size: 13px;
+        color: #fed7aa;
+      }
+      .mo-section-label {
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #fbbf24;
+        margin: 12px 0 8px;
+      }
+      .mo-modes {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 10px;
+      }
+      .mo-mode-btn {
+        background: #2f1d12;
+        border: 2px solid #573620;
+        border-radius: 12px;
+        padding: 10px 12px;
+        color: #fef3c7;
+        text-align: left;
+        cursor: pointer;
+        transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+      }
+      .mo-mode-btn:hover {
+        transform: translateY(-2px);
+        border-color: #fbbf24;
+      }
+      .mo-mode-btn.active {
+        background: #422006;
+        border-color: #facc15;
+        box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.3);
+      }
+      .mo-mode-title {
+        font-weight: 900;
+        font-size: 14px;
+        color: #fde047;
+      }
+      .mo-mode-desc {
+        font-size: 12px;
+        color: #fed7aa;
+        margin-top: 3px;
+        line-height: 1.35;
+      }
+      .mo-kitchens {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 10px;
+      }
+      .mo-kitchen-card {
+        background: #24150c;
+        border: 2px solid #573620;
+        border-radius: 12px;
+        padding: 10px 12px;
+        cursor: pointer;
+        text-align: left;
+        color: #fef3c7;
+        transition: transform 0.12s ease, border-color 0.15s ease;
+      }
+      .mo-kitchen-card:hover {
+        transform: translateY(-2px);
+        border-color: #fb923c;
+      }
+      .mo-kitchen-card.active {
+        background: #431407;
+        border-color: #f97316;
+        box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.35);
+      }
+      .mo-k-name {
+        font-weight: 900;
+        font-size: 14px;
+        color: #fdba74;
+      }
+      .mo-k-meta {
+        font-size: 11px;
+        color: #fed7aa;
+        margin-top: 4px;
+        line-height: 1.35;
+      }
+      .mo-controls-box {
+        margin-top: 12px;
+        background: rgba(15, 23, 42, 0.65);
+        border: 1px solid #475569;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 12px;
+        color: #e2e8f0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 6px 14px;
+      }
+      .mo-kbd {
+        display: inline-block;
+        background: #1e293b;
+        border: 1px solid #64748b;
+        border-radius: 5px;
+        padding: 1px 6px;
+        font-weight: 800;
+        color: #fde047;
+        font-size: 11px;
+      }
+      .mo-footer {
+        margin-top: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .mo-play-btn {
+        background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
+        color: #422006;
+        border: 3px solid #fef08a;
+        border-radius: 14px;
+        padding: 12px 28px;
+        font-size: 18px;
+        font-weight: 900;
+        cursor: pointer;
+        box-shadow: 0 5px 0 #854d0e;
+        transition: transform 0.1s ease;
+      }
+      .mo-play-btn:hover {
+        transform: translateY(-2px);
+      }
+      .mo-play-btn:active {
+        transform: translateY(2px);
+        box-shadow: 0 2px 0 #854d0e;
+      }
+      .mo-play-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .mo-secondary-btn {
+        background: #334155;
+        color: #f8fafc;
+        border: 2px solid #64748b;
+        border-radius: 12px;
+        padding: 10px 18px;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      .mo-secondary-btn:hover {
+        background: #475569;
+      }
+      .mo-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+        margin: 14px 0;
+      }
+      .mo-stat {
+        background: #24150c;
+        border: 2px solid #78350f;
+        border-radius: 12px;
+        padding: 10px;
+        text-align: center;
+      }
+      .mo-stat-val {
+        font-size: 24px;
+        font-weight: 900;
+        color: #fde047;
+      }
+      .mo-stat-lbl {
+        font-size: 11px;
+        color: #fed7aa;
+        margin-top: 2px;
+      }
+      .mo-stars {
+        font-size: 42px;
+        letter-spacing: 8px;
+        text-align: center;
+        margin: 8px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+    </div>
+
+    <!-- Menu Overlay -->
+    <div id="menu-overlay" class="mo-overlay">
+      <div class="mo-card">
+        <div class="mo-header">
+          <div>
+            <h1 class="mo-title">🍳 Macaco na Chapa: Cozinha do Caos</h1>
+            <p class="mo-sub">Pique, frite, arremesse bananas e não deixe a cozinha pegar fogo! 🔥</p>
+          </div>
+          <div id="mo-best-badge" style="font-size:13px;font-weight:800;color:#fde047;background:#422006;padding:6px 12px;border-radius:999px;border:1px solid #facc15;">
+            🏆 Recorde: 0 pts
+          </div>
+        </div>
+
+        <div class="mo-section-label">1. Modo de Jogo</div>
+        <div class="mo-modes" id="mo-modes">
+          <button class="mo-mode-btn active" data-mode="solo">
+            <div class="mo-mode-title">🐒 Solo (2 Chefs + Tab)</div>
+            <div class="mo-mode-desc">Controle 2 macacos chefs! Aperte Tab para alternar enquanto um pica ou cozinha.</div>
+          </button>
+          <button class="mo-mode-btn" data-mode="local2p">
+            <div class="mo-mode-title">🐒🐒 Co-op Local 2P</div>
+            <div class="mo-mode-desc">Dois jogadores no mesmo teclado! WASD vs Setas na mesma cozinha!</div>
+          </button>
+          <button class="mo-mode-btn" data-mode="online">
+            <div class="mo-mode-title">🌐 Co-op Online P2P (2-4)</div>
+            <div class="mo-mode-desc">Abra uma sala no botão verde lá em cima e chame até 4 amigos!</div>
+          </button>
+        </div>
+
+        <div class="mo-section-label">2. Escolha a Cozinha</div>
+        <div class="mo-kitchens" id="mo-kitchens"></div>
+
+        <div class="mo-controls-box" id="mo-controls-box">
+          <div><span class="mo-kbd">WASD</span> / <span class="mo-kbd">Setas</span> Mover 8 direções</div>
+          <div><span class="mo-kbd">Espaço</span> / <span class="mo-kbd">E</span> Pegar / Soltar / Entregar</div>
+          <div><span class="mo-kbd">F</span> / <span class="mo-kbd">J</span> Picar / Lavar / Apagar Fogo</div>
+          <div><span class="mo-kbd">Q</span> / <span class="mo-kbd">K</span> Arremessar Ingrediente</div>
+          <div><span class="mo-kbd">Shift</span> Dash (esbarra nos amigos!)</div>
+          <div><span class="mo-kbd">Tab</span> Trocar Chef (Solo) | <span class="mo-kbd">1-4</span> Gritar!</div>
+        </div>
+
+        <div class="mo-footer">
+          <div id="mo-online-status" style="font-size:13px;color:#86efac;font-weight:700;">
+            Pronto para cozinhar no modo Solo!
+          </div>
+          <button id="mo-start-btn" class="mo-play-btn">🔥 ABRIR A COZINHA!</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Overlay -->
+    <div id="results-overlay" class="mo-overlay hidden">
+      <div class="mo-card" style="max-width:560px;text-align:center;">
+        <h2 class="mo-title" id="res-title">🏁 Fim do Turno!</h2>
+        <p class="mo-sub" id="res-subtitle">Resumo da cozinha</p>
+        <div class="mo-stars" id="res-stars">⭐⭐⭐</div>
+        <div class="mo-stats-grid">
+          <div class="mo-stat">
+            <div class="mo-stat-val" id="res-score">0</div>
+            <div class="mo-stat-lbl">Pontuação Total</div>
+          </div>
+          <div class="mo-stat">
+            <div class="mo-stat-val" id="res-delivered">0</div>
+            <div class="mo-stat-lbl">Pedidos Entregues</div>
+          </div>
+          <div class="mo-stat">
+            <div class="mo-stat-val" id="res-combo">1x</div>
+            <div class="mo-stat-lbl">Maior Combo</div>
+          </div>
+          <div class="mo-stat">
+            <div class="mo-stat-val" id="res-fires">0</div>
+            <div class="mo-stat-lbl">Incêndios Apagados</div>
+          </div>
+        </div>
+        <div class="mo-footer" style="justify-content:center;">
+          <button id="res-replay-btn" class="mo-play-btn">🔄 Jogar Novamente</button>
+          <button id="res-menu-btn" class="mo-secondary-btn">📋 Trocar Cozinha</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
