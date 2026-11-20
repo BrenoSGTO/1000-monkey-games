@@ -1,4 +1,5 @@
 import { monkeyAudio } from '@monkey-slop/sdk';
+import type { SongId } from './types';
 
 interface SongPattern {
   kick: number[];
@@ -15,7 +16,7 @@ function midiToFreq(midi: number): number {
 }
 
 // 32-step (2 bars of 16th notes) procedural chiptune / funk-macaco patterns
-const SONGS: Record<0 | 1 | 2 | 3, SongPattern> = {
+const SONGS: Record<SongId, SongPattern> = {
   // 0: Selva Tranquila (120 BPM) — upbeat tropical marimba/chiptune groove
   0: {
     kick:  [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,1,0,  1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,1,0],
@@ -56,6 +57,26 @@ const SONGS: Record<0 | 1 | 2 | 3, SongPattern> = {
     leadWave: 'sawtooth',
     bassWave: 'square',
   },
+  // 4: Baile do Chimpanzé (138 BPM) — Brazilian funk-chiptune tamborzão groove
+  4: {
+    kick:  [1,0,0,1, 0,0,1,0, 1,0,0,1, 0,0,1,0,  1,0,0,1, 0,0,1,0, 1,0,1,0, 1,1,0,0],
+    snare: [0,0,0,0, 1,0,0,0, 0,0,1,0, 0,1,0,0,  0,0,0,0, 1,0,0,0, 0,0,1,0, 1,0,1,1],
+    hat:   [1,0,1,1, 1,0,1,0, 1,1,1,0, 1,0,1,1,  1,0,1,1, 1,0,1,0, 1,1,1,0, 1,1,1,1],
+    bass:  [40,0,0,40, 47,0,40,0, 43,0,0,43, 45,0,43,0, 40,0,0,40, 47,0,40,0, 48,0,47,0, 45,43,40,0],
+    lead:  [64,0,67,69, 71,0,69,67, 64,0,71,0, 72,71,69,67, 64,67,71,0, 76,0,74,71, 72,0,71,69, 67,69,71,0],
+    leadWave: 'square',
+    bassWave: 'triangle',
+  },
+  // 5: Macaco Cósmico (152 BPM) — euphoric space synthwave trance
+  5: {
+    kick:  [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,1,  1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,1,0],
+    snare: [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0,  0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,1,0],
+    hat:   [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,1,1,0,  0,0,1,0, 0,0,1,0, 0,0,1,0, 1,1,1,1],
+    bass:  [37,49,37,49, 37,49,37,49, 40,52,40,52, 42,54,42,54, 44,56,44,56, 44,56,44,56, 42,54,40,52, 39,51,37,49],
+    lead:  [73,76,80,85, 80,76,73,80, 76,80,83,88, 83,80,76,83, 75,78,82,87, 82,78,75,82, 85,83,80,78, 76,75,73,80],
+    leadWave: 'triangle',
+    bassWave: 'sawtooth',
+  },
 };
 
 class DashAudioEngine {
@@ -64,11 +85,10 @@ class DashAudioEngine {
   private timerId: number | null = null;
 
   private isPlaying = false;
-  private songId: 0 | 1 | 2 | 3 = 0;
+  private songId: SongId = 0;
   private bpm = 120;
   private currentStep = 0;
   private nextNoteTime = 0;
-  private lastBeatTime = 0;
   private songStartTime = 0;
 
   private ensureContext(): AudioContext | null {
@@ -98,7 +118,7 @@ class DashAudioEngine {
     this.ensureContext();
   }
 
-  startMusic(songId: 0 | 1 | 2 | 3, bpm: number, beatOffset = 0): void {
+  startMusic(songId: SongId, bpm: number, beatOffset = 0): void {
     this.stopMusic();
     this.songId = songId;
     this.bpm = Math.max(80, Math.min(220, bpm));
@@ -109,10 +129,8 @@ class DashAudioEngine {
     if (ctx) {
       this.nextNoteTime = ctx.currentTime + 0.04;
       this.songStartTime = this.nextNoteTime;
-      this.lastBeatTime = this.nextNoteTime;
     } else {
       this.songStartTime = performance.now() / 1000;
-      this.lastBeatTime = this.songStartTime;
     }
 
     this.timerId = window.setInterval(() => this.scheduler(), 25);
@@ -157,7 +175,6 @@ class DashAudioEngine {
   private scheduler(): void {
     if (!this.isPlaying) return;
     if (monkeyAudio.isMuted()) {
-      // Advance virtual step clock silently so beat pulse still works
       return;
     }
     const ctx = this.ensureContext();
@@ -170,16 +187,13 @@ class DashAudioEngine {
     const stepDur = 60 / this.bpm / 4; // 16th note
     while (this.nextNoteTime < ctx.currentTime + 0.12) {
       this.scheduleStep(ctx, this.currentStep, this.nextNoteTime, stepDur);
-      if (this.currentStep % 4 === 0) {
-        this.lastBeatTime = this.nextNoteTime;
-      }
       this.nextNoteTime += stepDur;
       this.currentStep = (this.currentStep + 1) % 32;
     }
   }
 
   private scheduleStep(ctx: AudioContext, step: number, time: number, stepDur: number): void {
-    const song = SONGS[this.songId];
+    const song = SONGS[this.songId] ?? SONGS[0];
     if (song.kick[step]) this.triggerKick(ctx, time);
     if (song.snare[step]) this.triggerSnare(ctx, time);
     if (song.hat[step]) this.triggerHat(ctx, time);
@@ -351,6 +365,23 @@ class DashAudioEngine {
       osc.start(now + i * 0.045);
       osc.stop(now + i * 0.045 + 0.13);
     });
+  }
+
+  playCountdownBeep(isGo = false): void {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = isGo ? 'triangle' : 'sine';
+    osc.frequency.setValueAtTime(isGo ? 880 : 440, now);
+    if (isGo) osc.frequency.exponentialRampToValueAtTime(1320, now + 0.14);
+    g.gain.setValueAtTime(isGo ? 0.2 : 0.14, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + (isGo ? 0.24 : 0.12));
+    osc.connect(g);
+    g.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + (isGo ? 0.26 : 0.14));
   }
 
   playBanana(): void {

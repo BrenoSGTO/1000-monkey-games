@@ -1,4 +1,4 @@
-import type { LevelData, LevelObject, ObjectType } from './types';
+import type { LevelData, LevelObject, ObjectType, SongId } from './types';
 
 class LevelBuilder {
   private objects: LevelObject[] = [];
@@ -202,21 +202,21 @@ function buildLevel3(): LevelData {
   b.add(36, 3, 'pad_yellow');
   b.spikes(38, 6, 0);
 
-  // Gravity Flip section!
+  // Gravity Flip section (no floor cheese!)
   b.portal(47, 3, 'portal_grav_inv');
-  // Ceiling floor blocks so ceiling is clearly solid & spiked
   b.box(46, 11, 40, 1, 'block');
+  b.spikes(51, 22, 0); // Floor spikes prevent skipping gravity section
   b.spikes(55, 2, 10, true);
   b.box(62, 10, 3, 1, 'block');
   b.add(63, 9, 'banana'); // Banana #1 (ceiling!)
   b.spikes(68, 2, 10, true);
   b.add(74, 8, 'orb_blue'); // Flip back down mid-air!
-  b.portal(79, 2, 'portal_grav_norm');
-  b.spikes(82, 2, 0);
+  b.spikes(77, 3, 10, true); // Ceiling spikes punish skipping orb_blue
+  b.portal(81, 2, 'portal_grav_norm');
+  b.spikes(84, 2, 0);
 
   // ONDA SURTADA (WAVE) Section!
   b.portal(90, 3, 'portal_wave');
-  // Wave corridor: safe open path with upper/lower sawtooth blocks
   b.box(96, 0, 6, 3, 'block');
   b.box(96, 8, 6, 4, 'block');
   b.box(106, 0, 6, 5, 'block');
@@ -276,11 +276,13 @@ function buildLevel4(): LevelData {
   b.add(32, 5, 'spike');
   b.add(37, 5, 'orb_blue'); // flip gravity!
   b.box(35, 11, 28, 1, 'block');
+  b.spikes(38, 19, 0); // Close cheese: floor is lethal if orb_blue is skipped!
   b.spikes(43, 2, 10, true);
   b.add(48, 9, 'banana'); // Banana #1
   b.spikes(51, 2, 10, true);
   b.add(57, 8, 'orb_blue'); // flip back!
-  b.portal(62, 2, 'portal_grav_norm');
+  b.spikes(59, 4, 10, true); // Ceiling spikes punish skipping second orb_blue
+  b.portal(63, 2, 'portal_grav_norm');
 
   // Wave Demon Corridor (Turbo!)
   b.portal(66, 3, 'portal_speed_turbo');
@@ -346,12 +348,184 @@ function buildLevel4(): LevelData {
   };
 }
 
+function buildLevel5(): LevelData {
+  const b = new LevelBuilder();
+  // Cube Funk Warmup
+  b.spikes(13, 2, 0);
+  b.add(19, 0, 'pad_yellow');
+  b.spikes(21, 3, 0);
+  b.box(24, 2, 4, 1, 'block');
+  b.add(26, 4, 'banana'); // Banana #1
+  b.spikes(31, 2, 0);
+
+  // Intro to BOLA GRAVIDADE!
+  b.portal(39, 2, 'portal_ball');
+  // Framed ceiling corridor for clean Ball gravity flips
+  b.box(42, 11, 56, 1, 'block');
+  b.box(42, 9, 56, 2, 'block'); // Ceiling at gy=9 (bottom at tile 9, giving 9 tiles height!)
+  b.spikes(48, 2, 0); // Flip up!
+  b.spikes(57, 2, 8, true); // Flip down!
+  b.add(62, 4, 'orb_yellow'); // Mid-air bounce!
+  b.spikes(64, 4, 0);
+  b.spikes(68, 2, 8, true); // Flip down!
+  b.add(73, 4, 'banana'); // Banana #2
+  b.spikes(76, 2, 0); // Flip up!
+  b.spikes(85, 2, 8, true); // Flip down!
+  b.spikes(93, 2, 0);
+
+  // 1.3x Speed + Nave Banana!
+  b.portal(101, 2, 'portal_grav_norm');
+  b.portal(104, 2, 'portal_speed_fast');
+  b.portal(107, 2, 'portal_ship');
+
+  b.box(116, 0, 3, 3, 'block');
+  b.box(116, 8, 3, 4, 'block');
+  b.box(126, 0, 3, 5, 'block');
+  b.box(126, 10, 3, 2, 'block');
+  b.add(127, 7, 'banana'); // Banana #3
+  b.box(136, 0, 3, 2, 'block');
+  b.box(136, 7, 3, 5, 'block');
+
+  // Wave Syncopated Drops
+  b.portal(145, 3, 'portal_wave');
+  b.box(152, 0, 5, 3, 'block');
+  b.box(152, 8, 5, 4, 'block');
+  b.box(162, 0, 5, 5, 'block');
+  b.box(162, 10, 5, 2, 'block');
+  b.box(172, 0, 5, 2, 'block');
+  b.box(172, 7, 5, 5, 'block');
+
+  // Finale Ball Flip + Cube Sprint!
+  b.portal(182, 3, 'portal_ball');
+  b.box(185, 10, 22, 2, 'block');
+  b.spikes(189, 2, 0);
+  b.spikes(198, 2, 9, true);
+  b.portal(208, 2, 'portal_grav_norm');
+  b.portal(210, 2, 'portal_cube');
+  b.add(215, 0, 'pad_yellow');
+  b.spikes(217, 3, 0);
+
+  return {
+    id: 'baile-chipanze',
+    name: 'Baile do Chimpanzé',
+    subtitle: 'Fase 5 • Nova Forma Bola Gravidade + Funk 138 BPM',
+    difficulty: 'Médio',
+    bpm: 138,
+    songId: 4,
+    colorPrimary: '#c084fc',
+    colorSecondary: '#facc15',
+    bgTop: '#19082b',
+    bgBottom: '#4c1d95',
+    lengthTiles: 228,
+    objects: b.build(),
+  };
+}
+
+function buildLevel6(): LevelData {
+  const b = new LevelBuilder();
+  // Fast Cosmic Opening
+  b.portal(8, 2, 'portal_speed_fast');
+  b.spikes(14, 2, 0);
+  b.box(20, 0, 2, 1, 'block');
+  b.spikes(22, 4, 0);
+  b.add(24, 3, 'orb_yellow');
+  b.box(27, 2, 3, 1, 'block');
+  b.add(28, 3, 'pad_yellow');
+  b.spikes(30, 5, 0);
+  b.add(33, 6, 'orb_blue');
+  b.box(35, 11, 20, 1, 'block');
+  b.spikes(36, 18, 0);
+  b.add(42, 9, 'banana'); // Banana #1
+  b.spikes(45, 2, 10, true);
+  b.add(51, 8, 'orb_blue');
+  b.spikes(53, 3, 10, true);
+  b.portal(57, 2, 'portal_grav_norm');
+
+  // Cosmic Ball Blitz
+  b.portal(62, 2, 'portal_ball');
+  b.box(65, 10, 44, 2, 'block');
+  b.spikes(70, 2, 0);
+  b.spikes(79, 2, 9, true);
+  b.spikes(88, 2, 0);
+  b.add(92, 5, 'orb_yellow');
+  b.spikes(94, 4, 0);
+  b.add(95, 7, 'banana'); // Banana #2
+  b.spikes(98, 2, 9, true);
+  b.spikes(105, 2, 0);
+
+  // Cosmic 1.5x Wave Gauntlet
+  b.portal(111, 2, 'portal_grav_norm');
+  b.portal(113, 3, 'portal_speed_turbo');
+  b.portal(116, 3, 'portal_wave');
+
+  b.box(123, 0, 5, 3, 'block');
+  b.box(123, 8, 5, 4, 'block');
+  b.box(133, 0, 5, 5, 'block');
+  b.box(133, 10, 5, 2, 'block');
+  b.box(143, 0, 5, 2, 'block');
+  b.box(143, 7, 5, 5, 'block');
+  b.box(153, 0, 5, 4, 'block');
+  b.box(153, 9, 5, 3, 'block');
+
+  // Ship Dual-Gravity Orbit
+  b.portal(162, 3, 'portal_ship');
+  b.portal(165, 3, 'portal_speed_fast');
+  b.box(173, 0, 3, 4, 'block');
+  b.box(173, 9, 3, 3, 'block');
+  b.portal(181, 5, 'portal_grav_inv');
+  b.box(189, 0, 3, 2, 'block');
+  b.box(189, 7, 3, 5, 'block');
+  b.add(190, 4, 'banana'); // Banana #3
+  b.portal(197, 5, 'portal_grav_norm');
+  b.box(205, 0, 3, 4, 'block');
+  b.box(205, 10, 3, 2, 'block');
+
+  // Final Cosmic Cube Dash
+  b.portal(214, 2, 'portal_cube');
+  b.spikes(221, 3, 0);
+  b.add(227, 0, 'pad_yellow');
+  b.spikes(229, 5, 0);
+  b.add(232, 5, 'orb_yellow');
+  b.box(236, 3, 3, 1, 'block');
+  b.spikes(239, 4, 0);
+  b.spikes(247, 3, 0);
+
+  return {
+    id: 'macaco-cosmico',
+    name: 'Macaco Cósmico',
+    subtitle: 'Fase 6 • Final Épico 152 BPM com Todas as Formas!',
+    difficulty: 'Insano',
+    bpm: 152,
+    songId: 5,
+    colorPrimary: '#38bdf8',
+    colorSecondary: '#f472b6',
+    bgTop: '#03071e',
+    bgBottom: '#1e1b4b',
+    lengthTiles: 258,
+    objects: b.build(),
+  };
+}
+
 export const OFFICIAL_LEVELS: LevelData[] = [
   buildLevel1(),
   buildLevel2(),
   buildLevel3(),
   buildLevel4(),
+  buildLevel5(),
+  buildLevel6(),
 ];
+
+export function hashLevelId(level: Pick<LevelData, 'name' | 'bpm' | 'songId' | 'lengthTiles' | 'objects'>): string {
+  const sig = `${level.name}|${level.bpm}|${level.songId}|${level.lengthTiles}|${level.objects
+    .map((o) => `${o.gx},${o.gy},${o.type}`)
+    .join(';')}`;
+  let h = 2166136261;
+  for (let i = 0; i < sig.length; i++) {
+    h ^= sig.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return `custom-${(h >>> 0).toString(36)}`;
+}
 
 export function createDefaultCustomLevel(): LevelData {
   const b = new LevelBuilder();
@@ -361,14 +535,16 @@ export function createDefaultCustomLevel(): LevelData {
   b.add(24, 3, 'orb_yellow');
   b.box(28, 2, 3, 1, 'block');
   b.add(29, 3, 'banana');
-  b.portal(36, 2, 'portal_ship');
-  b.box(44, 0, 3, 3, 'block');
-  b.box(44, 8, 3, 4, 'block');
-  b.portal(54, 2, 'portal_cube');
-  b.spikes(62, 2, 0);
+  b.portal(36, 2, 'portal_ball');
+  b.box(39, 10, 18, 2, 'block');
+  b.spikes(44, 2, 0);
+  b.spikes(52, 2, 9, true);
+  b.portal(59, 2, 'portal_grav_norm');
+  b.portal(61, 2, 'portal_cube');
+  b.spikes(68, 2, 0);
 
-  return {
-    id: 'custom-level',
+  const level: LevelData = {
+    id: 'custom-default',
     name: 'Minha Selva Custom',
     subtitle: 'Fase criada no Mini Editor de Macaco!',
     difficulty: 'Custom',
@@ -378,9 +554,11 @@ export function createDefaultCustomLevel(): LevelData {
     colorSecondary: '#facc15',
     bgTop: '#081226',
     bgBottom: '#0f2942',
-    lengthTiles: 80,
+    lengthTiles: 82,
     objects: b.build(),
   };
+  level.id = hashLevelId(level);
+  return level;
 }
 
 export function encodeLevelCode(level: LevelData): string {
@@ -446,12 +624,12 @@ export function decodeLevelCode(raw: string): LevelData {
   const maxGx = objects.reduce((acc, o) => Math.max(acc, o.gx), 40);
   const bpm = Math.max(80, Math.min(200, Number(parsed.b ?? parsed.bpm ?? 128)));
   const songRaw = Number(parsed.s ?? 1);
-  const songId = (songRaw >= 0 && songRaw <= 3 ? songRaw : 1) as 0 | 1 | 2 | 3;
+  const songId = (songRaw >= 0 && songRaw <= 5 ? songRaw : 1) as SongId;
 
-  return {
-    id: 'custom-level',
+  const level: LevelData = {
+    id: 'custom-temp',
     name: String(parsed.n ?? parsed.name ?? 'Fase Importada').slice(0, 28),
-    subtitle: 'Fase importada via código!',
+    subtitle: 'Fase customizada / compartilhada!',
     difficulty: 'Custom',
     bpm,
     songId,
@@ -462,4 +640,6 @@ export function decodeLevelCode(raw: string): LevelData {
     lengthTiles: Math.max(maxGx + 14, Number(parsed.l ?? parsed.lengthTiles ?? 80)),
     objects,
   };
+  level.id = hashLevelId(level);
+  return level;
 }
