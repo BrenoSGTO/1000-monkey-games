@@ -1,11 +1,22 @@
-import type { BloonDef, BloonType, MapConfig, MapId, TowerDef, TowerType } from './types';
+import type {
+  AttackTierDef,
+  AttackTierId,
+  BloonDef,
+  BloonType,
+  MapConfig,
+  MapId,
+  TowerDef,
+  TowerType,
+} from './types';
 
 export const CANVAS_WIDTH = 960;
 export const CANVAS_HEIGHT = 600;
 export const STARTING_BANANAS = 380;
 export const STARTING_LIVES = 25;
+export const MAX_BONUS_LIVES = 35;
 export const TRACK_HALF_WIDTH = 26;
 export const TOWER_RADIUS = 20;
+export const ABILITY_COOLDOWN_SECONDS = 22;
 
 export const MAPS: Record<MapId, MapConfig> = {
   selva: {
@@ -48,38 +59,96 @@ export const MAPS: Record<MapId, MapConfig> = {
   feira: {
     id: 'feira',
     name: 'Feira da Banana',
-    subtitle: 'Espiral caótica entre barracas de pastel e caldo de cana',
+    subtitle: 'Corredores sem cruzamento entre pastel, caldo de cana e xepa',
     themeBg: '#3b4a1e',
     themeGrassAlt: '#445623',
     roadOuter: '#57534e',
     roadInner: '#a8a29e',
     roadStripe: '#fde047',
     waypoints: [
-      { x: -30, y: 85 },
-      { x: 840, y: 85 },
-      { x: 840, y: 515 },
+      { x: -30, y: 90 },
+      { x: 860, y: 90 },
+      { x: 860, y: 225 },
+      { x: 120, y: 225 },
       { x: 120, y: 515 },
-      { x: 120, y: 195 },
-      { x: 710, y: 195 },
-      { x: 710, y: 405 },
-      { x: 255, y: 405 },
-      { x: 255, y: 300 },
-      { x: 495, y: 300 },
-      { x: 495, y: -35 },
+      { x: 860, y: 515 },
+      { x: 860, y: 385 },
+      { x: 270, y: 385 },
+      { x: 270, y: 305 },
+      { x: 990, y: 305 },
     ],
     props: [
-      { kind: 'stall', x: 75, y: 360, color: '#ef4444', label: 'PASTEL' },
-      { kind: 'stall', x: 905, y: 290, color: '#38bdf8', label: 'CALDO' },
+      { kind: 'stall', x: 55, y: 365, color: '#ef4444', label: 'PASTEL' },
+      { kind: 'stall', x: 912, y: 155, color: '#38bdf8', label: 'CALDO' },
       { kind: 'stall', x: 605, y: 565, color: '#facc15', label: 'BANANA' },
-      { kind: 'crate', x: 360, y: 138 },
-      { kind: 'crate', x: 775, y: 310 },
-      { kind: 'crate', x: 185, y: 455 },
-      { kind: 'tree', x: 910, y: 550, scale: 1.0 },
+      { kind: 'crate', x: 360, y: 158 },
+      { kind: 'crate', x: 195, y: 448 },
+      { kind: 'tree', x: 915, y: 550, scale: 1.0 },
       { kind: 'tree', x: 55, y: 555, scale: 1.05 },
-      { kind: 'sign', x: 600, y: 285, label: 'FIADO NÃO' },
+      { kind: 'sign', x: 520, y: 452, label: 'FIADO NÃO' },
+    ],
+  },
+  ilha: {
+    id: 'ilha',
+    name: 'Ilha da Banana Dupla',
+    subtitle: '2 entradas praianas que convergem na Ponte do Pix!',
+    themeBg: '#0e7490',
+    themeGrassAlt: '#155e75',
+    roadOuter: '#92400e',
+    roadInner: '#eab308',
+    roadStripe: '#fef9c3',
+    waypoints: [
+      { x: -30, y: 110 },
+      { x: 250, y: 110 },
+      { x: 250, y: 240 },
+      { x: 460, y: 240 },
+      { x: 460, y: 300 },
+      { x: 700, y: 300 },
+      { x: 700, y: 165 },
+      { x: 865, y: 165 },
+      { x: 865, y: 300 },
+      { x: 990, y: 300 },
+    ],
+    lanes: [
+      [
+        { x: -30, y: 110 },
+        { x: 250, y: 110 },
+        { x: 250, y: 240 },
+        { x: 460, y: 240 },
+        { x: 460, y: 300 },
+        { x: 700, y: 300 },
+        { x: 700, y: 165 },
+        { x: 865, y: 165 },
+        { x: 865, y: 300 },
+        { x: 990, y: 300 },
+      ],
+      [
+        { x: -30, y: 490 },
+        { x: 250, y: 490 },
+        { x: 250, y: 360 },
+        { x: 460, y: 360 },
+        { x: 460, y: 300 },
+        { x: 700, y: 300 },
+        { x: 700, y: 435 },
+        { x: 865, y: 435 },
+        { x: 865, y: 300 },
+        { x: 990, y: 300 },
+      ],
+    ],
+    props: [
+      { kind: 'bridge', x: 580, y: 300, label: 'PONTE DO PIX' },
+      { kind: 'palm', x: 105, y: 245, scale: 1.08 },
+      { kind: 'palm', x: 105, y: 365, scale: 1.02 },
+      { kind: 'palm', x: 580, y: 85, scale: 1.12 },
+      { kind: 'palm', x: 580, y: 515, scale: 1.12 },
+      { kind: 'crate', x: 782, y: 88 },
+      { kind: 'sign', x: 355, y: 300, label: '2 ENTRADAS!' },
+      { kind: 'puddle', x: 782, y: 510, scale: 1.1 },
     ],
   },
 };
+
+export const MAP_ORDER: MapId[] = ['selva', 'feira', 'ilha'];
 
 export const TOWER_DEFS: Record<TowerType, TowerDef> = {
   banana: {
@@ -101,7 +170,7 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
         name: 'Banana Madura',
         cost: 90,
         description: 'Bananas mais pesadas: +1 dano e +25% velocidade de ataque.',
-        quip: 'TA MADURA E ESCORREGADIA!',
+        quip: 'TÁ MADURA E ESCORREGADIA!',
       },
       {
         name: 'Cacho Metralhadora',
@@ -163,7 +232,7 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
     fireRate: 0.62,
     damage: 5,
     color: '#fb7185',
-    description: 'Alcance no mapa TODO! Erra 12% dos tiros por ser vesgo, mas acerta CRÍTICO explosivo!',
+    description: 'Alcance no mapa TODO! Erra 12% dos tiros por ser vesgo, mas acerta CRÍTICO pesado!',
     detectsCamo: false,
     popsLead: false,
     upgrades: [
@@ -205,19 +274,19 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
       {
         name: 'Coco Fermentado',
         cost: 170,
-        description: 'Explosão maior e nuvem tóxica que dá dano contínuo por 2.8s.',
+        description: 'Explosão maior e nuvem tóxica que dá dano contínuo (4 DPS) por 2.8s.',
         quip: 'CHEIRO DE CHORUME DE FEIRA!',
       },
       {
         name: 'Morteiro do Lixão',
         cost: 320,
-        description: 'Mais alcance, explosão dano 4 e a fumaça verde desacelera as bexigas.',
+        description: 'Mais alcance, explosão dano 4, veneno 6 DPS e desacelera as bexigas.',
         quip: 'AGORA FEDE EM CÂMERA LENTA!',
       },
       {
         name: 'Bomba Biológica de Chorume',
         cost: 580,
-        description: 'Mega nuvem radioativa que derrete ondas inteiras e fere até MOABs!',
+        description: 'Mega nuvem radioativa (12 DPS) que derrete ondas inteiras e MOABs!',
         quip: 'CHERNOBYL DE COCO PODRE!',
       },
     ],
@@ -257,14 +326,94 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
       },
     ],
   },
+  fazenda: {
+    type: 'fazenda',
+    name: 'Fazenda de Bananeira',
+    shortName: 'Fazenda',
+    emoji: '🌴',
+    hotkey: '6',
+    cost: 220,
+    range: 75,
+    fireRate: 0.24,
+    damage: 0,
+    color: '#a3e635',
+    description: 'Gera bananas passivamente durante as ondas e bônus extra ao limpar cada onda!',
+    detectsCamo: false,
+    popsLead: false,
+    isSupport: true,
+    upgrades: [
+      {
+        name: 'Adubo de Casca',
+        cost: 150,
+        description: 'Produz cachos mais rápido (+24 🍌 por colheita e +45 🍌/onda).',
+        quip: 'POTÁSSIO ORGÂNICO!',
+      },
+      {
+        name: 'Cooperativa do Bananal',
+        cost: 290,
+        description: 'Colheitas douradas de +36 🍌 durante a onda e +75 🍌 ao fim da onda!',
+        quip: 'AGRO É MACACO!',
+      },
+      {
+        name: 'Banco Central da Banana',
+        cost: 520,
+        description: 'Rende +55 🍌 por colheita, +120 🍌/onda e cura +1 ❤️ vida por onda!',
+        quip: 'IMPRESSORA DE BANANA LIGADA!',
+      },
+    ],
+  },
+  mago: {
+    type: 'mago',
+    name: 'Macaco Mago do Cipó & Raio',
+    shortName: 'Mago Raio',
+    emoji: '⚡',
+    hotkey: '7',
+    cost: 250,
+    range: 160,
+    fireRate: 1.05,
+    damage: 2,
+    color: '#22d3ee',
+    description: 'Solta raio em cadeia que acerta até 4 bexigas, enxerga e arranca óculos Camuflados!',
+    detectsCamo: true,
+    popsLead: false,
+    upgrades: [
+      {
+        name: 'Cajado de Poraquê',
+        cost: 160,
+        description: 'Raio salta em 6 bexigas com +1 dano e alcance maior!',
+        quip: 'CHOQUE DO AMAZONAS!',
+      },
+      {
+        name: 'Tempestade de Cipó',
+        cost: 310,
+        description: 'Raios derretem CHUMBO, acertam 8 alvos e paralisam bexigas por 0.4s!',
+        quip: 'TORRANDO ATÉ CHUMBO!',
+      },
+      {
+        name: 'Xamã Supremo do Trovão',
+        cost: 590,
+        description: 'Raio em 11 alvos (5 dano, 14 em Chefes!) + rajada de vento que empurra!',
+        quip: 'PODER ILIMITADO DA SELVA!!',
+      },
+    ],
+  },
 };
 
-export const TOWER_ORDER: TowerType[] = ['banana', 'havaianas', 'sniper', 'coco', 'dj'];
+export const TOWER_ORDER: TowerType[] = [
+  'banana',
+  'havaianas',
+  'sniper',
+  'coco',
+  'dj',
+  'fazenda',
+  'mago',
+];
 
 export const BLOON_DEFS: Record<BloonType, BloonDef> = {
   red: {
     type: 'red',
     name: 'Bexiga Vermelha',
+    emoji: '🔴',
     hp: 1,
     speed: 60,
     radius: 14,
@@ -277,6 +426,7 @@ export const BLOON_DEFS: Record<BloonType, BloonDef> = {
   blue: {
     type: 'blue',
     name: 'Bexiga Azul',
+    emoji: '🔵',
     hp: 1,
     speed: 78,
     radius: 15,
@@ -289,6 +439,7 @@ export const BLOON_DEFS: Record<BloonType, BloonDef> = {
   green: {
     type: 'green',
     name: 'Bexiga Verde',
+    emoji: '🟢',
     hp: 1,
     speed: 96,
     radius: 16,
@@ -301,6 +452,7 @@ export const BLOON_DEFS: Record<BloonType, BloonDef> = {
   yellow: {
     type: 'yellow',
     name: 'Bexiga Amarela',
+    emoji: '🟡',
     hp: 1,
     speed: 132,
     radius: 16,
@@ -313,6 +465,7 @@ export const BLOON_DEFS: Record<BloonType, BloonDef> = {
   pink: {
     type: 'pink',
     name: 'Bexiga Rosa Turbo',
+    emoji: '🩷',
     hp: 1,
     speed: 170,
     radius: 15,
@@ -325,6 +478,7 @@ export const BLOON_DEFS: Record<BloonType, BloonDef> = {
   camo: {
     type: 'camo',
     name: 'Camuflada de Óculos',
+    emoji: '🕶️',
     hp: 2,
     speed: 118,
     radius: 17,
@@ -338,6 +492,7 @@ export const BLOON_DEFS: Record<BloonType, BloonDef> = {
   lead: {
     type: 'lead',
     name: 'Bexiga de Chumbo',
+    emoji: '🔩',
     hp: 3,
     speed: 62,
     radius: 18,
@@ -351,6 +506,7 @@ export const BLOON_DEFS: Record<BloonType, BloonDef> = {
   moab: {
     type: 'moab',
     name: 'DIRIGÍVEL DO IMPOSTO DE RENDA',
+    emoji: '💼',
     hp: 95,
     speed: 33,
     radius: 34,
@@ -364,6 +520,7 @@ export const BLOON_DEFS: Record<BloonType, BloonDef> = {
   zepelim: {
     type: 'zepelim',
     name: 'ZEPELIM DA RECEITA FEDERAL',
+    emoji: '🚨',
     hp: 460,
     speed: 24,
     radius: 44,
@@ -375,6 +532,51 @@ export const BLOON_DEFS: Record<BloonType, BloonDef> = {
     isBoss: true,
   },
 };
+
+export const ATTACK_TIERS: Record<AttackTierId, AttackTierDef> = {
+  rush: {
+    id: 'rush',
+    label: 'Enxame Rosa Turbo',
+    shortLabel: 'Enxame Rosa',
+    emoji: '😈',
+    cost: 60,
+    incomeGain: 15,
+    bloons: ['pink', 'pink', 'pink', 'yellow', 'yellow', 'pink'],
+    description: 'Manda 6 bexigas rápidas e aumenta sua renda em +15 🍌/onda!',
+  },
+  camo: {
+    id: 'camo',
+    label: 'Bonde Camuflado',
+    shortLabel: 'Bonde Camo',
+    emoji: '🕶️',
+    cost: 95,
+    incomeGain: 25,
+    bloons: ['camo', 'camo', 'camo', 'camo', 'camo'],
+    description: 'Manda 5 Camufladas de Óculos e dá +25 🍌/onda!',
+  },
+  lead: {
+    id: 'lead',
+    label: 'Comboio de Chumbo',
+    shortLabel: 'Chumbo',
+    emoji: '🔩',
+    cost: 130,
+    incomeGain: 35,
+    bloons: ['lead', 'lead', 'lead', 'lead', 'pink', 'pink'],
+    description: 'Manda 4 Chumbo + 2 Rosa e dá +35 🍌/onda!',
+  },
+  moab: {
+    id: 'moab',
+    label: 'Dirigível Surpresa (MOAB)',
+    shortLabel: 'MOAB IRPF',
+    emoji: '💼',
+    cost: 320,
+    incomeGain: 80,
+    bloons: ['moab'],
+    description: 'Envia 1 Dirigível do Imposto de Renda e dá +80 🍌/onda!',
+  },
+};
+
+export const ATTACK_TIER_ORDER: AttackTierId[] = ['rush', 'camo', 'lead', 'moab'];
 
 export interface WaveGroup {
   type: BloonType;
@@ -539,31 +741,32 @@ const CURATED_WAVES: WaveSpec[] = [
 ];
 
 export function getWaveSpec(waveNum: number): WaveSpec {
-  if (waveNum <= CURATED_WAVES.length) {
-    return CURATED_WAVES[waveNum - 1];
+  const safeWave = Math.max(1, Math.floor(waveNum || 1));
+  if (safeWave <= CURATED_WAVES.length) {
+    return CURATED_WAVES[safeWave - 1];
   }
-  const extra = waveNum - 15;
-  const isZepelimWave = waveNum % 15 === 0;
-  const isMoabWave = waveNum % 5 === 0;
+  const extra = safeWave - 15;
+  const isZepelimWave = safeWave % 15 === 0;
+  const isMoabWave = safeWave % 5 === 0;
   const groups: WaveGroup[] = [
     { type: 'pink', count: 22 + extra * 3, interval: Math.max(0.11, 0.2 - extra * 0.006) },
     { type: 'camo', count: 12 + extra * 2, interval: Math.max(0.14, 0.26 - extra * 0.006) },
     { type: 'lead', count: 10 + extra * 2, interval: Math.max(0.2, 0.35 - extra * 0.008) },
   ];
   if (isZepelimWave) {
-    groups.push({ type: 'zepelim', count: Math.max(1, Math.floor(waveNum / 15)), interval: 4.0 });
+    groups.push({ type: 'zepelim', count: Math.max(1, Math.floor(safeWave / 15)), interval: 4.0 });
   } else if (isMoabWave) {
     groups.push({ type: 'moab', count: 2 + Math.floor(extra / 2), interval: 2.2 });
   } else {
     groups.push({ type: 'moab', count: 1 + Math.floor(extra / 3), interval: 2.6 });
   }
   return {
-    wave: waveNum,
+    wave: safeWave,
     title: isZepelimWave
       ? 'MEGA AUDITORIA DA RECEITA FEDERAL!'
       : isMoabWave
         ? 'CHUVA DE IMPOSTO DE RENDA!'
-        : `Modo Infinito — Onda ${waveNum}`,
+        : `Modo Infinito — Onda ${safeWave}`,
     bonusBananas: 140 + extra * 15,
     bossBanner: isZepelimWave
       ? '🚨💸 ZEPELIM DA RECEITA FEDERAL VOLTOU!'

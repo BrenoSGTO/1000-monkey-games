@@ -1,5 +1,5 @@
-import { CANVAS_HEIGHT, CANVAS_WIDTH, TRACK_HALF_WIDTH, TOWER_RADIUS } from './data';
-import type { MapConfig, Point, TowerInstance } from './types';
+import { CANVAS_HEIGHT, CANVAS_WIDTH, TOWER_RADIUS, TRACK_HALF_WIDTH } from './data';
+import type { MapConfig, MapProp, Point, TowerInstance } from './types';
 
 export interface PathSegment {
   ax: number;
@@ -20,15 +20,27 @@ export interface CompiledPath {
 
 const pathCache = new Map<string, CompiledPath>();
 
-export function compileMapPath(map: MapConfig): CompiledPath {
-  const cached = pathCache.get(map.id);
+export function getMapLanes(map: MapConfig): Point[][] {
+  return map.lanes && map.lanes.length > 0 ? map.lanes : [map.waypoints];
+}
+
+export function getLaneCount(map: MapConfig): number {
+  return getMapLanes(map).length;
+}
+
+export function compileMapPath(map: MapConfig, laneIndex = 0): CompiledPath {
+  const lanes = getMapLanes(map);
+  const safeIdx = ((laneIndex % lanes.length) + lanes.length) % lanes.length;
+  const key = `${map.id}:${safeIdx}`;
+  const cached = pathCache.get(key);
   if (cached) return cached;
 
+  const pts = lanes[safeIdx];
   const segments: PathSegment[] = [];
   let total = 0;
-  for (let i = 0; i < map.waypoints.length - 1; i++) {
-    const a = map.waypoints[i];
-    const b = map.waypoints[i + 1];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i];
+    const b = pts[i + 1];
     const vx = b.x - a.x;
     const vy = b.y - a.y;
     const len = Math.hypot(vx, vy);
@@ -47,12 +59,23 @@ export function compileMapPath(map: MapConfig): CompiledPath {
   }
 
   const compiled = { segments, totalLength: total };
-  pathCache.set(map.id, compiled);
+  pathCache.set(key, compiled);
   return compiled;
 }
 
-export function samplePathPosition(map: MapConfig, distance: number): Point & { angle: number } {
-  const path = compileMapPath(map);
+export function getLaneLength(map: MapConfig, laneIndex = 0): number {
+  return compileMapPath(map, laneIndex).totalLength;
+}
+
+export function samplePathPosition(
+  map: MapConfig,
+  distance: number,
+  laneIndex = 0,
+): Point & { angle: number } {
+  const path = compileMapPath(map, laneIndex);
+  if (path.segments.length === 0) {
+    return { x: 0, y: 0, angle: 0 };
+  }
   if (distance <= 0) {
     const s = path.segments[0];
     return { x: s.ax, y: s.ay, angle: Math.atan2(s.dy, s.dx) };
@@ -86,6 +109,26 @@ function distToSegment(px: number, py: number, ax: number, ay: number, bx: numbe
   return Math.hypot(px - projX, py - projY);
 }
 
+function getPropObstacleRadius(prop: MapProp): number {
+  const s = prop.scale ?? 1;
+  switch (prop.kind) {
+    case 'tree':
+    case 'palm':
+      return 18 * s;
+    case 'stall':
+      return 26 * s;
+    case 'crate':
+      return 16 * s;
+    case 'cone':
+      return 10 * s;
+    case 'sign':
+      return 14 * s;
+    case 'puddle':
+    case 'bridge':
+      return 0;
+  }
+}
+
 export function isValidTowerSpot(
   map: MapConfig,
   towers: TowerInstance[],
@@ -97,11 +140,22 @@ export function isValidTowerSpot(
     return { ok: false, reason: 'Fora do mapa!' };
   }
 
-  const path = compileMapPath(map);
+  const laneCount = getLaneCount(map);
   const minTrackDist = TRACK_HALF_WIDTH + TOWER_RADIUS + 4;
-  for (const seg of path.segments) {
-    if (distToSegment(x, y, seg.ax, seg.ay, seg.bx, seg.by) < minTrackDist) {
-      return { ok: false, reason: 'Não pode bloquear a pista!' };
+  for (let l = 0; l < laneCount; l++) {
+    const path = compileMapPath(map, l);
+    for (const seg of path.segments) {
+      if (distToSegment(x, y, seg.ax, seg.ay, seg.bx, seg.by) < minTrackDist) {
+        return { ok: false, reason: 'Não pode bloquear a pista!' };
+      }
+    }
+  }
+
+  for (const prop of map.props) {
+    const obsRadius = getPropObstacleRadius(prop);
+    if (obsRadius <= 0) continue;
+    if (Math.hypot(x - prop.x, y - prop.y) < obsRadius + TOWER_RADIUS - 2) {
+      return { ok: false, reason: 'Em cima de obstáculo!' };
     }
   }
 

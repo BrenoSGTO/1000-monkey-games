@@ -1,6 +1,15 @@
-export type MapId = 'selva' | 'feira';
+export type MapId = 'selva' | 'feira' | 'ilha';
 
-export type TowerType = 'banana' | 'havaianas' | 'sniper' | 'coco' | 'dj';
+export type TowerType =
+  | 'banana'
+  | 'havaianas'
+  | 'sniper'
+  | 'coco'
+  | 'dj'
+  | 'fazenda'
+  | 'mago';
+
+export type GameMode = 'coop' | 'versus' | 'local2p';
 
 export type TargetMode = 'first' | 'strong' | 'close' | 'last';
 
@@ -15,13 +24,15 @@ export type BloonType =
   | 'moab'
   | 'zepelim';
 
+export type AttackTierId = 'rush' | 'camo' | 'lead' | 'moab';
+
 export interface Point {
   x: number;
   y: number;
 }
 
 export interface MapProp {
-  kind: 'tree' | 'cone' | 'sign' | 'stall' | 'crate' | 'puddle';
+  kind: 'tree' | 'cone' | 'sign' | 'stall' | 'crate' | 'puddle' | 'palm' | 'bridge';
   x: number;
   y: number;
   scale?: number;
@@ -39,6 +50,7 @@ export interface MapConfig {
   roadInner: string;
   roadStripe: string;
   waypoints: Point[];
+  lanes?: Point[][];
   props: MapProp[];
 }
 
@@ -57,12 +69,13 @@ export interface TowerDef {
   hotkey: string;
   cost: number;
   range: number;
-  fireRate: number; // shots per second (or pulse rate for DJ)
+  fireRate: number; // shots per second (or pulse/farm rate)
   damage: number;
   color: string;
   description: string;
   detectsCamo: boolean;
   popsLead: boolean;
+  isSupport?: boolean;
   upgrades: [TowerUpgradeDef, TowerUpgradeDef, TowerUpgradeDef];
 }
 
@@ -84,11 +97,13 @@ export interface TowerInstance {
   buffedMultiplier: number; // >= 1 from DJ JBL
   buffedRangeMultiplier: number; // >= 1 from DJ JBL
   lastTalkAt: number;
+  farmEarned?: number;
 }
 
 export interface BloonDef {
   type: BloonType;
   name: string;
+  emoji: string;
   hp: number;
   speed: number;
   radius: number;
@@ -107,7 +122,9 @@ export interface BloonInstance {
   type: BloonType;
   hp: number;
   maxHp: number;
-  distance: number; // distance along track in px
+  laneIndex: number;
+  distance: number; // distance along lane in px
+  angle: number; // heading angle along lane in radians
   x: number;
   y: number;
   slowTimer: number;
@@ -115,6 +132,7 @@ export interface BloonInstance {
   camoStripped: boolean;
   hitFlash: number;
   wobbleSeed: number;
+  poisonCarry: number;
   isTroll?: boolean;
 }
 
@@ -181,6 +199,43 @@ export interface SniperTracer {
   ttl: number;
 }
 
+export interface LightningArc {
+  points: Point[];
+  color: string;
+  ttl: number;
+  maxTtl: number;
+}
+
+export interface AbilityBomb {
+  x: number;
+  y: number;
+  targetY: number;
+  vy: number;
+  radius: number;
+  damage: number;
+  ownerId: string;
+}
+
+export interface MapPing {
+  id: string;
+  x: number;
+  y: number;
+  name: string;
+  color: string;
+  ttl: number;
+  maxTtl: number;
+}
+
+export interface RemoteCursor {
+  playerId: string;
+  name: string;
+  color: string;
+  x: number;
+  y: number;
+  placingType: TowerType | null;
+  lastSeen: number;
+}
+
 export interface Particle {
   x: number;
   y: number;
@@ -204,26 +259,102 @@ export interface FloatingText {
   maxTtl: number;
 }
 
+export interface PlayerMatchStats {
+  playerId: string;
+  name: string;
+  color: string;
+  pops: number;
+  bananasGifted: number;
+  incomeBonus: number;
+  lives: number;
+  score: number;
+  wave: number;
+  alive: boolean;
+  isHost?: boolean;
+}
+
+export interface AttackTierDef {
+  id: AttackTierId;
+  label: string;
+  shortLabel: string;
+  emoji: string;
+  cost: number;
+  incomeGain: number;
+  bloons: BloonType[];
+  description: string;
+}
+
+export interface SyncBloonState {
+  id: string;
+  type: BloonType;
+  hp: number;
+  maxHp: number;
+  laneIndex: number;
+  distance: number;
+  slowTimer: number;
+  slowFactor: number;
+  camoStripped: boolean;
+  isTroll?: boolean;
+}
+
+export interface SpawnQueueItem {
+  type: BloonType;
+  wait: number;
+  laneIndex: number;
+  isTroll?: boolean;
+}
+
 export type TdNetMessage =
   | { action: 'place_tower'; tower: TowerInstance }
-  | { action: 'upgrade_tower'; towerId: string; level: number; cost: number }
-  | { action: 'sell_tower'; towerId: string }
+  | { action: 'upgrade_tower'; towerId: string; level: number; cost: number; ownerId: string }
+  | { action: 'sell_tower'; towerId: string; ownerId: string }
   | { action: 'target_mode'; towerId: string; targetMode: TargetMode }
   | { action: 'start_wave'; wave: number }
   | { action: 'set_map'; mapId: MapId }
+  | { action: 'set_mode'; gameMode: GameMode }
   | { action: 'set_speed'; speed: 1 | 2 }
   | { action: 'set_auto_wave'; autoWave: boolean }
-  | { action: 'gift_bananas'; amount: number; fromName: string }
-  | { action: 'troll_bloons'; count: number; fromName: string }
-  | { action: 'restart_match'; mapId: MapId }
+  | { action: 'use_ability'; senderName: string; senderId: string; targets: Point[] }
+  | { action: 'gift_bananas'; amount: number; fromName: string; targetPlayerId?: string }
   | {
-      action: 'sync_snapshot';
+      action: 'send_bloons';
+      tier: AttackTierId;
+      fromId: string;
+      fromName: string;
+      incomeGain: number;
+    }
+  | { action: 'restart_match'; mapId: MapId; gameMode: GameMode }
+  | { action: 'cursor'; x: number; y: number; placingType: TowerType | null; color: string; name: string }
+  | { action: 'ping'; x: number; y: number; name: string; color: string }
+  | {
+      action: 'state_sync';
+      seq: number;
       mapId: MapId;
+      gameMode: GameMode;
       wave: number;
+      waveActive: boolean;
       lives: number;
       score: number;
       speed: 1 | 2;
       autoWave: boolean;
+      gameOver: boolean;
+      abilityCooldown: number;
       towers: TowerInstance[];
+      bloons: SyncBloonState[];
+      spawnQueue: SpawnQueueItem[];
+      playerStats: PlayerMatchStats[];
+      bananaRewards: Record<string, number>;
     }
-  | { action: 'wave_sync'; wave: number; lives: number; score: number };
+  | {
+      action: 'versus_status';
+      playerId: string;
+      name: string;
+      color: string;
+      lives: number;
+      score: number;
+      pops: number;
+      incomeBonus: number;
+      wave: number;
+      alive: boolean;
+      towerCount: number;
+    };

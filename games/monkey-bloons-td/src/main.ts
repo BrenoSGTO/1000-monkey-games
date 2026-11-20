@@ -12,12 +12,14 @@ function bootstrap(): void {
 
   const net = new TdNetworkBridge({
     onStatusChange: (status) => {
+      game?.syncLocalIdentity();
       if (status === 'connected') {
         ui.hideStartModal();
         game?.emitUi();
       }
     },
     onPlayersChange: () => {
+      game?.syncLocalIdentity();
       game?.emitUi();
     },
     onMessage: (env) => {
