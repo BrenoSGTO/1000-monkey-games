@@ -1,16 +1,22 @@
-export type MonkeyKind = 'normal' | 'triple' | 'bomb' | 'tank' | 'boomerang';
+export type MonkeyKind = 'normal' | 'triple' | 'bomb' | 'tank' | 'boomerang' | 'bomber';
 
 export type MaterialKind = 'glass' | 'wood' | 'stone' | 'tnt';
 
-export type EnemyKind = 'porco' | 'tatu' | 'boss_porco';
+export type EnemyKind = 'porco' | 'tatu' | 'boss_porco' | 'boss_helmet';
 
 export type MultiplayerMode = 'coop-turns' | 'duel-score';
 
+export type LocalPlayMode = 'solo' | 'local-2p';
+
+export type TauntSoundKind = 'screech' | 'banana' | 'rage' | 'boing' | 'slap';
+
 export interface MonkeySpec {
   kind: MonkeyKind;
+  emoji: string;
   name: string;
   shortName: string;
   powerLabel: string;
+  hudPowerHint: string;
   description: string;
   radius: number;
   density: number;
@@ -71,7 +77,7 @@ export interface Particle {
   alpha: number;
   life: number;
   maxLife: number;
-  shape: 'rect' | 'circle' | 'shard' | 'smoke' | 'banana';
+  shape: 'rect' | 'circle' | 'shard' | 'smoke' | 'banana' | 'confetti';
   gravityScale: number;
 }
 
@@ -130,6 +136,10 @@ export interface WorldSnapshot {
   monkeyIndex: number;
   turnOwnerId: string | null;
   playerScores: Record<string, number>;
+  outcome: 'playing' | 'won' | 'lost';
+  finalScore?: number;
+  stars?: number;
+  unusedMonkeys?: number;
 }
 
 export type NetMessage =
@@ -163,6 +173,7 @@ export type NetMessage =
       y: number;
       vx: number;
       vy: number;
+      angle: number;
     }
   | {
       kind: 'turn-sync';
@@ -172,6 +183,7 @@ export type NetMessage =
       kind: 'duel-progress';
       playerId: string;
       playerName: string;
+      playerColor: string;
       score: number;
       shotsUsed: number;
       enemiesLeft: number;
@@ -181,4 +193,12 @@ export type NetMessage =
   | {
       kind: 'taunt';
       text: string;
+      sound?: TauntSoundKind;
+    }
+  | {
+      kind: 'rematch-request';
+      action: 'retry' | 'next';
+    }
+  | {
+      kind: 'skip-turn';
     };

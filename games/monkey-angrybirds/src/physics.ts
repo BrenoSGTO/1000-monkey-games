@@ -52,6 +52,7 @@ export interface EnemyEntity {
   pendingDamage: number;
   destroyed: boolean;
   scaredTimer: number;
+  helmetLost: boolean;
 }
 
 export interface MonkeyEntity {
@@ -64,10 +65,20 @@ export interface MonkeyEntity {
   powerUsed: boolean;
   autoBombTimer: number | null;
   slamUsed: boolean;
+  boomerangReverseTimer: number;
   age: number;
   trail: { x: number; y: number }[];
   trailTick: number;
   shooterId: string;
+  destroyed: boolean;
+}
+
+export interface CoconutBombEntity {
+  id: number;
+  kind: 'coconut';
+  radius: number;
+  body: Body;
+  age: number;
   destroyed: boolean;
 }
 
@@ -80,11 +91,17 @@ interface PendingExplosion {
   isCoconut: boolean;
 }
 
-type BodyUserData = BlockEntity | EnemyEntity | MonkeyEntity | { kind: 'ground' };
+type BodyUserData =
+  | BlockEntity
+  | EnemyEntity
+  | MonkeyEntity
+  | CoconutBombEntity
+  | { kind: 'ground' };
 
 export interface PhysicsCallbacks {
   onScore: (points: number, x: number, y: number, label?: string, color?: string) => void;
   onShake: (amount: number) => void;
+  onHitstop?: (duration: number) => void;
 }
 
 export class PhysicsWorld {
@@ -92,6 +109,7 @@ export class PhysicsWorld {
   public blocks: BlockEntity[] = [];
   public enemies: EnemyEntity[] = [];
   public monkeys: MonkeyEntity[] = [];
+  public coconuts: CoconutBombEntity[] = [];
   public particles: Particle[] = [];
   public floatingTexts: FloatingText[] = [];
   public shockwaves: Shockwave[] = [];
@@ -131,6 +149,7 @@ export class PhysicsWorld {
     this.blocks = [];
     this.enemies = [];
     this.monkeys = [];
+    this.coconuts = [];
     this.particles = [];
     this.floatingTexts = [];
     this.shockwaves = [];
@@ -216,6 +235,7 @@ export class PhysicsWorld {
       pendingDamage: 0,
       destroyed: false,
       scaredTimer: 0,
+      helmetLost: (hpOverride ?? spec.hp) < spec.hp * 0.55,
     };
     body.setUserData(entity);
     this.enemies.push(entity);
@@ -245,7 +265,8 @@ export class PhysicsWorld {
       restitution: spec.restitution,
     });
     body.setLinearVelocity(new Vec2(vx, vy));
-    body.setAngularVelocity((Math.random() - 0.5) * 3 - 2.5);
+    // Deterministic spin for consistent multiplayer simulation
+    body.setAngularVelocity(-Math.max(1.2, Math.min(4.5, Math.abs(vx) * 0.16)));
 
     const entity: MonkeyEntity = {
       id: opts?.idOverride ?? this.nextId++,
@@ -257,6 +278,7 @@ export class PhysicsWorld {
       powerUsed: opts?.powerUsed ?? false,
       autoBombTimer: null,
       slamUsed: false,
+      boomerangReverseTimer: 0,
       age: 0,
       trail: [{ x, y }],
       trailTick: 0,
@@ -268,9 +290,40 @@ export class PhysicsWorld {
     return entity;
   }
 
+  private spawnCoconutBomb(x: number, y: number, vx: number, vy: number): CoconutBombEntity {
+    const radius = 0.34;
+    const body = this.world.createBody({
+      type: 'dynamic',
+      position: new Vec2(x, y),
+      bullet: true,
+      linearDamping: 0.02,
+      angularDamping: 0.1,
+    });
+    body.createFixture(new Circle(radius), {
+      density: 2.8,
+      friction: 0.4,
+      restitution: 0.15,
+    });
+    body.setLinearVelocity(new Vec2(vx, vy));
+    body.setAngularVelocity(6);
+
+    const entity: CoconutBombEntity = {
+      id: this.nextId++,
+      kind: 'coconut',
+      radius,
+      body,
+      age: 0,
+      destroyed: false,
+    };
+    body.setUserData(entity);
+    this.coconuts.push(entity);
+    return entity;
+  }
+
   activatePower(targetMonkey?: MonkeyEntity): MonkeyEntity | null {
     const monkey =
-      targetMonkey ?? this.monkeys.find((m) => !m.destroyed && !m.powerUsed && !m.hasCollided) ??
+      targetMonkey ??
+      this.monkeys.find((m) => !m.destroyed && !m.powerUsed && !m.hasCollided) ??
       this.monkeys.find((m) => !m.destroyed && !m.powerUsed && m.monkeyKind === 'bomb');
 
     if (!monkey || monkey.powerUsed || monkey.destroyed) return null;
@@ -343,9 +396,10 @@ export class PhysicsWorld {
         break;
       }
       case 'boomerang': {
-        const speedBack = Math.max(14, Math.abs(vel.x) * 1.35 + 7.5);
-        monkey.body.setLinearVelocity(new Vec2(-speedBack, Math.max(vel.y * 0.3, 2.8)));
-        monkey.body.setAngularVelocity(18);
+        // Smooth curved turnaround instead of harsh upward snap
+        monkey.body.setLinearVelocity(new Vec2(vel.x * 0.65, Math.max(vel.y * 0.45, 2.8)));
+        monkey.body.setAngularVelocity(16);
+        monkey.boomerangReverseTimer = 0.62;
         this.shockwaves.push({
           x: pos.x,
           y: pos.y,
@@ -358,6 +412,25 @@ export class PhysicsWorld {
         this.spawnBurst(pos.x, pos.y, '#84cc16', 14, 'circle');
         break;
       }
+      case 'bomber': {
+        // Drop explosive coconut bomb straight down and propel monkey upward!
+        this.spawnCoconutBomb(pos.x, pos.y - 0.52, vel.x * 0.16, -12.2);
+        monkey.body.setLinearVelocity(
+          new Vec2(Math.max(4.0, vel.x * 0.78 + 3.2), Math.max(8.8, vel.y * 0.25 + 9.4)),
+        );
+        monkey.body.setAngularVelocity(-8);
+        this.shockwaves.push({
+          x: pos.x,
+          y: pos.y,
+          radius: 0.25,
+          maxRadius: 1.9,
+          color: '#f59e0b',
+          life: 0,
+          maxLife: 0.26,
+        });
+        this.spawnBurst(pos.x, pos.y - 0.3, '#fde047', 12, 'smoke');
+        break;
+      }
     }
 
     return monkey;
@@ -365,16 +438,35 @@ export class PhysicsWorld {
 
   private handlePostSolve(contact: Contact, impulse: ContactImpulse): void {
     if (this.graceTimer > 0) return;
+
+    const udA = contact.getFixtureA().getBody().getUserData() as BodyUserData | null;
+    const udB = contact.getFixtureB().getBody().getUserData() as BodyUserData | null;
+    if (!udA || !udB) return;
+
+    // Coconut bomb detonates immediately on any solid contact!
+    const coconutA = udA.kind === 'coconut' ? udA : null;
+    const coconutB = udB.kind === 'coconut' ? udB : null;
+    const hitCoconut = coconutA || coconutB;
+    if (hitCoconut && !hitCoconut.destroyed && hitCoconut.age > 0.025) {
+      hitCoconut.destroyed = true;
+      const p = hitCoconut.body.getPosition();
+      this.pendingExplosions.push({
+        x: p.x,
+        y: p.y,
+        radius: 4.5,
+        force: 68,
+        maxDamage: 185,
+        isCoconut: true,
+      });
+      return;
+    }
+
     const impulses = impulse.normalImpulses;
     let totalImpulse = 0;
     for (let i = 0; i < impulses.length; i++) {
       totalImpulse += impulses[i];
     }
     if (totalImpulse < 0.85) return;
-
-    const udA = contact.getFixtureA().getBody().getUserData() as BodyUserData | null;
-    const udB = contact.getFixtureB().getBody().getUserData() as BodyUserData | null;
-    if (!udA || !udB) return;
 
     const monkeyA = udA.kind === 'monkey' ? udA : null;
     const monkeyB = udB.kind === 'monkey' ? udB : null;
@@ -383,6 +475,7 @@ export class PhysicsWorld {
     if (activeMonkey && activeMonkey.age > 0.06) {
       if (!activeMonkey.hasCollided) {
         activeMonkey.hasCollided = true;
+        activeMonkey.boomerangReverseTimer = 0;
         if (activeMonkey.monkeyKind === 'bomb' && !activeMonkey.powerUsed && activeMonkey.autoBombTimer === null) {
           activeMonkey.autoBombTimer = 0.75;
         }
@@ -406,7 +499,7 @@ export class PhysicsWorld {
   }
 
   private applyImpact(target: BodyUserData, other: BodyUserData, impulse: number): void {
-    if (target.kind === 'ground') return;
+    if (target.kind === 'ground' || target.kind === 'coconut') return;
 
     let mult = 1;
     if (other.kind === 'monkey') {
@@ -448,6 +541,14 @@ export class PhysicsWorld {
       this.graceTimer = Math.max(0, this.graceTimer - dt);
     }
 
+    // Continuous smooth reverse curve for active boomerang monkeys
+    for (const m of this.monkeys) {
+      if (m.destroyed || m.boomerangReverseTimer <= 0) continue;
+      m.boomerangReverseTimer = Math.max(0, m.boomerangReverseTimer - dt);
+      const mass = m.body.getMass();
+      m.body.applyForceToCenter(new Vec2(-mass * 48, mass * 6.5), true);
+    }
+
     this.world.step(dt, 10, 4);
 
     // Update monkeys (trails, auto-bomb, out of bounds)
@@ -459,7 +560,7 @@ export class PhysicsWorld {
       if (m.trailTick >= 0.032) {
         m.trailTick = 0;
         m.trail.push({ x: p.x, y: p.y });
-        if (m.trail.length > 34) m.trail.shift();
+        if (m.trail.length > 42) m.trail.shift();
       }
 
       if (m.autoBombTimer !== null) {
@@ -475,20 +576,52 @@ export class PhysicsWorld {
       }
     }
 
-    // Scare nearby enemies when a monkey flies toward them
+    // Update dropped coconut bombs
+    for (const c of this.coconuts) {
+      if (c.destroyed) continue;
+      c.age += dt;
+      const p = c.body.getPosition();
+      if (c.age > 2.4 || p.y < -1) {
+        c.destroyed = true;
+        this.pendingExplosions.push({
+          x: p.x,
+          y: Math.max(0.2, p.y),
+          radius: 4.5,
+          force: 68,
+          maxDamage: 185,
+          isCoconut: true,
+        });
+      }
+    }
+
+    // Scare nearby enemies when a monkey or coconut bomb approaches
     for (const e of this.enemies) {
       if (e.destroyed) continue;
       if (e.scaredTimer > 0) e.scaredTimer -= dt;
       const ep = e.body.getPosition();
+
       for (const m of this.monkeys) {
         if (m.destroyed) continue;
         const mp = m.body.getPosition();
         const mv = m.body.getLinearVelocity();
-        const dist = Math.hypot(ep.x - mp.x, ep.y - mp.y);
-        if (dist < 7.2 && Math.hypot(mv.x, mv.y) > 3.5) {
-          e.scaredTimer = 0.45;
+        const dx = ep.x - mp.x;
+        const dy = ep.y - mp.y;
+        const dist = Math.hypot(dx, dy);
+        const speed = Math.hypot(mv.x, mv.y);
+        const headingToward = dx * mv.x + dy * mv.y > 0;
+        if (dist < 9.5 && speed > 2.5 && (headingToward || dist < 3.8)) {
+          e.scaredTimer = 0.5;
         }
       }
+
+      for (const c of this.coconuts) {
+        if (c.destroyed) continue;
+        const cp = c.body.getPosition();
+        if (Math.hypot(ep.x - cp.x, ep.y - cp.y) < 8.5) {
+          e.scaredTimer = 0.6;
+        }
+      }
+
       if (ep.x < WORLD_MIN_X || ep.x > WORLD_MAX_X || ep.y < -2.5) {
         e.pendingDamage += 9999;
       }
@@ -517,6 +650,7 @@ export class PhysicsWorld {
       if (e.pendingDamage > 0) {
         e.hp -= e.pendingDamage;
         e.pendingDamage = 0;
+        this.checkHelmetLoss(e);
         if (e.hp <= 0) {
           e.destroyed = true;
           this.onEnemyDestroyed(e);
@@ -537,6 +671,15 @@ export class PhysicsWorld {
 
     // Update visual effects
     this.updateEffects(dt);
+  }
+
+  private checkHelmetLoss(e: EnemyEntity): void {
+    if (e.enemyKind === 'boss_helmet' && !e.helmetLost && e.hp > 0 && e.hp < e.maxHp * 0.55) {
+      e.helmetLost = true;
+      const pos = e.body.getPosition();
+      this.spawnBurst(pos.x, pos.y + e.radius * 0.7, '#facc15', 14, 'shard');
+      this.addFloatingText(pos.x, pos.y + 1.35, 'MEU CAPACETE DA OBRA!', '#fde047', 1.15);
+    }
   }
 
   private onBlockDestroyed(b: BlockEntity): void {
@@ -576,8 +719,9 @@ export class PhysicsWorld {
   }
 
   private executeExplosion(exp: PendingExplosion): void {
-    gameAudio.playPower('bomb');
+    gameAudio.playExplosion();
     this.callbacks.onShake(exp.isCoconut ? 0.78 : 0.65);
+    this.callbacks.onHitstop?.(0.055);
 
     this.shockwaves.push({
       x: exp.x,
@@ -634,6 +778,7 @@ export class PhysicsWorld {
           true,
         );
         e.hp -= exp.maxDamage * falloff;
+        this.checkHelmetLoss(e);
         if (e.hp <= 0) {
           e.destroyed = true;
           this.onEnemyDestroyed(e);
@@ -660,6 +805,13 @@ export class PhysicsWorld {
     this.monkeys = this.monkeys.filter((m) => {
       if (m.destroyed) {
         this.world.destroyBody(m.body);
+        return false;
+      }
+      return true;
+    });
+    this.coconuts = this.coconuts.filter((c) => {
+      if (c.destroyed) {
+        this.world.destroyBody(c.body);
         return false;
       }
       return true;
@@ -694,6 +846,29 @@ export class PhysicsWorld {
     }
   }
 
+  spawnConfetti(centerX: number, centerY: number, count = 70): void {
+    const palette = ['#facc15', '#4ade80', '#38bdf8', '#fb7185', '#c084fc', '#f97316'];
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 4 + Math.random() * 12;
+      this.particles.push({
+        x: centerX + (Math.random() - 0.5) * 10,
+        y: centerY + Math.random() * 4,
+        vx: Math.cos(angle) * speed * 0.85,
+        vy: Math.abs(Math.sin(angle) * speed) + 3.5,
+        size: 0.14 + Math.random() * 0.12,
+        rotation: Math.random() * Math.PI * 2,
+        vRot: (Math.random() - 0.5) * 14,
+        color: palette[i % palette.length],
+        alpha: 1,
+        life: 0,
+        maxLife: 2.2 + Math.random() * 1.4,
+        shape: 'confetti',
+        gravityScale: 0.28,
+      });
+    }
+  }
+
   addFloatingText(x: number, y: number, text: string, color = '#fde047', scale = 1): void {
     this.floatingTexts.push({
       x,
@@ -707,11 +882,18 @@ export class PhysicsWorld {
     });
   }
 
+  updateEffectsOnly(dt: number): void {
+    this.updateEffects(dt);
+  }
+
   private updateEffects(dt: number): void {
     this.particles = this.particles.filter((p) => {
       p.life += dt;
       if (p.life >= p.maxLife) return false;
       p.vy += WORLD_GRAVITY_Y * p.gravityScale * dt;
+      if (p.shape === 'confetti') {
+        p.vx *= 0.985;
+      }
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.rotation += p.vRot * dt;
@@ -741,9 +923,15 @@ export class PhysicsWorld {
       this.world.destroyBody(m.body);
     }
     this.monkeys = [];
+    for (const c of this.coconuts) {
+      this.world.destroyBody(c.body);
+    }
+    this.coconuts = [];
   }
 
   isActionSettled(): boolean {
+    if (this.coconuts.some((c) => !c.destroyed)) return false;
+
     let anyMonkeyMoving = false;
     for (const m of this.monkeys) {
       if (m.destroyed) continue;
@@ -767,19 +955,26 @@ export class PhysicsWorld {
     return this.pendingExplosions.length === 0;
   }
 
-  predictTrajectory(x: number, y: number, vx: number, vy: number, steps = 26): { x: number; y: number }[] {
+  predictTrajectory(x: number, y: number, vx: number, vy: number, dots = 24): { x: number; y: number }[] {
     const pts: { x: number; y: number }[] = [];
-    const dt = 0.068;
+    const dt = 1 / 60;
+    const damp = 1 / (1 + dt * 0.03);
     let cx = x;
     let cy = y;
     let cvx = vx;
     let cvy = vy;
-    for (let i = 0; i < steps; i++) {
+    const sampleEvery = 4;
+    const totalTicks = dots * sampleEvery;
+    for (let tick = 1; tick <= totalTicks; tick++) {
       cvy += WORLD_GRAVITY_Y * dt;
+      cvx *= damp;
+      cvy *= damp;
       cx += cvx * dt;
       cy += cvy * dt;
       if (cy < 0) break;
-      pts.push({ x: cx, y: cy });
+      if (tick % sampleEvery === 0) {
+        pts.push({ x: cx, y: cy });
+      }
     }
     return pts;
   }
@@ -789,12 +984,18 @@ export class PhysicsWorld {
     monkeyIndex: number,
     turnOwnerId: string | null,
     playerScores: Record<string, number>,
+    outcome: WorldSnapshot['outcome'],
+    extra?: { finalScore?: number; stars?: number; unusedMonkeys?: number },
   ): WorldSnapshot {
     return {
       score,
       monkeyIndex,
       turnOwnerId,
       playerScores: { ...playerScores },
+      outcome,
+      finalScore: extra?.finalScore,
+      stars: extra?.stars,
+      unusedMonkeys: extra?.unusedMonkeys,
       blocks: this.blocks.map((b) => {
         const p = b.body.getPosition();
         const v = b.body.getLinearVelocity();
@@ -836,18 +1037,23 @@ export class PhysicsWorld {
     this.blocks = [];
     this.enemies = [];
     this.monkeys = [];
+    this.coconuts = [];
     this.pendingExplosions = [];
     this.graceTimer = 0.08;
 
+    let maxId = 0;
     for (const sb of snapshot.blocks) {
+      maxId = Math.max(maxId, sb.id);
       const b = this.spawnBlock(sb.material, sb.x, sb.y, sb.w, sb.h, sb.angle, sb.id, sb.hp);
       b.body.setLinearVelocity(new Vec2(sb.vx, sb.vy));
       b.body.setAngularVelocity(sb.angularVelocity);
     }
     for (const se of snapshot.enemies) {
+      maxId = Math.max(maxId, se.id);
       const e = this.spawnEnemy(se.kind, se.x, se.y, se.id, se.hp);
       e.body.setLinearVelocity(new Vec2(se.vx, se.vy));
       e.body.setTransform(new Vec2(se.x, se.y), se.angle);
     }
+    this.nextId = maxId + 1;
   }
 }
