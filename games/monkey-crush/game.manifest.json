@@ -1,0 +1,25 @@
+{
+  "slug": "monkey-crush",
+  "title": "Banana Crush: Saga da Selva",
+  "subtitle": "Combine frutas tropicais zoiudas, estoure gelatinas de açaí, resgate macaquinhos e jogue cascas no rival!",
+  "inspiredBy": "Candy Crush Saga",
+  "description": "Puzzle match-3 tropical cheio de suco e caos! Combine bananas, cocos, mangas, açaís, cajus e jacas com carinhas expressivas para criar Macacos Listrados, Bombas de Coco e Bananas Arco-Íris. Encare 24 fases na Saga da Selva com metas de pontos, gelatina de açaí, caixotes de cipó e resgate de macacos bebês — tudo com o mascote Zé Banana reagindo aos seus combos! Inclui Versus P2P (90s mesma seed, jogando cascas no rival) e Co-op P2P alternando jogadas.",
+  "category": "arcade",
+  "tags": ["match-3", "puzzle", "frutas", "macacos", "saga", "versus", "coop", "touch"],
+  "emoji": "🍌",
+  "accentColor": "#facc15",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop-versus",
+    "maxPlayers": 4,
+    "summary": "Versus P2P (90s com mesma seed — combos mandam Cascas de Banana pro tabuleiro do rival!) e Co-op P2P alternando jogadas no mesmo tabuleiro!"
+  },
+  "controls": [
+    "Mouse / Touch: Arraste (swipe) uma fruta na direção desejada ou clique em duas frutas vizinhas para trocar",
+    "Combos de 4: Macaco Listrado • Formato L/T: Bomba de Coco • 5 em linha: Banana Arco-Íris (combine especiais entre si!)",
+    "R: Reiniciar fase instantaneamente • H: Mostrar dica de jogada • M: Silenciar áudio"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
