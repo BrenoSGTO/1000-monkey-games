@@ -1,0 +1,404 @@
+* {
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #090d16;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #f8fafc;
+  touch-action: none;
+}
+
+canvas#game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#ui-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* Top Right Live Score & Stats */
+.ms-hud-top-right {
+  position: fixed;
+  top: 10px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.ms-score-card {
+  background: rgba(15, 23, 42, 0.88);
+  border: 2px solid #facc15;
+  border-radius: 14px;
+  padding: 6px 14px;
+  text-align: right;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.ms-score-main {
+  font-size: 22px;
+  font-weight: 900;
+  color: #fef08a;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ms-score-sub {
+  font-size: 12px;
+  font-weight: 800;
+  color: #94a3b8;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.ms-mult-badge {
+  background: #0284c7;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.ms-mult-badge.boosted {
+  background: #ec4899;
+  animation: ms-pulse 0.6s infinite alternate;
+}
+
+/* Powerup Pills */
+.ms-powerup-bar {
+  position: fixed;
+  left: 12px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.ms-pw-pill {
+  background: rgba(15, 23, 42, 0.9);
+  border: 2px solid #38bdf8;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 150px;
+}
+
+.ms-pw-bar-bg {
+  flex: 1;
+  height: 6px;
+  background: #1e293b;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.ms-pw-bar-fill {
+  height: 100%;
+  background: #facc15;
+}
+
+/* Board Button (Bottom Right for mobile & mouse) */
+.ms-board-btn {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  pointer-events: auto;
+  background: rgba(15, 23, 42, 0.92);
+  border: 2.5px solid #22c55e;
+  color: #bbf7d0;
+  border-radius: 14px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #14532d;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ms-board-btn:active {
+  transform: translateY(2px);
+}
+
+.ms-board-btn.disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Multiplayer Race Live Standings */
+.ms-race-board {
+  background: rgba(15, 23, 42, 0.86);
+  border: 1.5px solid #38bdf8;
+  border-radius: 12px;
+  padding: 6px 10px;
+  min-width: 195px;
+  font-size: 12px;
+}
+
+.ms-race-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-weight: 700;
+}
+
+/* Center Overlays (Title, Game Over, Shop) */
+.ms-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, rgba(15, 23, 42, 0.42), rgba(9, 13, 22, 0.86));
+  pointer-events: auto;
+  padding: 16px;
+}
+
+.ms-card {
+  width: min(500px, 95vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.96);
+  border: 3px solid #facc15;
+  border-radius: 22px;
+  padding: 20px 22px;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.65);
+  text-align: center;
+}
+
+.ms-title {
+  margin: 0;
+  font-size: clamp(26px, 5vw, 34px);
+  font-weight: 900;
+  color: #fde047;
+  text-shadow: 0 3px 0 #9a3412;
+  letter-spacing: -0.5px;
+}
+
+.ms-subtitle {
+  margin: 4px 0 14px;
+  font-size: 13px;
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.ms-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ms-stat-box {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 8px 6px;
+}
+
+.ms-stat-val {
+  font-size: 17px;
+  font-weight: 900;
+  color: #facc15;
+}
+
+.ms-stat-lbl {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #94a3b8;
+  font-weight: 800;
+}
+
+.ms-btn-primary {
+  width: 100%;
+  background: linear-gradient(180deg, #facc15, #eab308);
+  color: #0f172a;
+  border: 2px solid #fef08a;
+  border-radius: 14px;
+  padding: 13px 20px;
+  font-size: 20px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 5px 0 #a16207;
+  transition: transform 0.1s ease;
+}
+
+.ms-btn-primary:hover {
+  filter: brightness(1.06);
+}
+
+.ms-btn-primary:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #a16207;
+}
+
+.ms-btn-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ms-btn-sec {
+  flex: 1;
+  background: #1e293b;
+  color: #f8fafc;
+  border: 2px solid #475569;
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ms-btn-sec:hover {
+  border-color: #facc15;
+  color: #fef08a;
+}
+
+.ms-btn-versus {
+  width: 100%;
+  margin-top: 10px;
+  background: linear-gradient(180deg, #22c55e, #16a34a);
+  color: #052e16;
+  border: 2px solid #86efac;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.ms-controls-hint {
+  margin-top: 12px;
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.45;
+  background: rgba(2, 6, 23, 0.55);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+/* Shop & Missions List */
+.ms-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.ms-tab {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1.5px solid #334155;
+  background: #0f172a;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ms-tab.active {
+  background: #facc15;
+  color: #0f172a;
+  border-color: #fef08a;
+}
+
+.ms-shop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  margin-bottom: 12px;
+}
+
+.ms-shop-item {
+  background: #1e293b;
+  border: 1.5px solid #334155;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ms-shop-item.equipped {
+  border-color: #4ade80;
+}
+
+.ms-item-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fef08a;
+}
+
+.ms-item-desc {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.ms-buy-btn {
+  background: #facc15;
+  color: #0f172a;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ms-buy-btn.equipped {
+  background: #22c55e;
+  color: #052e16;
+}
+
+.ms-buy-btn.locked {
+  background: #334155;
+  color: #94a3b8;
+}
+
+.ms-countdown {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(54px, 12vw, 96px);
+  font-weight: 900;
+  color: #fde047;
+  text-shadow: 0 6px 0 #9a3412, 0 12px 30px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+
+@keyframes ms-pulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.08); }
+}
