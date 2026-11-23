@@ -1,0 +1,27 @@
+{
+  "slug": "monkey-surfers",
+  "title": "Cipó Surfers: Fuga do Zelador",
+  "subtitle": "Corra pelos trilhos da selva-favela fugindo do Segurança Gorila e seu Cachorro-Capivara!",
+  "inspiredBy": "Subway Surfers",
+  "description": "Macaco pichador em fuga frenética por 3 faixas de trilhos tropicais! Desvie de trens em movimento, suba por rampas para surfar no teto dos vagões, role sob placas de obra e equipe Jetpack de Coco, Tênis Mola, Ímã e Pranchas compráveis com Moedas-Banana. Complete missões para multiplicar sua pontuação e dispute Corridas Versus P2P com a mesma seed contra amigos!",
+  "category": "acao",
+  "tags": ["endless-runner", "3-faixas", "trens", "power-ups", "skins", "multiplayer"],
+  "emoji": "🚝",
+  "accentColor": "#facc15",
+  "multiplayer": {
+    "supported": true,
+    "mode": "versus",
+    "maxPlayers": 6,
+    "summary": "Corrida Versus P2P com mesma seed! Veja o fantasma dos amigos correndo nas faixas em tempo real, buzine provocações (tecla B) e acompanhe o placar da sessão para ver quem foge mais longe!"
+  },
+  "controls": [
+    "A / D ou Setas Esq/Dir (ou Swipe): Trocar de faixa",
+    "W / Seta Cima (ou Swipe Cima): Pular / Subir no trem",
+    "S / Seta Baixo (ou Swipe Baixo): Rolar sob barreiras / Aterrissar rápido",
+    "Espaço (ou Duplo Toque): Ativar Prancha (escudo contra 1 batida)",
+    "B: Buzina / Provocação no Multiplayer • R: Reinício instantâneo"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
