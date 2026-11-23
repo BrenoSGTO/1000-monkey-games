@@ -1,0 +1,26 @@
+{
+  "slug": "monkey-tetris",
+  "title": "Macactris: Empilha Banana",
+  "subtitle": "Blocos de banana, cocos e macacos espremidos com T-Giro, combos zoeiros e Versus P2P!",
+  "inspiredBy": "Tetris",
+  "description": "Empilhe caixotes de banana, barris de açaí e macacos espremidos que fazem caretas ao cair! Faça T-Giros acrobáticos, combos em cadeia e MACACTRIS de 4 linhas para explodir tudo em bananas e mandar lixo de casca de banana pros rivais! Inclui Solo Maratona, Sprint 40 Linhas, Duelo vs Gorila Bot, 2P Local no mesmo teclado e Online P2P Versus para até 4 jogadores com miniaturas dos tabuleiros rivais!",
+  "category": "arcade",
+  "tags": ["puzzle", "blocos", "versus", "2p-local", "multiplayer", "arcade", "banana"],
+  "emoji": "🍌",
+  "accentColor": "#facc15",
+  "multiplayer": {
+    "supported": true,
+    "mode": "versus",
+    "maxPlayers": 4,
+    "summary": "Versus P2P Online (até 4 macacos com miniaturas ao vivo e bombardeio de casca de banana!), 2P Local no mesmo teclado e Duelo Solo vs Gorila Bot!"
+  },
+  "controls": [
+    "Solo / Online: Setas ou A/D (mover), S/Seta Baixo (descer rápido), Espaço (queda instantânea)",
+    "Solo / Online: W / Seta Cima / X (girar horário), Z (girar anti-horário), C / Shift (guardar peça no Hold)",
+    "2P Local (Mesmo Teclado): J1 (A/D, S, W/Q girar, Espaço queda, C hold) vs J2 (Setas, Enter queda, ./R-Ctrl girar, R-Shift/M hold)",
+    "B: Buzina/Provocação Macaca • P: Pausar • R: Reinício rápido • Controles Touch no Mobile!"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}

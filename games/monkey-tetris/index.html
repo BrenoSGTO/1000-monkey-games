@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Macactris: Empilha Banana — Click Macacos</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #071a14;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        color: #fef9c3;
+        touch-action: none;
+      }
+      #app {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      canvas#game-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .mt-topbar-right {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 900;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .mt-pill-btn {
+        background: rgba(15, 23, 42, 0.88);
+        color: #fef08a;
+        border: 2px solid #facc15;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45);
+      }
+      .mt-pill-btn:hover {
+        background: #1e293b;
+        transform: translateY(-1px);
+      }
+      .mt-pill-btn:active {
+        transform: translateY(1px);
+      }
+      .mt-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 58px 16px 16px;
+        background: radial-gradient(circle at 50% 25%, rgba(22, 101, 52, 0.85), rgba(7, 15, 29, 0.94));
+        backdrop-filter: blur(5px);
+      }
+      .mt-overlay.hidden {
+        display: none;
+      }
+      .mt-card {
+        width: min(920px, 100%);
+        max-height: calc(100vh - 74px);
+        overflow-y: auto;
+        background: linear-gradient(180deg, #1b130a 0%, #0f172a 100%);
+        border: 3px solid #facc15;
+        border-radius: 20px;
+        padding: 20px 24px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.78);
+      }
+      .mt-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .mt-title {
+        margin: 0;
+        font-size: clamp(22px, 3.2vw, 34px);
+        font-weight: 900;
+        color: #fde047;
+        text-shadow: 0 3px 0 #78350f;
+      }
+      .mt-sub {
+        margin: 4px 0 0;
+        font-size: 13px;
+        color: #fed7aa;
+      }
+      .mt-badge {
+        font-size: 13px;
+        font-weight: 800;
+        color: #fde047;
+        background: #422006;
+        padding: 6px 14px;
+        border-radius: 999px;
+        border: 1.5px solid #facc15;
+      }
+      .mt-sec-lbl {
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #fbbf24;
+        margin: 12px 0 8px;
+      }
+      .mt-modes {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+        gap: 9px;
+      }
+      .mt-mode-btn {
+        background: #1e293b;
+        border: 2px solid #334155;
+        border-radius: 12px;
+        padding: 10px 12px;
+        color: #f8fafc;
+        text-align: left;
+        cursor: pointer;
+        transition: transform 0.1s ease, border-color 0.15s ease, background 0.15s ease;
+      }
+      .mt-mode-btn:hover {
+        transform: translateY(-2px);
+        border-color: #fbbf24;
+      }
+      .mt-mode-btn.active {
+        background: #422006;
+        border-color: #facc15;
+        box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.35);
+      }
+      .mt-mode-t {
+        font-weight: 900;
+        font-size: 14px;
+        color: #fde047;
+      }
+      .mt-mode-d {
+        font-size: 11.5px;
+        color: #cbd5e1;
+        margin-top: 3px;
+        line-height: 1.35;
+      }
+      .mt-options-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .mt-chip-btn {
+        background: #1e293b;
+        border: 2px solid #475569;
+        color: #e2e8f0;
+        border-radius: 10px;
+        padding: 7px 12px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      .mt-chip-btn.active {
+        background: #14532d;
+        border-color: #4ade80;
+        color: #dcfce7;
+      }
+      .mt-controls {
+        margin-top: 12px;
+        background: rgba(15, 23, 42, 0.72);
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 12px;
+        color: #e2e8f0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(225px, 1fr));
+        gap: 6px 14px;
+      }
+      .mt-kbd {
+        display: inline-block;
+        background: #0f172a;
+        border: 1px solid #64748b;
+        border-radius: 5px;
+        padding: 1px 6px;
+        font-weight: 800;
+        color: #fde047;
+        font-size: 11px;
+      }
+      .mt-footer {
+        margin-top: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .mt-play-btn {
+        background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
+        color: #422006;
+        border: 3px solid #fef08a;
+        border-radius: 14px;
+        padding: 12px 30px;
+        font-size: 18px;
+        font-weight: 900;
+        cursor: pointer;
+        box-shadow: 0 5px 0 #854d0e;
+        transition: transform 0.1s ease;
+      }
+      .mt-play-btn:hover {
+        transform: translateY(-2px);
+      }
+      .mt-play-btn:active {
+        transform: translateY(2px);
+        box-shadow: 0 2px 0 #854d0e;
+      }
+      .mt-play-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .mt-sec-btn {
+        background: #334155;
+        color: #f8fafc;
+        border: 2px solid #64748b;
+        border-radius: 12px;
+        padding: 10px 18px;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      .mt-sec-btn:hover {
+        background: #475569;
+      }
+      .mt-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+        gap: 10px;
+        margin: 14px 0;
+      }
+      .mt-stat {
+        background: #1e293b;
+        border: 2px solid #475569;
+        border-radius: 12px;
+        padding: 10px;
+        text-align: center;
+      }
+      .mt-stat-v {
+        font-size: 22px;
+        font-weight: 900;
+        color: #fde047;
+      }
+      .mt-stat-l {
+        font-size: 11px;
+        color: #cbd5e1;
+        margin-top: 2px;
+      }
+      .mt-touch-bar {
+        position: fixed;
+        bottom: 8px;
+        left: 8px;
+        right: 8px;
+        z-index: 500;
+        display: none;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 8px;
+        pointer-events: none;
+      }
+      .mt-touch-bar.visible {
+        display: flex;
+      }
+      .mt-touch-group {
+        display: grid;
+        gap: 6px;
+        pointer-events: auto;
+      }
+      .mt-touch-dpad {
+        grid-template-columns: repeat(3, 52px);
+      }
+      .mt-touch-actions {
+        grid-template-columns: repeat(2, 58px);
+      }
+      .mt-tbtn {
+        height: 50px;
+        background: rgba(15, 23, 42, 0.84);
+        border: 2px solid #facc15;
+        border-radius: 12px;
+        color: #fef08a;
+        font-weight: 900;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 3px 0 rgba(0, 0, 0, 0.5);
+        touch-action: manipulation;
+      }
+      .mt-tbtn.active,
+      .mt-tbtn:active {
+        background: #854d0e;
+        transform: translateY(2px);
+      }
+      .mt-tbtn.accent {
+        border-color: #4ade80;
+        color: #bbf7d0;
+      }
+      .mt-tbtn.drop {
+        border-color: #fb7185;
+        color: #fecdd3;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+    </div>
+
+    <div class="mt-topbar-right">
+      <button id="btn-music" class="mt-pill-btn" title="Alternar música synth">🎵 Música: ON</button>
+      <button id="btn-touch-toggle" class="mt-pill-btn" title="Mostrar/ocultar botões touch">📱 Touch</button>
+      <button id="btn-restart" class="mt-pill-btn" style="display:none;" title="Reiniciar partida (R)">🔄 Reiniciar</button>
+      <button id="btn-menu" class="mt-pill-btn" style="display:none;" title="Voltar ao menu">📋 Menu</button>
+    </div>
+
+    <!-- Mobile Touch Controls -->
+    <div id="touch-bar" class="mt-touch-bar">
+      <div class="mt-touch-group mt-touch-dpad">
+        <button class="mt-tbtn" data-act="left">◀</button>
+        <button class="mt-tbtn" data-act="down">▼</button>
+        <button class="mt-tbtn" data-act="right">▶</button>
+        <button class="mt-tbtn accent" data-act="hold" style="grid-column: span 3; height: 40px; font-size: 13px;">
+          📦 GUARDAR (HOLD)
+        </button>
+      </div>
+      <div class="mt-touch-group mt-touch-actions">
+        <button class="mt-tbtn" data-act="ccw">↺</button>
+        <button class="mt-tbtn" data-act="cw">↻</button>
+        <button class="mt-tbtn drop" data-act="hard" style="grid-column: span 2; height: 48px; font-size: 13px;">
+          💥 QUEDA RÁPIDA
+        </button>
+      </div>
+    </div>
+
+    <!-- Title & Mode Select Overlay -->
+    <div id="menu-overlay" class="mt-overlay">
+      <div class="mt-card">
+        <div class="mt-header">
+          <div>
+            <h1 class="mt-title">🍌 Macactris: Empilha Banana</h1>
+            <p class="mt-sub">Caixotes de banana, cocos e macacos espremidos com T-Giro, combos zoeiros e duelo P2P!</p>
+          </div>
+          <div id="mt-best-badge" class="mt-badge">🏆 Recorde: 0 pts</div>
+        </div>
+
+        <div class="mt-sec-lbl">1. Escolha o Modo</div>
+        <div class="mt-modes" id="mt-modes">
+          <button class="mt-mode-btn active" data-mode="solo_marathon">
+            <div class="mt-mode-t">🍌 Solo Maratona</div>
+            <div class="mt-mode-d">Clássico infinito! Acelera a cada 10 linhas. Faça MACACTRIS e busque o recorde!</div>
+          </button>
+          <button class="mt-mode-btn" data-mode="solo_sprint">
+            <div class="mt-mode-t">⚡ Sprint 40 Linhas</div>
+            <div class="mt-mode-d">Limpe 40 linhas no menor tempo possível sem travar os cipós!</div>
+          </button>
+          <button class="mt-mode-btn" data-mode="vs_bot">
+            <div class="mt-mode-t">🦍 Duelo vs Gorila Bot</div>
+            <div class="mt-mode-d">Limpe linhas e mande lixo de casca de banana pro Bot Gorila!</div>
+          </button>
+          <button class="mt-mode-btn" data-mode="local_2p">
+            <div class="mt-mode-t">🐒🐒 2P Local</div>
+            <div class="mt-mode-d">Dois macacos no mesmo teclado! Bombardeiem um ao outro com cascas!</div>
+          </button>
+          <button class="mt-mode-btn" data-mode="online_versus">
+            <div class="mt-mode-t">🌐 Online P2P (2-4)</div>
+            <div class="mt-mode-d">Abra ou entre na sala lá em cima no botão verde e veja os tabuleiros rivais!</div>
+          </button>
+        </div>
+
+        <div class="mt-sec-lbl" id="mt-opt-label">2. Velocidade Inicial & Dificuldade</div>
+        <div class="mt-options-row" id="mt-options-row">
+          <button class="mt-chip-btn active" data-level="1">Nível 1 (Suave)</button>
+          <button class="mt-chip-btn" data-level="4">Nível 4 (Esperto)</button>
+          <button class="mt-chip-btn" data-level="8">Nível 8 (Surtado)</button>
+          <span style="width:12px;"></span>
+          <button class="mt-chip-btn" data-bot="sagui">Bot: Sagui</button>
+          <button class="mt-chip-btn active" data-bot="chimp">Bot: Chimp</button>
+          <button class="mt-chip-btn" data-bot="gorila">Bot: Gorila</button>
+        </div>
+
+        <div class="mt-controls" id="mt-controls-box">
+          <div><span class="mt-kbd">A/D</span> ou <span class="mt-kbd">◀/▶</span> Mover • <span class="mt-kbd">S/▼</span> Descer</div>
+          <div><span class="mt-kbd">Espaço</span> Queda Instantânea • <span class="mt-kbd">C/Shift</span> Hold</div>
+          <div><span class="mt-kbd">W/▲/X</span> Girar Horário • <span class="mt-kbd">Z</span> Girar Anti-horário</div>
+          <div><span class="mt-kbd">B</span> Buzina Macaca • <span class="mt-kbd">P</span> Pausa • <span class="mt-kbd">R</span> Reiniciar</div>
+        </div>
+
+        <div class="mt-footer">
+          <div id="mt-status-line" style="font-size:13px;color:#86efac;font-weight:700;">
+            Pronto para empilhar bananas!
+          </div>
+          <button id="mt-start-btn" class="mt-play-btn">🍌 JOGAR!</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Overlay -->
+    <div id="results-overlay" class="mt-overlay hidden">
+      <div class="mt-card" style="max-width:540px;text-align:center;">
+        <h2 class="mt-title" id="res-title">🏁 Fim da Partida!</h2>
+        <p class="mt-sub" id="res-subtitle">Resumo da macacada</p>
+        <div class="mt-stats-grid">
+          <div class="mt-stat">
+            <div class="mt-stat-v" id="res-score">0</div>
+            <div class="mt-stat-l">Pontuação</div>
+          </div>
+          <div class="mt-stat">
+            <div class="mt-stat-v" id="res-lines">0</div>
+            <div class="mt-stat-l">Linhas Limpas</div>
+          </div>
+          <div class="mt-stat">
+            <div class="mt-stat-v" id="res-combo">0x</div>
+            <div class="mt-stat-l">Maior Combo</div>
+          </div>
+          <div class="mt-stat">
+            <div class="mt-stat-v" id="res-time">0.0s</div>
+            <div class="mt-stat-l">Tempo</div>
+          </div>
+        </div>
+        <div class="mt-footer" style="justify-content:center;">
+          <button id="res-replay-btn" class="mt-play-btn">🔄 Jogar Novamente</button>
+          <button id="res-menu-btn" class="mt-sec-btn">📋 Menu Principal</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
