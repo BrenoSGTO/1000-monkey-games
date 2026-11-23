@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360">
+  <defs>
+    <radialGradient id="bgRad" cx="50%" cy="54%" r="70%">
+      <stop offset="0%" stop-color="#1e1b4b" />
+      <stop offset="55%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#070910" />
+    </radialGradient>
+    <radialGradient id="auraGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#4ade80" stop-opacity="0.34" />
+      <stop offset="65%" stop-color="#22c55e" stop-opacity="0.14" />
+      <stop offset="100%" stop-color="#22c55e" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="bananaGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="100%" stop-color="#eab308" />
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Arena Background -->
+  <rect width="640" height="360" fill="url(#bgRad)" />
+  <g stroke="#1e293b" stroke-width="1.5" opacity="0.45">
+    <path d="M0 72 H640 M0 144 H640 M0 216 H640 M0 288 H640" />
+    <path d="M80 0 V360 M160 0 V360 M240 0 V360 M320 0 V360 M400 0 V360 M480 0 V360 M560 0 V360" />
+  </g>
+
+  <!-- Stink Aura Circle -->
+  <circle cx="320" cy="205" r="122" fill="url(#auraGrad)" stroke="#4ade80" stroke-width="2" stroke-dasharray="8 6" opacity="0.85" />
+
+  <!-- Wi-Fi Lightning Bolt -->
+  <path d="M190 40 L218 96 L196 100 L228 164" fill="none" stroke="#38bdf8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)" />
+  <circle cx="228" cy="166" r="14" fill="#38bdf8" opacity="0.35" filter="url(#glow)" />
+
+  <!-- XP Banana Gems -->
+  <g filter="url(#glow)">
+    <ellipse cx="248" cy="272" rx="7" ry="11" transform="rotate(-25 248 272)" fill="#4ade80" stroke="#14532d" stroke-width="2" />
+    <ellipse cx="385" cy="285" rx="8" ry="12" transform="rotate(20 385 285)" fill="#facc15" stroke="#713f12" stroke-width="2" />
+    <ellipse cx="422" cy="152" rx="7" ry="11" transform="rotate(-15 422 152)" fill="#38bdf8" stroke="#0c4a6e" stroke-width="2" />
+    <ellipse cx="195" cy="252" rx="7" ry="10" transform="rotate(35 195 252)" fill="#facc15" stroke="#713f12" stroke-width="2" />
+  </g>
+
+  <!-- Horde Left: Flying Boletos -->
+  <g transform="translate(86, 155) rotate(-14)">
+    <rect x="-32" y="-22" width="64" height="44" rx="5" fill="#fefce8" stroke="#dc2626" stroke-width="3" />
+    <line x1="-22" y1="-10" x2="22" y2="-10" stroke="#94a3b8" stroke-width="3" />
+    <line x1="-22" y1="-2" x2="10" y2="-2" stroke="#94a3b8" stroke-width="3" />
+    <rect x="-18" y="6" width="36" height="10" fill="#0f172a" />
+    <text x="-20" y="-14" fill="#dc2626" font-family="monospace" font-weight="900" font-size="10">VENCIDO</text>
+    <circle cx="-10" cy="-2" r="3" fill="#dc2626" />
+    <circle cx="10" cy="-2" r="3" fill="#dc2626" />
+  </g>
+
+  <g transform="translate(128, 268) rotate(12)">
+    <rect x="-30" y="-20" width="60" height="40" rx="5" fill="#fef2f2" stroke="#ef4444" stroke-width="3" />
+    <text x="-22" y="-7" fill="#b91c1c" font-family="monospace" font-weight="900" font-size="9">JUROS 14%</text>
+    <rect x="-18" y="4" width="36" height="9" fill="#0f172a" />
+  </g>
+
+  <!-- Horde Left-Top: Pombo Coach -->
+  <g transform="translate(122, 78)">
+    <ellipse cx="0" cy="6" rx="24" ry="20" fill="#94a3b8" stroke="#1e293b" stroke-width="3" />
+    <circle cx="12" cy="-12" r="14" fill="#cbd5e1" stroke="#1e293b" stroke-width="3" />
+    <polygon points="24,-12 36,-8 24,-4" fill="#f97316" stroke="#1e293b" stroke-width="2" />
+    <polygon points="8,4 2,24 14,24" fill="#ef4444" />
+    <circle cx="15" cy="-14" r="3.5" fill="#ef4444" />
+    <rect x="-28" y="-38" width="78" height="18" rx="6" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5" />
+    <text x="-22" y="-26" fill="#e0f2fe" font-family="system-ui, sans-serif" font-weight="800" font-size="9">MUDE O MINDSET!</text>
+  </g>
+
+  <!-- Horde Right: Gerente Zumbi & Babuíno de Terno -->
+  <g transform="translate(528, 148)">
+    <ellipse cx="0" cy="20" rx="26" ry="28" fill="#4ade80" stroke="#14532d" stroke-width="3" />
+    <rect x="-14" y="4" width="28" height="28" rx="4" fill="#f8fafc" stroke="#334155" stroke-width="2" />
+    <polygon points="0,4 -5,16 0,30 5,16" fill="#ef4444" />
+    <circle cx="0" cy="-14" r="22" fill="#86efac" stroke="#14532d" stroke-width="3" />
+    <circle cx="-7" cy="-16" r="5" fill="#fef08a" stroke="#14532d" stroke-width="2" />
+    <circle cx="7" cy="-16" r="5" fill="#fef08a" stroke="#14532d" stroke-width="2" />
+    <circle cx="-7" cy="-16" r="2" fill="#dc2626" />
+    <circle cx="7" cy="-16" r="2" fill="#dc2626" />
+    <path d="M-8 -5 Q0 -1 8 -5" fill="none" stroke="#14532d" stroke-width="2.5" />
+  </g>
+
+  <g transform="translate(535, 272)">
+    <ellipse cx="0" cy="18" rx="30" ry="28" fill="#1e293b" stroke="#020617" stroke-width="3" />
+    <polygon points="0,0 -6,14 0,28 6,14" fill="#dc2626" />
+    <circle cx="0" cy="-14" r="23" fill="#7c2d12" stroke="#1c1917" stroke-width="3" />
+    <ellipse cx="0" cy="-8" rx="14" ry="11" fill="#fb7185" />
+    <rect x="-16" y="-20" width="13" height="8" rx="2" fill="#0f172a" stroke="#facc15" stroke-width="1.5" />
+    <rect x="3" y="-20" width="13" height="8" rx="2" fill="#0f172a" stroke="#facc15" stroke-width="1.5" />
+    <rect x="24" y="10" width="28" height="22" rx="4" fill="#78350f" stroke="#facc15" stroke-width="2" />
+  </g>
+
+  <!-- Orbiting Coconuts & Banana Boomerang -->
+  <g transform="translate(320, 205)">
+    <!-- Orbit ring -->
+    <circle cx="0" cy="0" r="82" fill="none" stroke="#facc15" stroke-width="2" stroke-dasharray="5 7" opacity="0.45" />
+    <circle cx="-82" cy="0" r="14" fill="#65a30d" stroke="#1a2e05" stroke-width="3" />
+    <circle cx="82" cy="0" r="14" fill="#65a30d" stroke="#1a2e05" stroke-width="3" />
+    <circle cx="0" cy="-82" r="14" fill="#65a30d" stroke="#1a2e05" stroke-width="3" />
+
+    <!-- Banana Boomerang -->
+    <path d="M62 -64 Q96 -88 118 -46 Q88 -42 62 -64 Z" fill="url(#bananaGrad)" stroke="#713f12" stroke-width="2.5" filter="url(#glow)" />
+    <!-- Homing Slipper -->
+    <g transform="translate(-96, -54) rotate(-32)" filter="url(#glow)">
+      <ellipse cx="0" cy="0" rx="18" ry="9" fill="#fb7185" stroke="#881337" stroke-width="2.5" />
+      <path d="M-8 -4 L4 0 L-8 4" fill="none" stroke="#fff1f2" stroke-width="2.5" stroke-linecap="round" />
+    </g>
+  </g>
+
+  <!-- HERO MONKEY (Center) -->
+  <g transform="translate(320, 205)">
+    <ellipse cx="0" cy="40" rx="26" ry="9" fill="rgba(0,0,0,0.45)" />
+    <!-- Tail -->
+    <path d="M-18 20 Q-48 18 -44 -8 Q-40 -22 -28 -16" fill="none" stroke="#92400e" stroke-width="8" stroke-linecap="round" />
+    <!-- Body -->
+    <ellipse cx="0" cy="18" rx="22" ry="24" fill="#92400e" stroke="#451a03" stroke-width="3" />
+    <ellipse cx="0" cy="20" rx="14" ry="17" fill="#fde68a" />
+    <!-- Tie -->
+    <polygon points="0,6 -4,16 0,28 4,16" fill="#38bdf8" stroke="#0c4a6e" stroke-width="1.5" />
+    <!-- Ears -->
+    <circle cx="-25" cy="-14" r="10" fill="#a16207" stroke="#451a03" stroke-width="3" />
+    <circle cx="-25" cy="-14" r="5" fill="#fca5a5" />
+    <circle cx="25" cy="-14" r="10" fill="#a16207" stroke="#451a03" stroke-width="3" />
+    <circle cx="25" cy="-14" r="5" fill="#fca5a5" />
+    <!-- Head -->
+    <circle cx="0" cy="-14" r="24" fill="#a16207" stroke="#451a03" stroke-width="3" />
+    <ellipse cx="0" cy="-8" rx="18" ry="14" fill="#fde68a" />
+    <!-- Eyes -->
+    <circle cx="-7" cy="-14" r="6.5" fill="#ffffff" stroke="#1e293b" stroke-width="2" />
+    <circle cx="7" cy="-14" r="6.5" fill="#ffffff" stroke="#1e293b" stroke-width="2" />
+    <circle cx="-5.5" cy="-13.5" r="3" fill="#0f172a" />
+    <circle cx="5.5" cy="-14.5" r="3" fill="#0f172a" />
+    <!-- Grin -->
+    <path d="M-8 -3 Q0 4 8 -3" fill="none" stroke="#451a03" stroke-width="2.5" stroke-linecap="round" />
+    <!-- Headband -->
+    <rect x="-23" y="-28" width="46" height="8" rx="3" fill="#ef4444" stroke="#7f1d1d" stroke-width="2" />
+  </g>
+
+  <!-- Floating Damage Numbers -->
+  <text x="150" y="138" fill="#fef08a" font-family="system-ui, sans-serif" font-weight="900" font-size="18" stroke="#000" stroke-width="3" paint-order="stroke">-128!</text>
+  <text x="458" y="118" fill="#fb7185" font-family="system-ui, sans-serif" font-weight="900" font-size="20" stroke="#000" stroke-width="3" paint-order="stroke">CRÍTICO 256!</text>
+
+  <!-- Title Banner -->
+  <g transform="translate(130, 14)">
+    <rect x="0" y="0" width="380" height="62" rx="14" fill="rgba(15, 23, 42, 0.92)" stroke="#facc15" stroke-width="3" />
+    <text x="190" y="29" text-anchor="middle" fill="#fef08a" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="24" letter-spacing="0.5">MACACO SURVIVORS</text>
+    <text x="190" y="50" text-anchor="middle" fill="#fb7185" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="13" letter-spacing="1.2">A HORDA DO BOLETO 🍌🧾⚡</text>
+  </g>
+</svg>

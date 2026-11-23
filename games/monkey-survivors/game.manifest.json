@@ -1,0 +1,26 @@
+{
+  "slug": "monkey-survivors",
+  "title": "Macaco Survivors: A Horda do Boleto",
+  "subtitle": "Sobreviva 15 minutos à horda de Boletos Voadores, Pombos Coach e Gerentes Zumbis!",
+  "inspiredBy": "Vampire Survivors",
+  "description": "Bullet-heaven roguelite com ataque automático em 8 direções! Escolha entre 5 macacos desbloqueáveis, colete bananinhas de XP, combine 10 armas absurdas (Bumerangue de Banana, Aura de Fedor, Coco Orbital, Raio do Wi-Fi da Vizinha, Chinelo Teleguiado e mais) com 6 passivas para forjar 10 Evoluções Lendárias, enfrente 5 Bosses implacáveis e jogue Solo ou Co-op P2P (2 a 4 macacos com XP compartilhado e revive no toque)!",
+  "category": "acao",
+  "tags": ["roguelite", "bullet-heaven", "survivors", "horda", "coop", "auto-shooter", "macacos"],
+  "emoji": "🧾",
+  "accentColor": "#facc15",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop",
+    "maxPlayers": 4,
+    "summary": "Co-op P2P de 2 a 4 macacos (host autoritativo): barra de XP compartilhada, draft de cartas sincronizado no level-up e revive encostando no amigo caído!"
+  },
+  "controls": [
+    "WASD ou Setas: Mover o macaco em 8 direções (os ataques são automáticos!)",
+    "Mobile / Touch: Joystick virtual dinâmico em qualquer ponto da tela",
+    "1 / 2 / 3 ou Clique/Toque: Escolher carta de upgrade no Level-Up",
+    "P ou Esc: Pausar partida • Co-op: Encoste no amigo caído por 2s para reviver!"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
