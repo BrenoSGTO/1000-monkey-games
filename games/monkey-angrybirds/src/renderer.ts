@@ -125,7 +125,9 @@ export class GameRenderer {
     if (aim.loadedMonkey) {
       const dx = SLING_POS.x - pouchPos.x;
       const dy = SLING_POS.y - pouchPos.y;
+      const pullMag = Math.hypot(dx, dy);
       const aimAngle = aim.isAiming ? Math.atan2(dy, dx) * 0.35 : 0;
+      const stretch = aim.isAiming ? Math.min(0.14, pullMag * 0.045) : 0;
       this.drawMonkeySprite(
         ctx,
         aim.loadedMonkey,
@@ -136,6 +138,12 @@ export class GameRenderer {
         aim.isAiming,
         false,
         time,
+        {
+          squashX: 1 + stretch,
+          squashY: 1 - stretch * 0.7,
+          aimerColor: aim.aimerColor,
+          seed: 1.1,
+        },
       );
       if (aim.aimerName && aim.isAiming) {
         this.drawWorldLabel(
@@ -184,7 +192,9 @@ export class GameRenderer {
       }
       const pos = monkey.body.getPosition();
       const vel = monkey.body.getLinearVelocity();
-      const screaming = Math.hypot(vel.x, vel.y) > 4;
+      const speed = Math.hypot(vel.x, vel.y);
+      const screaming = speed > 4;
+      const stretch = Math.min(0.14, speed * 0.008);
       this.drawMonkeySprite(
         ctx,
         monkey.monkeyKind,
@@ -195,6 +205,12 @@ export class GameRenderer {
         screaming,
         monkey.powerUsed,
         time,
+        {
+          squashX: monkey.hasCollided && speed < 3 ? 1.06 : 1 + stretch,
+          squashY: monkey.hasCollided && speed < 3 ? 0.94 : 1 - stretch * 0.65,
+          dizzy: monkey.hasCollided && speed < 2.2,
+          seed: monkey.id * 1.37,
+        },
       );
     }
 
@@ -458,10 +474,17 @@ export class GameRenderer {
     for (let i = 0; i < queue.length; i++) {
       const kind = queue[i];
       const spec = MONKEY_SPECS[kind];
-      const hop = Math.abs(Math.sin(time * 3.8 + i * 1.3)) * 0.22;
+      const hopPhase = Math.sin(time * 3.8 + i * 1.3);
+      const hop = Math.abs(hopPhase) * 0.22;
+      const squash = hop < 0.04 ? 0.09 : -hop * 0.25;
       const x = SLING_POS.x - 1.75 - i * 1.28;
-      const y = spec.radius + hop;
-      this.drawMonkeySprite(ctx, kind, x, y, spec.radius * 0.9, 0, false, false, time);
+      const y = spec.radius * (1 - squash * 0.5) + hop;
+      this.drawMonkeySprite(ctx, kind, x, y, spec.radius * 0.9, 0, false, false, time, {
+        squashX: 1 + squash,
+        squashY: 1 - squash,
+        isWaiting: true,
+        seed: 4.2 + i * 2.1,
+      });
     }
   }
 
@@ -569,134 +592,317 @@ export class GameRenderer {
     screaming: boolean,
     powerUsed: boolean,
     time: number,
+    opts?: {
+      squashX?: number;
+      squashY?: number;
+      aimerColor?: string;
+      isWaiting?: boolean;
+      dizzy?: boolean;
+      seed?: number;
+    },
   ): void {
     const spec = MONKEY_SPECS[kind];
+    const seed = opts?.seed ?? 0.5;
+    const breath = !screaming ? Math.sin(time * 3.5 + seed) * 0.028 : 0;
+    const sx = (opts?.squashX ?? 1) * (1 - breath * 0.6);
+    const sy = (opts?.squashY ?? 1) * (1 + breath);
+    const outline = '#1e1b18';
+
+    // Palettes per monkey kind (fur highlight, base, shadow, mask)
+    const paletteMap: Record<
+      MonkeyKind,
+      { hi: string; base: string; dark: string; mask: string; maskDark: string; innerEar: string }
+    > = {
+      normal: { hi: '#d97706', base: '#b45309', dark: '#78350f', mask: '#fef3c7', maskDark: '#fcd34d', innerEar: '#fda4af' },
+      triple: { hi: '#38bdf8', base: '#0284c7', dark: '#075985', mask: '#fef9c3', maskDark: '#fde68a', innerEar: '#f9a8d4' },
+      bomb: { hi: '#4b5563', base: '#1f2937', dark: '#030712', mask: '#fed7aa', maskDark: '#fdba74', innerEar: '#fda4af' },
+      tank: { hi: '#7e22ce', base: '#4c1d95', dark: '#2e1065', mask: '#e9d5ff', maskDark: '#c084fc', innerEar: '#f472b6' },
+      boomerang: { hi: '#4ade80', base: '#15803d', dark: '#052e16', mask: '#fef9c3', maskDark: '#fde047', innerEar: '#fda4af' },
+      bomber: { hi: '#f1f5f9', base: '#cbd5e1', dark: '#64748b', mask: '#fef3c7', maskDark: '#fed7aa', innerEar: '#fda4af' },
+    };
+    const pal = paletteMap[kind];
+
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
+    ctx.scale(sx, sy);
 
-    // Aura if power is active
+    // Multiplayer turn indicator ring or active power aura
+    if (opts?.aimerColor) {
+      ctx.strokeStyle = opts.aimerColor;
+      ctx.lineWidth = 0.085;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.24, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     if (powerUsed) {
       ctx.strokeStyle = spec.accentColor;
-      ctx.lineWidth = 0.07;
+      ctx.lineWidth = 0.08;
       ctx.beginPath();
-      ctx.arc(0, 0, r * 1.18, 0, Math.PI * 2);
+      ctx.arc(0, 0, r * 1.2, 0, Math.PI * 2);
       ctx.stroke();
     }
 
-    // Ears
-    ctx.fillStyle = spec.primaryColor;
-    ctx.strokeStyle = '#1e293b';
+    // 1. Curved Monkey Tail trailing behind (-x) with secondary motion
+    const tailWag = Math.sin(time * (screaming ? 18 : 4.5) + seed) * r * 0.22;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = r * 0.34;
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.72, -r * 0.25);
+    ctx.bezierCurveTo(-r * 1.38, -r * 0.45 + tailWag, -r * 1.48, r * 0.38 + tailWag, -r * 1.08, r * 0.52 + tailWag * 0.7);
+    ctx.stroke();
+    ctx.strokeStyle = pal.dark;
+    ctx.lineWidth = r * 0.2;
+    ctx.stroke();
+    ctx.fillStyle = pal.maskDark;
+    ctx.beginPath();
+    ctx.arc(-r * 1.08, r * 0.52 + tailWag * 0.7, r * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Trailing bandana/scarf ribbons (normal, boomerang, bomber)
+    if (kind === 'normal' || kind === 'boomerang' || kind === 'bomber') {
+      const flutter = Math.sin(time * (screaming ? 22 : 6) + seed) * r * 0.14;
+      ctx.fillStyle = kind === 'normal' ? '#dc2626' : kind === 'boomerang' ? '#84cc16' : '#ef4444';
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 0.05;
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.85, r * 0.26);
+      ctx.lineTo(-r * 1.45, r * 0.45 + flutter);
+      ctx.lineTo(-r * 1.28, r * 0.15 + flutter);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // 3. Big Round Ears with rosy inner ear + subtle secondary bounce
+    const earBob = screaming ? Math.sin(time * 24 + seed) * r * 0.06 : Math.sin(time * 3.5 + seed) * r * 0.03;
+    ctx.strokeStyle = outline;
     ctx.lineWidth = 0.06;
     for (const side of [-1, 1]) {
+      const ex = side * r * 0.94;
+      const ey = r * 0.18 + earBob;
+      ctx.fillStyle = pal.base;
       ctx.beginPath();
-      ctx.arc(side * r * 0.92, r * 0.1, r * 0.36, 0, Math.PI * 2);
+      ctx.arc(ex, ey, r * 0.36, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = '#fde68a';
+
+      ctx.fillStyle = pal.innerEar;
       ctx.beginPath();
-      ctx.arc(side * r * 0.92, r * 0.1, r * 0.18, 0, Math.PI * 2);
+      ctx.arc(ex, ey, r * 0.2, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = spec.primaryColor;
     }
 
-    // Head / Body circle
-    ctx.fillStyle = spec.primaryColor;
+    // 4. Fluffy Hair Tuft on Top (+y)
+    if (kind === 'normal' || kind === 'triple' || kind === 'boomerang') {
+      ctx.fillStyle = kind === 'triple' ? '#38bdf8' : pal.base;
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 0.055;
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.28, r * 0.86);
+      ctx.lineTo(-r * 0.14, r * 1.25);
+      ctx.lineTo(0, r * 1.02);
+      ctx.lineTo(r * 0.16, r * 1.32);
+      ctx.lineTo(r * 0.3, r * 0.86);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // 5. Main Spherical Head/Body with 3D Radial Gradient
+    const furGrad = ctx.createRadialGradient(-r * 0.32, r * 0.38, r * 0.12, 0, 0, r * 1.05);
+    furGrad.addColorStop(0, pal.hi);
+    furGrad.addColorStop(0.55, pal.base);
+    furGrad.addColorStop(1, pal.dark);
+    ctx.fillStyle = furGrad;
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = 0.065;
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // Accessories per type
-    if (kind === 'normal') {
-      // Furious red headband
-      ctx.fillStyle = '#dc2626';
-      ctx.fillRect(-r * 0.94, r * 0.18, r * 1.88, r * 0.26);
-    } else if (kind === 'triple') {
-      // 3 hair tufts
-      ctx.fillStyle = '#38bdf8';
-      ctx.beginPath();
-      ctx.moveTo(-r * 0.35, r * 0.85);
-      ctx.lineTo(0, r * 1.38);
-      ctx.lineTo(r * 0.35, r * 0.85);
-      ctx.closePath();
-      ctx.fill();
-    } else if (kind === 'bomb') {
-      // Burning fuse on top!
-      ctx.strokeStyle = '#d97706';
-      ctx.lineWidth = 0.09;
-      ctx.beginPath();
-      ctx.moveTo(0, r * 0.92);
-      ctx.quadraticCurveTo(r * 0.35, r * 1.35, r * 0.55, r * 1.25);
-      ctx.stroke();
-      const sparkR = 0.13 + Math.sin(time * 24) * 0.05;
-      ctx.fillStyle = '#fde047';
-      ctx.beginPath();
-      ctx.arc(r * 0.55, r * 1.25, sparkR, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (kind === 'tank') {
-      // Silverback crest & visor
-      ctx.fillStyle = '#c084fc';
-      ctx.beginPath();
-      ctx.arc(0, r * 0.25, r * 0.85, 0.2, Math.PI - 0.2);
-      ctx.fill();
-    } else if (kind === 'boomerang') {
-      // Banana-boomerang crest
-      ctx.fillStyle = '#fde047';
-      ctx.strokeStyle = '#854d0e';
+    // 6. Carried Coconut Bomb (bomber before powerUsed) & Tiny Tucked Hands/Feet
+    if (kind === 'bomber' && !powerUsed) {
+      ctx.fillStyle = '#5c3a21';
+      ctx.strokeStyle = '#fb923c';
       ctx.lineWidth = 0.05;
       ctx.beginPath();
-      ctx.arc(0, r * 0.9, r * 0.48, 0, Math.PI);
+      ctx.arc(0, -r * 1.02, r * 0.42, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-    } else if (kind === 'bomber') {
-      // Aviator cap & goggles strap + carried coconut bomb
-      ctx.fillStyle = '#78350f';
+      ctx.fillStyle = '#1c1917';
       ctx.beginPath();
-      ctx.arc(0, r * 0.15, r * 0.98, 0.15, Math.PI - 0.15);
+      ctx.arc(-r * 0.12, -r * 0.96, r * 0.06, 0, Math.PI * 2);
+      ctx.arc(r * 0.12, -r * 0.96, r * 0.06, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#f59e0b';
-      ctx.fillRect(-r * 0.92, -r * 0.72, r * 1.84, r * 0.24);
-      if (!powerUsed) {
-        ctx.fillStyle = '#5c3317';
-        ctx.strokeStyle = '#fb923c';
-        ctx.lineWidth = 0.04;
-        ctx.beginPath();
-        ctx.arc(0, -r * 0.95, r * 0.42, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-      }
     }
 
-    // Muzzle / face patch
-    ctx.fillStyle = '#fde68a';
-    ctx.beginPath();
-    ctx.ellipse(0, -r * 0.26, r * 0.66, r * 0.48, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Googly cross-eyed furious eyes
-    const eyeY = r * 0.08;
-    const eyeX = r * 0.32;
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = '#0f172a';
+    // Cute tucked monkey paws/feet at bottom (-y)
+    ctx.fillStyle = pal.maskDark;
+    ctx.strokeStyle = outline;
     ctx.lineWidth = 0.05;
     for (const side of [-1, 1]) {
       ctx.beginPath();
-      ctx.arc(side * eyeX, eyeY, r * 0.24, 0, Math.PI * 2);
+      ctx.ellipse(side * r * 0.48, -r * 0.88, r * 0.22, r * 0.14, side * 0.25, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-      // Slightly cross-eyed pupils!
-      ctx.fillStyle = '#0f172a';
+    }
+
+    // 7. Heart / Peanut-Shaped Cream Face Mask (Y-up: upper eye lobes at +y, wider muzzle at -y)
+    const maskGrad = ctx.createLinearGradient(0, r * 0.45, 0, -r * 0.72);
+    maskGrad.addColorStop(0, pal.mask);
+    maskGrad.addColorStop(1, pal.maskDark);
+    ctx.fillStyle = maskGrad;
+    ctx.strokeStyle = pal.dark;
+    ctx.lineWidth = 0.035;
+    ctx.beginPath();
+    ctx.moveTo(0, r * 0.24);
+    ctx.bezierCurveTo(r * 0.36, r * 0.62, r * 0.82, r * 0.28, r * 0.68, -r * 0.06);
+    ctx.bezierCurveTo(r * 0.84, -r * 0.44, r * 0.45, -r * 0.75, 0, -r * 0.7);
+    ctx.bezierCurveTo(-r * 0.45, -r * 0.75, -r * 0.84, -r * 0.44, -r * 0.68, -r * 0.06);
+    ctx.bezierCurveTo(-r * 0.82, r * 0.28, -r * 0.36, r * 0.62, 0, r * 0.24);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 8. Type-specific Headgear & Accessories (drawn over head/mask edge)
+    if (kind === 'normal') {
+      // Furious red headband across forehead (+y)
+      ctx.fillStyle = '#dc2626';
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 0.05;
       ctx.beginPath();
-      ctx.arc(side * eyeX - side * r * 0.05, eyeY + (side > 0 ? 0.03 : -0.02), r * 0.095, 0, Math.PI * 2);
+      ctx.roundRect(-r * 0.94, r * 0.26, r * 1.88, r * 0.24, r * 0.08);
       ctx.fill();
-      ctx.fillStyle = '#ffffff';
+      ctx.stroke();
+    } else if (kind === 'bomb') {
+      // Brass collar & burning fuse on top (+y)
+      ctx.fillStyle = '#f59e0b';
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 0.045;
+      ctx.beginPath();
+      ctx.roundRect(-r * 0.18, r * 0.88, r * 0.36, r * 0.18, r * 0.06);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = '#d97706';
+      ctx.lineWidth = 0.09;
+      ctx.beginPath();
+      ctx.moveTo(0, r * 1.04);
+      ctx.quadraticCurveTo(r * 0.35, r * 1.44, r * 0.58, r * 1.32);
+      ctx.stroke();
+      const sparkR = r * (0.24 + Math.sin(time * 26) * 0.08);
+      ctx.fillStyle = '#f97316';
+      ctx.beginPath();
+      ctx.arc(r * 0.58, r * 1.32, sparkR * 1.25, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(r * 0.58, r * 1.32, sparkR * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (kind === 'tank') {
+      // Heavy silverback brow crest & purple shoulder armor plates
+      ctx.fillStyle = '#a855f7';
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 0.05;
+      ctx.beginPath();
+      ctx.arc(0, r * 0.32, r * 0.86, 0.2, Math.PI - 0.2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (kind === 'boomerang') {
+      // Curved golden banana-boomerang crest on crown (+y)
+      ctx.fillStyle = '#fde047';
+      ctx.strokeStyle = '#713f12';
+      ctx.lineWidth = 0.05;
+      ctx.beginPath();
+      ctx.arc(0, r * 0.92, r * 0.5, 0, Math.PI);
+      ctx.quadraticCurveTo(0, r * 1.12, -r * 0.5, r * 0.92);
+      ctx.fill();
+      ctx.stroke();
+    } else if (kind === 'bomber') {
+      // Aviator leather cap & chin strap
+      ctx.fillStyle = '#78350f';
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 0.055;
+      ctx.beginPath();
+      ctx.arc(0, r * 0.16, r * 1.0, 0.12, Math.PI - 0.12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // White aviator scarf
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.roundRect(-r * 0.72, -r * 0.86, r * 1.44, r * 0.22, r * 0.08);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // 9. Expressive Eyes (blinking, googly charm, white specular highlights)
+    const eyeY = r * 0.06;
+    const eyeX = r * 0.32;
+    const blinkCycle = (time * 0.85 + seed * 1.7) % 4.3;
+    const isBlinking = !screaming && !opts?.dizzy && blinkCycle > 4.14;
+
+    if (opts?.dizzy) {
+      // Dizzy X eyes after impact!
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = r * 0.1;
+      ctx.lineCap = 'round';
+      for (const side of [-1, 1]) {
+        const cx = side * eyeX;
+        const s = r * 0.14;
+        ctx.beginPath();
+        ctx.moveTo(cx - s, eyeY - s);
+        ctx.lineTo(cx + s, eyeY + s);
+        ctx.moveTo(cx + s, eyeY - s);
+        ctx.lineTo(cx - s, eyeY + s);
+        ctx.stroke();
+      }
+    } else if (isBlinking) {
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = r * 0.1;
+      ctx.lineCap = 'round';
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(side * eyeX - r * 0.18, eyeY);
+        ctx.lineTo(side * eyeX + r * 0.18, eyeY);
+        ctx.stroke();
+      }
+    } else {
+      const lookShift = screaming ? r * 0.07 : Math.sin(time * 2 + seed) * r * 0.03;
+      for (const side of [-1, 1]) {
+        const cx = side * eyeX;
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = outline;
+        ctx.lineWidth = 0.05;
+        ctx.beginPath();
+        ctx.arc(cx, eyeY, r * 0.24, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Slightly googly/cross-eyed pupils with expressive offset
+        const px = cx + (kind === 'triple' ? -side * r * 0.06 : lookShift);
+        const py = eyeY + (side > 0 ? r * 0.03 : -r * 0.02);
+        ctx.fillStyle = outline;
+        ctx.beginPath();
+        ctx.arc(px, py, r * 0.1, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Crisp white specular highlight (top-left in Y-up!)
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(px - r * 0.035, py + r * 0.04, r * 0.042, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     // Bomber aviator goggles rim
     if (kind === 'bomber') {
       ctx.strokeStyle = '#f59e0b';
-      ctx.lineWidth = 0.06;
+      ctx.lineWidth = 0.065;
       for (const side of [-1, 1]) {
         ctx.beginPath();
         ctx.arc(side * eyeX, eyeY, r * 0.28, 0, Math.PI * 2);
@@ -704,29 +910,77 @@ export class GameRenderer {
       }
     }
 
-    // Angry V-eyebrows
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = r * 0.16;
+    // 10. Angry / Determined V-Eyebrows
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = r * 0.15;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(-r * 0.62, r * 0.44);
-    ctx.lineTo(-r * 0.1, r * 0.24);
-    ctx.moveTo(r * 0.62, r * 0.44);
-    ctx.lineTo(r * 0.1, r * 0.24);
+    if (opts?.dizzy) {
+      ctx.moveTo(-r * 0.58, r * 0.3);
+      ctx.lineTo(-r * 0.14, r * 0.42);
+      ctx.moveTo(r * 0.58, r * 0.3);
+      ctx.lineTo(r * 0.14, r * 0.42);
+    } else {
+      ctx.moveTo(-r * 0.62, r * 0.44);
+      ctx.lineTo(-r * 0.1, r * 0.24);
+      ctx.moveTo(r * 0.62, r * 0.44);
+      ctx.lineTo(r * 0.1, r * 0.24);
+    }
     ctx.stroke();
 
-    // Mouth: screaming when pulled or flying, gritting teeth otherwise
+    // Cute nostrils
+    ctx.fillStyle = pal.dark;
+    ctx.beginPath();
+    ctx.arc(-r * 0.08, -r * 0.16, r * 0.045, 0, Math.PI * 2);
+    ctx.arc(r * 0.08, -r * 0.16, r * 0.045, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 11. Dynamic Mouth (battle cry, gritted teeth, or waiting smirk)
     if (screaming) {
       ctx.fillStyle = '#7f1d1d';
-      ctx.beginPath();
-      ctx.ellipse(0, -r * 0.38, r * 0.3, r * 0.22, 0, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = '#0f172a';
+      ctx.strokeStyle = outline;
       ctx.lineWidth = 0.04;
-      ctx.fillRect(-r * 0.32, -r * 0.46, r * 0.64, r * 0.18);
-      ctx.strokeRect(-r * 0.32, -r * 0.46, r * 0.64, r * 0.18);
+      ctx.beginPath();
+      ctx.ellipse(0, -r * 0.42, r * 0.3, r * 0.22, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      // Pink tongue
+      ctx.fillStyle = '#fb7185';
+      ctx.beginPath();
+      ctx.ellipse(0, -r * 0.52, r * 0.18, r * 0.09, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Upper fangs
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.2, -r * 0.26);
+      ctx.lineTo(-r * 0.12, -r * 0.38);
+      ctx.lineTo(-r * 0.04, -r * 0.24);
+      ctx.moveTo(r * 0.04, -r * 0.24);
+      ctx.lineTo(r * 0.12, -r * 0.38);
+      ctx.lineTo(r * 0.2, -r * 0.26);
+      ctx.fill();
+    } else if (opts?.isWaiting) {
+      // Eager happy cheeky smile in the queue
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 0.055;
+      ctx.beginPath();
+      ctx.arc(0, -r * 0.28, r * 0.26, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
+    } else {
+      // Gritted teeth ready to smash!
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 0.045;
+      ctx.beginPath();
+      ctx.roundRect(-r * 0.34, -r * 0.5, r * 0.68, r * 0.2, r * 0.06);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.12, -r * 0.5);
+      ctx.lineTo(-r * 0.12, -r * 0.3);
+      ctx.moveTo(r * 0.12, -r * 0.5);
+      ctx.lineTo(r * 0.12, -r * 0.3);
+      ctx.stroke();
     }
 
     ctx.restore();
@@ -819,19 +1073,28 @@ export class GameRenderer {
     const isBoss = kind === 'boss_porco' || kind === 'boss_helmet';
     const isHelmetBoss = kind === 'boss_helmet';
 
-    // Ears
+    // Ears with pink inner ear
     ctx.fillStyle = isTatu ? '#a16207' : '#84cc16';
     ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 0.06;
     for (const side of [-1, 1]) {
       ctx.beginPath();
-      ctx.arc(side * r * 0.72, r * 0.72, r * 0.25, 0, Math.PI * 2);
+      ctx.arc(side * r * 0.72, r * 0.72, r * 0.26, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
+      ctx.fillStyle = isTatu ? '#fda4af' : '#bef264';
+      ctx.beginPath();
+      ctx.arc(side * r * 0.72, r * 0.72, r * 0.13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = isTatu ? '#a16207' : '#84cc16';
     }
 
-    // Main body
-    ctx.fillStyle = isTatu ? '#92400e' : '#84cc16';
+    // Main body with radial gradient shading
+    const bodyGrad = ctx.createRadialGradient(-r * 0.3, r * 0.35, r * 0.1, 0, 0, r);
+    bodyGrad.addColorStop(0, isTatu ? '#d97706' : '#bef264');
+    bodyGrad.addColorStop(0.6, isTatu ? '#92400e' : '#84cc16');
+    bodyGrad.addColorStop(1, isTatu ? '#451a03' : '#4d7c0f');
+    ctx.fillStyle = bodyGrad;
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fill();
@@ -913,6 +1176,11 @@ export class GameRenderer {
         0,
         Math.PI * 2,
       );
+      ctx.fill();
+      // Eye highlight
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(side * r * 0.36 + jitter - eyeR * 0.16, r * 0.1 + eyeR * 0.18, eyeR * 0.18, 0, Math.PI * 2);
       ctx.fill();
     }
 

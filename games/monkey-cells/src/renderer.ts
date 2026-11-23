@@ -748,6 +748,87 @@ function drawChest(
   ctx.restore();
 }
 
+function getKnightPalette(playerColor: string, hitFlash: number): {
+  furHi: string;
+  furBase: string;
+  furDark: string;
+  maskHi: string;
+  maskShade: string;
+  innerEar: string;
+  capeHi: string;
+  capeDark: string;
+  sash: string;
+} {
+  if (hitFlash > 0) {
+    return {
+      furHi: '#ffffff',
+      furBase: '#ffffff',
+      furDark: '#e2e8f0',
+      maskHi: '#ffffff',
+      maskShade: '#f8fafc',
+      innerEar: '#ffffff',
+      capeHi: '#ffffff',
+      capeDark: '#cbd5e1',
+      sash: '#ffffff',
+    };
+  }
+  const c = playerColor.toLowerCase();
+  if (c.includes('4ade') || c.includes('22c5') || c.includes('16a3')) {
+    // Emerald / P2 warm chestnut variant
+    return {
+      furHi: '#d97706',
+      furBase: '#9a3412',
+      furDark: '#5c1d0c',
+      maskHi: '#fef9c3',
+      maskShade: '#fcd34d',
+      innerEar: '#fda4af',
+      capeHi: '#4ade80',
+      capeDark: '#15803d',
+      sash: playerColor,
+    };
+  }
+  if (c.includes('fb71') || c.includes('f43f') || c.includes('ef44')) {
+    // Crimson / Rose dark cocoa variant
+    return {
+      furHi: '#a16207',
+      furBase: '#78350f',
+      furDark: '#451a03',
+      maskHi: '#fffbeb',
+      maskShade: '#fed7aa',
+      innerEar: '#f9a8d4',
+      capeHi: '#34d399',
+      capeDark: '#065f46',
+      sash: playerColor,
+    };
+  }
+  if (c.includes('c084') || c.includes('a855') || c.includes('7c3a')) {
+    // Violet / Purple dusk-monkey variant
+    return {
+      furHi: '#92400e',
+      furBase: '#6b21a8',
+      furDark: '#3b0764',
+      maskHi: '#fef3c7',
+      maskShade: '#fde68a',
+      innerEar: '#f472b6',
+      capeHi: '#4ade80',
+      capeDark: '#166534',
+      sash: playerColor,
+    };
+  }
+  // Classic golden-chestnut Hollow Chimp (P1 & default)
+  return {
+    furHi: '#ca8a04',
+    furBase: '#a16207',
+    furDark: '#713f12',
+    maskHi: '#fef9c3',
+    maskShade: '#fde68a',
+    innerEar: '#fda4af',
+    capeHi: '#4ade80',
+    capeDark: '#15803d',
+    sash: playerColor,
+  };
+}
+
 function drawMonkeyKnight(
   ctx: CanvasRenderingContext2D,
   p: {
@@ -769,6 +850,7 @@ function drawMonkeyKnight(
     healing: boolean;
     healProgress?: number;
     hitFlash: number;
+    wallSlideDir?: -1 | 0 | 1;
     color: string;
     name: string;
     hp: number;
@@ -780,6 +862,16 @@ function drawMonkeyKnight(
 ): void {
   const cx = p.x + p.w / 2;
   const cy = p.y + p.h / 2;
+  const seed = (p.name.charCodeAt(0) || 77) * 0.37;
+  const pal = getKnightPalette(p.color, p.hitFlash);
+  const outline = '#1c0d04';
+
+  const isRunning = Math.abs(p.vx) > 25 && Math.abs(p.vy) < 40;
+  const breath = !isRunning && !p.downed ? Math.sin(time * 3.8 + seed) * 0.032 : 0;
+  const airStretch = !p.downed ? Math.max(-0.1, Math.min(0.14, Math.abs(p.vy) * 0.00028)) : 0;
+  const swingSquash = p.swingTimer > 0 ? 0.08 : 0;
+  const scaleX = 1 - breath * 0.6 - airStretch * 0.6 + swingSquash;
+  const scaleY = 1 + breath + airStretch - swingSquash * 0.6;
 
   ctx.save();
   ctx.translate(cx, cy);
@@ -792,11 +884,15 @@ function drawMonkeyKnight(
   if (isRemote || customLabel) {
     ctx.font = 'bold 11px system-ui';
     ctx.textAlign = 'center';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#0f172a';
+    ctx.strokeText(customLabel || p.name, 0, -35);
     ctx.fillStyle = p.color;
-    ctx.fillText(customLabel || p.name, 0, -34);
+    ctx.fillText(customLabel || p.name, 0, -35);
     if (p.downed) {
       ctx.fillStyle = '#fb7185';
-      ctx.fillText(`💫 CAÍDO! BATA P/ REVIVER (${Math.ceil(p.reviveTimer)}s)`, 0, -48);
+      ctx.strokeText(`💫 CAÍDO! BATA P/ REVIVER (${Math.ceil(p.reviveTimer)}s)`, 0, -50);
+      ctx.fillText(`💫 CAÍDO! BATA P/ REVIVER (${Math.ceil(p.reviveTimer)}s)`, 0, -50);
     }
   }
 
@@ -805,132 +901,330 @@ function drawMonkeyKnight(
     ctx.strokeStyle = '#fde047';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(0, 0, 28 + Math.sin(time * 18) * 4, 0, Math.PI * 2);
+    ctx.arc(0, 0, 29 + Math.sin(time * 18) * 4, 0, Math.PI * 2);
     ctx.stroke();
 
     const prog = p.healProgress ?? 0;
     if (prog > 0) {
       ctx.fillStyle = '#0f172a';
-      ctx.fillRect(-20, -40, 40, 7);
+      ctx.fillRect(-20, -42, 40, 7);
       ctx.fillStyle = '#4ade80';
-      ctx.fillRect(-19, -39, 38 * Math.min(1, prog), 5);
+      ctx.fillRect(-19, -41, 38 * Math.min(1, prog), 5);
     }
 
     ctx.font = '16px system-ui';
     ctx.textAlign = 'center';
-    ctx.fillText('🍌', 0, -46);
+    ctx.fillText('🍌', 0, -48);
   }
 
   if (p.downed) {
     ctx.rotate(Math.PI / 2);
   } else if (p.dashTimer > 0) {
     ctx.rotate(p.facing * time * 18);
+  } else if (p.wallSlideDir) {
+    ctx.rotate(p.wallSlideDir * -0.14);
   }
 
   ctx.save();
-  ctx.scale(p.facing, 1);
+  ctx.scale(p.facing * scaleX, scaleY);
 
-  // Curly Monkey Tail
-  ctx.strokeStyle = p.hitFlash > 0 ? '#ffffff' : '#78350f';
-  ctx.lineWidth = 4.5;
+  // 1. Curly Monkey Tail with secondary spring wave reacting to vx & vy
+  const tailLagY = Math.max(-8, Math.min(8, -p.vy * 0.015));
+  const tailWave = Math.sin(time * (isRunning ? 14 : 6) + seed) * 5 + tailLagY;
   ctx.lineCap = 'round';
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 7.5;
   ctx.beginPath();
-  ctx.moveTo(-10, 10);
-  ctx.quadraticCurveTo(-24, 6 + Math.sin(time * 10) * 5, -20, -6);
+  ctx.moveTo(-9, 10);
+  ctx.bezierCurveTo(-24, 10 + tailWave * 0.4, -29, -4 + tailWave, -19, -9 + tailWave * 0.7);
   ctx.stroke();
-
-  // Banana-Leaf Cape
-  const capeWave = Math.min(14, Math.abs(p.vx) * 0.04) + Math.sin(time * 12) * 3;
-  ctx.fillStyle = '#22c55e';
-  ctx.strokeStyle = '#14532d';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(-4, -4);
-  ctx.quadraticCurveTo(-22 - capeWave, 4, -24 - capeWave, 20);
-  ctx.lineTo(-4, 18);
-  ctx.closePath();
-  ctx.fill();
+  ctx.strokeStyle = pal.furDark;
+  ctx.lineWidth = 4.4;
   ctx.stroke();
-
-  // Body
-  ctx.fillStyle = p.hitFlash > 0 ? '#ffffff' : '#92400e';
+  ctx.fillStyle = pal.maskShade;
   ctx.beginPath();
-  ctx.ellipse(0, 9, 12, 13, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = p.color;
-  ctx.fillRect(-6, 4, 12, 5);
-
-  // Legs
-  const runCycle = Math.abs(p.vx) > 25 ? Math.sin(time * 18) * 5 : 0;
-  ctx.strokeStyle = '#78350f';
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.moveTo(-5, 18);
-  ctx.lineTo(-6 + runCycle, 23);
-  ctx.moveTo(5, 18);
-  ctx.lineTo(6 - runCycle, 23);
-  ctx.stroke();
-
-  // Head
-  ctx.fillStyle = p.hitFlash > 0 ? '#ffffff' : '#a16207';
-  ctx.beginPath();
-  ctx.arc(1, -8, 13, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(-11, -7, 5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#fde68a';
-  ctx.beginPath();
-  ctx.ellipse(4, -5, 9, 7, 0, 0, Math.PI * 2);
+  ctx.arc(-19, -9 + tailWave * 0.7, 2.2, 0, Math.PI * 2);
   ctx.fill();
 
-  // Eyes
-  if (p.downed) {
-    ctx.font = 'bold 10px monospace';
-    ctx.fillStyle = '#0f172a';
-    ctx.fillText('x  x', -1, -5);
-  } else {
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(1, -8, 3.6, 0, Math.PI * 2);
-    ctx.arc(8, -8, 3.6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#0f172a';
-    ctx.beginPath();
-    ctx.arc(2.5, -7.5, 1.7, 0, Math.PI * 2);
-    ctx.arc(6.8, -8.5, 1.7, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Cracked Coconut Helmet
-  ctx.fillStyle = '#5c3a21';
-  ctx.strokeStyle = '#2d190c';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(1, -11, 13.5, Math.PI, 0);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  ctx.strokeStyle = '#fef3c7';
+  // 2. Billowing Banana-Leaf Cape with central rib & player trim
+  const capeWave = Math.min(16, Math.abs(p.vx) * 0.045) + Math.sin(time * 11 + seed) * 3.5;
+  const capeLift = Math.max(-6, Math.min(10, p.vy * 0.02));
+  const capeGrad = ctx.createLinearGradient(-4, -4, -26 - capeWave, 20);
+  capeGrad.addColorStop(0, pal.capeHi);
+  capeGrad.addColorStop(1, pal.capeDark);
+  ctx.fillStyle = capeGrad;
+  ctx.strokeStyle = '#052e16';
   ctx.lineWidth = 2.2;
   ctx.beginPath();
-  ctx.moveTo(-11, -11);
-  ctx.lineTo(13, -11);
+  ctx.moveTo(-3, -3);
+  ctx.quadraticCurveTo(-22 - capeWave, 3 - capeLift * 0.4, -26 - capeWave, 20 - capeLift);
+  ctx.quadraticCurveTo(-14 - capeWave * 0.4, 22 - capeLift * 0.5, -3, 18);
+  ctx.closePath();
+  ctx.fill();
   ctx.stroke();
-  ctx.strokeStyle = '#1c0d04';
-  ctx.lineWidth = 1.8;
+
+  // Leaf vein & player-color trim stripe on cape
+  ctx.strokeStyle = 'rgba(187, 247, 208, 0.55)';
+  ctx.lineWidth = 1.6;
   ctx.beginPath();
-  ctx.moveTo(2, -23);
-  ctx.lineTo(-1, -17);
-  ctx.lineTo(3, -14);
-  ctx.lineTo(0, -11);
+  ctx.moveTo(-6, 3);
+  ctx.quadraticCurveTo(-16 - capeWave * 0.5, 10 - capeLift * 0.5, -22 - capeWave * 0.85, 17 - capeLift * 0.8);
   ctx.stroke();
-  ctx.fillStyle = '#4ade80';
+
+  // 3. Legs & Monkey Feet
+  const runCycle = isRunning ? Math.sin(time * 18) * 5.5 : 0;
+  const airLegLift = Math.abs(p.vy) > 60 ? -3 : 0;
+  ctx.lineWidth = 2.2;
+  for (const [lx, off] of [
+    [-5, runCycle],
+    [5, -runCycle],
+  ] as const) {
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = 6.5;
+    ctx.beginPath();
+    ctx.moveTo(lx, 17);
+    ctx.lineTo(lx + off * 0.6, 23 + airLegLift);
+    ctx.stroke();
+    ctx.strokeStyle = pal.furDark;
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    // Foot paw
+    ctx.fillStyle = pal.maskShade;
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.ellipse(lx + off * 0.6 + 1.8, 23.5 + airLegLift, 4, 2.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // 4. Torso & Belly Patch + Warrior Sash
+  const bodyGrad = ctx.createRadialGradient(-3, 5, 2, 0, 9, 14);
+  bodyGrad.addColorStop(0, pal.furBase);
+  bodyGrad.addColorStop(1, pal.furDark);
+  ctx.fillStyle = bodyGrad;
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 2.4;
   ctx.beginPath();
-  ctx.ellipse(6, -24, 5, 2.5, -0.5, 0, Math.PI * 2);
+  ctx.ellipse(0, 9, 11.5, 12.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Cream belly patch
+  ctx.fillStyle = pal.maskShade;
+  ctx.beginPath();
+  ctx.ellipse(3, 10, 6.5, 8, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  drawHeldWeapon(ctx, p.weapon, p.swingTimer > 0, time);
+  // Player-color warrior belt/sash
+  ctx.fillStyle = pal.sash;
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.roundRect(-10.5, 4, 21, 5.2, 2.5);
+  ctx.fill();
+  ctx.stroke();
+
+  // 5. Head & Ears (Big head silhouette + pink inner ear)
+  const earBob = isRunning ? Math.sin(time * 18) * 1.2 : 0;
+  // Back ear
+  ctx.fillStyle = pal.furBase;
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.arc(12, -8 - earBob, 5.6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Head sphere with radial fur gradient
+  const headGrad = ctx.createRadialGradient(-3, -12, 2, 1, -8, 15);
+  headGrad.addColorStop(0, pal.furHi);
+  headGrad.addColorStop(0.6, pal.furBase);
+  headGrad.addColorStop(1, pal.furDark);
+  ctx.fillStyle = headGrad;
+  ctx.beginPath();
+  ctx.arc(1, -8, 13.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Front ear with rosy pink inner ear
+  ctx.fillStyle = pal.furBase;
+  ctx.beginPath();
+  ctx.arc(-11.5, -7 - earBob, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = pal.innerEar;
+  ctx.beginPath();
+  ctx.arc(-11.5, -7 - earBob, 3.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 6. Heart / Peanut-Shaped Cream Face Mask
+  const maskGrad = ctx.createLinearGradient(0, -14, 6, 3);
+  maskGrad.addColorStop(0, pal.maskHi);
+  maskGrad.addColorStop(1, pal.maskShade);
+  ctx.fillStyle = maskGrad;
+  ctx.strokeStyle = pal.furDark;
+  ctx.lineWidth = 1.1;
+  ctx.beginPath();
+  ctx.moveTo(4.5, -10.5);
+  ctx.bezierCurveTo(8, -14, 14, -10, 12.5, -5.5);
+  ctx.bezierCurveTo(14.5, -1, 10, 2.5, 4.5, 1.5);
+  ctx.bezierCurveTo(-1, 2.5, -5, -1, -3, -5.5);
+  ctx.bezierCurveTo(-4.5, -10, 1, -14, 4.5, -10.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // 7. Expressive Eyes, Blinking, Highlights, Eyebrows & Mouth
+  const blinkCycle = (time * 0.9 + seed) % 4.2;
+  const isBlinking = !p.downed && p.swingTimer <= 0 && p.hitFlash <= 0 && blinkCycle > 4.04;
+  const lookY = Math.max(-1.1, Math.min(1.1, p.vy * 0.0025));
+
+  if (p.downed) {
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = 'round';
+    for (const ex of [0.5, 8.2]) {
+      ctx.beginPath();
+      ctx.moveTo(ex - 2, -9.5);
+      ctx.lineTo(ex + 2, -5.5);
+      ctx.moveTo(ex + 2, -9.5);
+      ctx.lineTo(ex - 2, -5.5);
+      ctx.stroke();
+    }
+    // Dizzy tongue out
+    ctx.fillStyle = '#fb7185';
+    ctx.beginPath();
+    ctx.ellipse(6, -0.5, 2.5, 3, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (p.hitFlash > 0) {
+    // Wincing > < eyes!
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-1, -10);
+    ctx.lineTo(2.5, -7.5);
+    ctx.lineTo(-1, -5);
+    ctx.moveTo(10.5, -10);
+    ctx.lineTo(7, -7.5);
+    ctx.lineTo(10.5, -5);
+    ctx.stroke();
+  } else if (isBlinking || p.healing) {
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(1, -7, 2.6, Math.PI * 1.1, Math.PI * 1.9);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(8.5, -7, 2.6, Math.PI * 1.1, Math.PI * 1.9);
+    ctx.stroke();
+    if (p.healing) {
+      // Happy munching mouth
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath();
+      ctx.arc(5, -2, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    for (const ex of [1.2, 8.8]) {
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(ex, -7.5, 3.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      const px = ex + 1.0;
+      const py = -7.5 + lookY;
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(px, py, 1.75, 0, Math.PI * 2);
+      ctx.fill();
+
+      // White eye highlight glint
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(px - 0.65, py - 0.75, 0.75, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Determined / attacking eyebrows & mouth
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = 'round';
+    if (p.swingTimer > 0) {
+      ctx.beginPath();
+      ctx.moveTo(-2, -12.2);
+      ctx.lineTo(3, -10.4);
+      ctx.moveTo(11, -12.2);
+      ctx.lineTo(7, -10.4);
+      ctx.stroke();
+      ctx.fillStyle = '#7f1d1d';
+      ctx.beginPath();
+      ctx.ellipse(5.5, -2.2, 2.6, 2.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.arc(5.2, -3.2, 2.8, 0.15, Math.PI * 0.85);
+      ctx.stroke();
+    }
+  }
+
+  // 8. Cracked Coconut Helmet (3D gradient + white coconut meat rim + crack + sprouting twin leaf)
+  const cocoGrad = ctx.createRadialGradient(-3, -18, 2, 1, -14, 15);
+  cocoGrad.addColorStop(0, p.hitFlash > 0 ? '#ffffff' : '#854d0e');
+  cocoGrad.addColorStop(0.55, p.hitFlash > 0 ? '#ffffff' : '#5c3a21');
+  cocoGrad.addColorStop(1, p.hitFlash > 0 ? '#e2e8f0' : '#2d190c');
+  ctx.fillStyle = cocoGrad;
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.arc(1, -11.5, 14.4, Math.PI, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Creamy white coconut flesh rim
+  ctx.strokeStyle = '#fef3c7';
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(-12, -11.5);
+  ctx.quadraticCurveTo(1, -9, 14, -11.5);
+  ctx.stroke();
+
+  // Helmet crack
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 1.9;
+  ctx.beginPath();
+  ctx.moveTo(2.5, -25);
+  ctx.lineTo(-0.5, -18.5);
+  ctx.lineTo(3.5, -15);
+  ctx.lineTo(0.5, -11.5);
+  ctx.stroke();
+
+  // Sprouting leaf on top with subtle velocity sway & player-colored bud!
+  const leafSway = Math.max(-0.35, Math.min(0.35, -p.vx * 0.0012)) + Math.sin(time * 5 + seed) * 0.1;
+  ctx.save();
+  ctx.translate(4, -25);
+  ctx.rotate(leafSway);
+  ctx.fillStyle = '#4ade80';
+  ctx.strokeStyle = '#14532d';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.ellipse(4, -1.5, 5.8, 2.7, -0.45, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = pal.sash;
+  ctx.beginPath();
+  ctx.arc(0, -1, 2.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // 9. Held Weapon + Front Monkey Hand gripping it
+  drawHeldWeapon(ctx, p.weapon, p.swingTimer > 0, time, pal.furBase, pal.maskShade);
   ctx.restore();
 
   // Slash / Thrust VFX Arc
@@ -948,7 +1242,6 @@ function drawMonkeyKnight(
 
     ctx.globalAlpha = Math.max(0.25, 1 - progress * 0.75);
     if (p.weapon === 'electric_broom') {
-      // Long 220V electric thrust & sweep!
       const reach = p.swingDir === 'down' || p.swingDir === 'up' ? wDef.rangeY : wDef.rangeX;
       ctx.strokeStyle = '#22d3ee';
       ctx.lineWidth = 8;
@@ -981,38 +1274,49 @@ function drawHeldWeapon(
   weapon: WeaponId,
   swinging: boolean,
   time: number,
+  furColor = '#a16207',
+  palmColor = '#fde68a',
 ): void {
   ctx.save();
-  ctx.translate(10, 4);
-  ctx.rotate(swinging ? 0.9 : -0.45);
+  ctx.translate(10, 5);
+  ctx.rotate(swinging ? 0.92 : -0.42);
   if (weapon === 'banana_sword') {
-    ctx.fillStyle = '#facc15';
+    const g = ctx.createLinearGradient(0, -10, 30, 4);
+    g.addColorStop(0, '#fef08a');
+    g.addColorStop(0.6, '#facc15');
+    g.addColorStop(1, '#ca8a04');
+    ctx.fillStyle = g;
     ctx.strokeStyle = '#713f12';
     ctx.lineWidth = 1.8;
     ctx.beginPath();
     ctx.moveTo(0, -3);
-    ctx.quadraticCurveTo(18, -16, 30, -4);
-    ctx.quadraticCurveTo(16, 4, 0, 3);
+    ctx.quadraticCurveTo(18, -16, 31, -4);
+    ctx.quadraticCurveTo(16, 5, 0, 3);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
   } else if (weapon === 'frying_pan') {
     ctx.fillStyle = '#475569';
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.6;
     ctx.fillRect(0, -2, 16, 4);
+    ctx.strokeRect(0, -2, 16, 4);
     ctx.fillStyle = '#334155';
     ctx.strokeStyle = '#94a3b8';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(22, 0, 9, 0, Math.PI * 2);
+    ctx.arc(22, 0, 9.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
   } else if (weapon === 'havaiana_boomerang') {
     ctx.fillStyle = '#38bdf8';
+    ctx.strokeStyle = '#0c4a6e';
+    ctx.lineWidth = 1.8;
     ctx.beginPath();
     ctx.roundRect(4, -5, 16, 9, 4);
     ctx.fill();
+    ctx.stroke();
   } else if (weapon === 'electric_broom') {
-    // Long wooden handle + glowing cyan bristles
     ctx.strokeStyle = '#b45309';
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -1020,6 +1324,8 @@ function drawHeldWeapon(
     ctx.lineTo(26, 0);
     ctx.stroke();
     ctx.fillStyle = Math.sin(time * 25) > 0 ? '#22d3ee' : '#a5f3fc';
+    ctx.strokeStyle = '#083344';
+    ctx.lineWidth = 1.6;
     ctx.beginPath();
     ctx.moveTo(25, -8);
     ctx.lineTo(36, -11);
@@ -1027,8 +1333,8 @@ function drawHeldWeapon(
     ctx.lineTo(25, 8);
     ctx.closePath();
     ctx.fill();
+    ctx.stroke();
   } else if (weapon === 'banana_bazooka') {
-    // Chunky banana rocket tube
     ctx.fillStyle = '#ea580c';
     ctx.strokeStyle = '#431407';
     ctx.lineWidth = 2;
@@ -1056,6 +1362,18 @@ function drawHeldWeapon(
     ctx.arc(32, 8, 3, 0, Math.PI * 2);
     ctx.fill();
   }
+  // Cute monkey paw gripping the weapon
+  ctx.fillStyle = furColor;
+  ctx.strokeStyle = '#1c0d04';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(1, 0, 4.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = palmColor;
+  ctx.beginPath();
+  ctx.arc(1.8, 0.4, 2, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 
@@ -1176,22 +1494,78 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: EnemyEntity, time: number, 
     ctx.fillStyle = '#fef08a';
     ctx.fillRect(4, -5, 6, 4);
   } else if (e.kind === 'coco_archer') {
-    ctx.fillStyle = e.hitFlash > 0 ? '#ffffff' : '#78350f';
+    const flash = e.hitFlash > 0;
+    // Tail
+    ctx.strokeStyle = '#1c0d04';
+    ctx.lineWidth = 5.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-9, 8);
+    ctx.quadraticCurveTo(-20, 2 + Math.sin(time * 7) * 3, -16, -8);
+    ctx.stroke();
+    ctx.strokeStyle = flash ? '#ffffff' : '#78350f';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Body & Head with outline
+    ctx.fillStyle = flash ? '#ffffff' : '#92400e';
+    ctx.strokeStyle = '#1c0d04';
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.ellipse(0, 6, 11, 13, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.stroke();
+
+    // Ears with pink inner ear
+    ctx.fillStyle = flash ? '#ffffff' : '#b45309';
     ctx.beginPath();
-    ctx.arc(0, -10, 10, 0, Math.PI * 2);
+    ctx.arc(-10, -12, 5.5, 0, Math.PI * 2);
+    ctx.arc(10, -12, 5.5, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#f8fafc';
+    ctx.stroke();
+    ctx.fillStyle = '#fda4af';
     ctx.beginPath();
-    ctx.arc(-10, -13, 5, 0, Math.PI * 2);
-    ctx.arc(10, -13, 5, 0, Math.PI * 2);
+    ctx.arc(-10, -12, 2.6, 0, Math.PI * 2);
+    ctx.arc(10, -12, 2.6, 0, Math.PI * 2);
     ctx.fill();
+
+    ctx.fillStyle = flash ? '#ffffff' : '#b45309';
+    ctx.beginPath();
+    ctx.arc(0, -10, 10.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Face mask & eye with highlight
     ctx.fillStyle = '#fde68a';
-    ctx.fillRect(-5, -12, 12, 6);
+    ctx.beginPath();
+    ctx.ellipse(3, -9, 7.5, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(4, -10.5, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
     ctx.fillStyle = '#0f172a';
-    ctx.fillRect(2, -11, 3, 3);
+    ctx.beginPath();
+    ctx.arc(5, -10.5, 1.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(4.4, -11.2, 0.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Green archer hood
+    ctx.fillStyle = '#15803d';
+    ctx.strokeStyle = '#052e16';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.arc(0, -12, 11, Math.PI, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
     ctx.strokeStyle = '#4ade80';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -1255,17 +1629,52 @@ function drawHrBaboonBoss(ctx: CanvasRenderingContext2D, e: EnemyEntity, time: n
   ctx.fillStyle = '#f8fafc';
   ctx.fillRect(-14, 10, 14, 10);
 
+  // Baboon ears with pink inner ear
+  ctx.fillStyle = flash ? '#ffffff' : '#92400e';
+  ctx.strokeStyle = '#1c0d04';
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.arc(-20, -24, 8, 0, Math.PI * 2);
+  ctx.arc(20, -24, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#fda4af';
+  ctx.beginPath();
+  ctx.arc(-20, -24, 4, 0, Math.PI * 2);
+  ctx.arc(20, -24, 4, 0, Math.PI * 2);
+  ctx.fill();
+
   // Baboon head & bright red muzzle!
   ctx.fillStyle = flash ? '#ffffff' : '#78350f';
   ctx.beginPath();
   ctx.arc(0, -24, 22, 0, Math.PI * 2);
   ctx.fill();
+  ctx.stroke();
   ctx.fillStyle = '#fda4af';
   ctx.beginPath();
   ctx.ellipse(8, -20, 14, 10, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Glasses on tip of nose
+  // Eyes with highlights + glasses on tip of nose
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.arc(3, -28, 4.2, 0, Math.PI * 2);
+  ctx.arc(14, -28, 4.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath();
+  ctx.arc(4.2, -28, 1.8, 0, Math.PI * 2);
+  ctx.arc(15.2, -28, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(3.6, -28.8, 0.8, 0, Math.PI * 2);
+  ctx.arc(14.6, -28.8, 0.8, 0, Math.PI * 2);
+  ctx.fill();
+
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 2;
   ctx.strokeRect(-2, -31, 10, 6);
@@ -1329,6 +1738,16 @@ function drawGorillaBoss(ctx: CanvasRenderingContext2D, e: EnemyEntity, time: nu
   ctx.closePath();
   ctx.fill();
 
+  // Gorilla CEO Ears
+  ctx.fillStyle = flash ? '#ffffff' : '#27272a';
+  ctx.strokeStyle = rage ? '#ef4444' : '#facc15';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(-32, -44, 10, 0, Math.PI * 2);
+  ctx.arc(32, -44, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
   ctx.fillStyle = flash ? '#ffffff' : '#27272a';
   ctx.beginPath();
   ctx.ellipse(0, -42, 34, 28, 0, 0, Math.PI * 2);
@@ -1340,9 +1759,13 @@ function drawGorillaBoss(ctx: CanvasRenderingContext2D, e: EnemyEntity, time: nu
   ctx.ellipse(6, -34, 20, 14, 0, 0, Math.PI * 2);
   ctx.fill();
 
+  // Angry CEO sunglasses with glossy glint
   ctx.fillStyle = rage ? '#ef4444' : '#09090b';
   ctx.fillRect(-16, -54, 16, 9);
   ctx.fillRect(6, -54, 16, 9);
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fillRect(-14, -53, 5, 2.5);
+  ctx.fillRect(8, -53, 5, 2.5);
   ctx.fillStyle = '#facc15';
   ctx.fillRect(0, -51, 6, 3);
 

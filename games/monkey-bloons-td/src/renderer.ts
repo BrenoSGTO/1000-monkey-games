@@ -678,22 +678,31 @@ function drawTower(
   showOwners: boolean,
   time: number,
 ): void {
+  const seed = (tower.x * 0.13 + tower.y * 0.07) % 6.28;
+  const breath = Math.sin(time * 3.2 + seed) * 0.025;
+  const stretch = tower.recoil * 0.16;
+
   ctx.save();
   ctx.translate(tower.x, tower.y);
+
+  // Subtle base pedestal disc tinted with ownerColor for multiplayer clarity
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.28)';
+  ctx.beginPath();
+  ctx.arc(0, 2, TOWER_RADIUS - 1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = tower.ownerColor;
+  ctx.globalAlpha = showOwners ? 0.92 : 0.42;
+  ctx.lineWidth = showOwners ? 3 : 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, TOWER_RADIUS + (showOwners ? 2 : 0), 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
 
   if (isSelected) {
     ctx.strokeStyle = '#fde047';
     ctx.lineWidth = 3.5;
     ctx.beginPath();
     ctx.arc(0, 0, TOWER_RADIUS + 6, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  if (showOwners) {
-    ctx.strokeStyle = tower.ownerColor;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(0, 0, TOWER_RADIUS + 2, 0, Math.PI * 2);
     ctx.stroke();
   }
 
@@ -706,35 +715,44 @@ function drawTower(
     ctx.stroke();
   }
 
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillStyle = 'rgba(0,0,0,0.32)';
   ctx.beginPath();
   ctx.ellipse(2, 6, 18, 14, 0, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.save();
-  const kick = tower.recoil * 4;
+  const kick = tower.recoil * 4.2;
   if (tower.type !== 'fazenda') {
     ctx.rotate(tower.angle);
     ctx.translate(-kick, 0);
+    ctx.scale(1 + stretch - breath * 0.5, 1 - stretch * 0.65 + breath);
   } else {
-    const bob = 1 + tower.recoil * 0.14;
+    const bob = 1 + tower.recoil * 0.14 + breath * 0.6;
     ctx.scale(bob, bob);
   }
 
+  const mOpts: MonkeyTowerVisualOpts = {
+    level: tower.level,
+    recoil: tower.recoil,
+    ownerColor: tower.ownerColor,
+    time,
+    seed,
+  };
+
   if (tower.type === 'banana') {
-    drawBananaMonkey(ctx, tower.level, time);
+    drawBananaMonkey(ctx, mOpts);
   } else if (tower.type === 'havaianas') {
-    drawHavaianasMonkey(ctx, tower.level);
+    drawHavaianasMonkey(ctx, mOpts);
   } else if (tower.type === 'sniper') {
-    drawSniperMonkey(ctx, tower.level);
+    drawSniperMonkey(ctx, mOpts);
   } else if (tower.type === 'coco') {
-    drawCocoCannonMonkey(ctx, tower.level);
+    drawCocoCannonMonkey(ctx, mOpts);
   } else if (tower.type === 'dj') {
-    drawDjMonkey(ctx, tower.level, time);
+    drawDjMonkey(ctx, mOpts);
   } else if (tower.type === 'fazenda') {
-    drawFarmTower(ctx, tower.level, time);
+    drawFarmTower(ctx, tower.level, time, tower.ownerColor);
   } else if (tower.type === 'mago') {
-    drawMagoMonkey(ctx, tower.level, time);
+    drawMagoMonkey(ctx, mOpts);
   }
   ctx.restore();
 
@@ -764,222 +782,517 @@ function drawTower(
   ctx.restore();
 }
 
-function drawMonkeyBaseHead(
+interface MonkeyTowerVisualOpts {
+  level: number;
+  recoil: number;
+  ownerColor: string;
+  time: number;
+  seed: number;
+}
+
+interface MonkeyHeadStyle {
+  furHi: string;
+  furBase: string;
+  furDark: string;
+  faceHi: string;
+  faceShade: string;
+  innerEar: string;
+  angry: boolean;
+  vesgo: boolean;
+  baldShiny?: boolean;
+  shouting?: boolean;
+  scale?: number;
+}
+
+function drawMonkeyTowerBase(
   ctx: CanvasRenderingContext2D,
-  furColor: string,
-  faceColor: string,
-  angry: boolean,
-  vesgo: boolean,
-  baldShiny = false,
+  opts: MonkeyTowerVisualOpts,
+  style: MonkeyHeadStyle,
 ): void {
-  ctx.fillStyle = furColor;
-  ctx.strokeStyle = '#451a03';
+  const s = style.scale ?? 1;
+  const outline = '#291509';
+  const isFiring = opts.recoil > 0.16;
+  const tailWag = Math.sin(opts.time * 4.5 + opts.seed) * 3.5 + opts.recoil * 5;
+  const earWobble = opts.recoil * 2.2;
+
+  ctx.save();
+  ctx.scale(s, s);
+
+  // 1. Curved Monkey Tail behind (-x) with secondary wave
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 6.5;
+  ctx.beginPath();
+  ctx.moveTo(-11, 2);
+  ctx.bezierCurveTo(-22, 5 + tailWag * 0.5, -26, -8 + tailWag, -18, -12 + tailWag * 0.8);
+  ctx.stroke();
+  ctx.strokeStyle = style.furBase;
+  ctx.lineWidth = 3.5;
+  ctx.stroke();
+  ctx.fillStyle = style.faceShade;
+  ctx.beginPath();
+  ctx.arc(-18, -12 + tailWag * 0.8, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. Shoulders / Torso + Player-Colored Bandana Collar
+  const torsoGrad = ctx.createRadialGradient(-2, 0, 2, 0, 0, 15);
+  torsoGrad.addColorStop(0, style.furBase);
+  torsoGrad.addColorStop(1, style.furDark);
+  ctx.fillStyle = torsoGrad;
+  ctx.strokeStyle = outline;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(0, -16, 6.5, 0, Math.PI * 2);
-  ctx.arc(0, 16, 6.5, 0, Math.PI * 2);
+  ctx.ellipse(-2, 0, 12, 14.5, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = faceColor;
+  // Player owner scarf trim around neck/shoulders
+  ctx.strokeStyle = opts.ownerColor;
+  ctx.lineWidth = 2.8;
   ctx.beginPath();
-  ctx.arc(0, -16, 3.2, 0, Math.PI * 2);
-  ctx.arc(0, 16, 3.2, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.arc(0, 0, 12.6, -1.15, 1.15);
+  ctx.stroke();
 
-  ctx.fillStyle = furColor;
+  // 3. Big Round Ears with rosy pink inner ear
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 2.2;
+  for (const side of [-1, 1]) {
+    const ey = side * (15.5 + earWobble * 0.4);
+    ctx.fillStyle = style.furBase;
+    ctx.beginPath();
+    ctx.arc(-1 - earWobble * 0.4, ey, 6.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = style.innerEar;
+    ctx.beginPath();
+    ctx.arc(-0.5 - earWobble * 0.4, ey, 3.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 4. Big Head with 3D Radial Fur Gradient
+  const headGrad = ctx.createRadialGradient(-4, -4, 2, 0, 0, 16);
+  headGrad.addColorStop(0, style.furHi);
+  headGrad.addColorStop(0.6, style.furBase);
+  headGrad.addColorStop(1, style.furDark);
+  ctx.fillStyle = headGrad;
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 2.4;
   ctx.beginPath();
   ctx.arc(0, 0, 15, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = faceColor;
+  // 5. Heart / Peanut-Shaped Cream Face Mask facing forward (+x)
+  const maskGrad = ctx.createLinearGradient(0, -10, 14, 10);
+  maskGrad.addColorStop(0, style.faceHi);
+  maskGrad.addColorStop(1, style.faceShade);
+  ctx.fillStyle = maskGrad;
+  ctx.strokeStyle = style.furDark;
+  ctx.lineWidth = 1.1;
   ctx.beginPath();
-  ctx.ellipse(5, 0, 9, 10, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  if (baldShiny) {
-    ctx.fillStyle = 'rgba(255,255,255,0.65)';
-    ctx.beginPath();
-    ctx.ellipse(-6, -4, 4, 2.2, -0.4, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.fillStyle = '#fff';
-  ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.arc(4, -5, 4.2, 0, Math.PI * 2);
-  ctx.arc(4, 5, 4.2, 0, Math.PI * 2);
+  ctx.moveTo(2, 0);
+  // Top eye-brow lobe (-y) & muzzle
+  ctx.bezierCurveTo(-1, -8, 6, -12, 11, -7.5);
+  ctx.bezierCurveTo(15, -6, 15.5, 6, 11, 7.5);
+  ctx.bezierCurveTo(6, 12, -1, 8, 2, 0);
+  ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = '#0f172a';
-  ctx.beginPath();
-  if (vesgo) {
-    ctx.arc(5.5, -3.3, 1.9, 0, Math.PI * 2);
-    ctx.arc(3.0, 3.4, 1.9, 0, Math.PI * 2);
-  } else {
-    ctx.arc(5.5, -5, 1.8, 0, Math.PI * 2);
-    ctx.arc(5.5, 5, 1.8, 0, Math.PI * 2);
-  }
-  ctx.fill();
-
-  if (angry) {
-    ctx.strokeStyle = '#451a03';
-    ctx.lineWidth = 2.4;
+  // Bald shiny specular highlight for Calvo Furioso
+  if (style.baldShiny) {
+    ctx.fillStyle = 'rgba(255,255,255,0.72)';
     ctx.beginPath();
-    ctx.moveTo(0, -10);
-    ctx.lineTo(7, -3);
-    ctx.moveTo(0, 10);
-    ctx.lineTo(7, 3);
+    ctx.ellipse(-6, -4.5, 4.5, 2.4, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 6. Expressive Eyes (natural blinking + white highlight glint)
+  const blinkCycle = (opts.time * 0.8 + opts.seed * 1.4) % 4.4;
+  const isBlinking = !isFiring && !style.angry && blinkCycle > 4.24;
+
+  if (isBlinking) {
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(2.5, -5);
+    ctx.lineTo(7, -5);
+    ctx.moveTo(2.5, 5);
+    ctx.lineTo(7, 5);
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(4.8, -5.2, 4.1, 0, Math.PI * 2);
+    ctx.arc(4.8, 5.2, 4.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Pupils (vesgo or focused forward)
+    const px1 = style.vesgo ? 6.2 : 6.1;
+    const py1 = style.vesgo ? -3.4 : -5.2;
+    const px2 = style.vesgo ? 3.5 : 6.1;
+    const py2 = style.vesgo ? 3.5 : 5.2;
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.arc(px1, py1, 1.9, 0, Math.PI * 2);
+    ctx.arc(px2, py2, 1.9, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Crisp white specular highlights
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(px1 - 0.8, py1 - 0.8, 0.85, 0, Math.PI * 2);
+    ctx.arc(px2 - 0.8, py2 - 0.8, 0.85, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 7. Eyebrows & Mouth (reacts to recoil/upgrades!)
+  if (style.angry || isFiring) {
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0.5, -9.8);
+    ctx.lineTo(7.8, -3.5);
+    ctx.moveTo(0.5, 9.8);
+    ctx.lineTo(7.8, 3.5);
     ctx.stroke();
   }
-}
 
-function drawBananaMonkey(ctx: CanvasRenderingContext2D, level: number, time: number): void {
-  const isCalvoFurioso = level >= 3;
-  ctx.fillStyle = isCalvoFurioso ? '#fb923c' : '#fde047';
-  ctx.strokeStyle = '#854d0e';
-  ctx.lineWidth = 2;
+  // Cute nostrils & mouth on front edge (+x)
+  ctx.fillStyle = style.furDark;
   ctx.beginPath();
-  ctx.arc(16, 8, 8, -0.7, 1.4);
-  ctx.stroke();
+  ctx.arc(10.5, -1.6, 0.9, 0, Math.PI * 2);
+  ctx.arc(10.5, 1.6, 0.9, 0, Math.PI * 2);
   ctx.fill();
 
-  drawMonkeyBaseHead(
-    ctx,
-    isCalvoFurioso ? '#dc2626' : '#b45309',
-    isCalvoFurioso ? '#fca5a5' : '#fed7aa',
-    level >= 2,
-    false,
-    isCalvoFurioso,
-  );
-
-  if (level >= 1 && level < 3) {
-    ctx.fillStyle = level === 2 ? '#22c55e' : '#facc15';
-    ctx.fillRect(-10, -13, 7, 26);
-  }
-  if (isCalvoFurioso) {
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
-    const puff = Math.sin(time * 12) * 3;
+  if (style.shouting || isFiring) {
+    ctx.fillStyle = '#7f1d1d';
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = 1.1;
     ctx.beginPath();
-    ctx.arc(-14, -7 + puff, 4, 0, Math.PI * 2);
-    ctx.arc(-16, 7 - puff, 3.5, 0, Math.PI * 2);
+    ctx.ellipse(12.2, 0, 2.3, 3.4, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.stroke();
+  } else {
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(11.2, 0, 3.2, -0.75, 0.75);
+    ctx.stroke();
   }
+
+  ctx.restore();
 }
 
-function drawHavaianasMonkey(ctx: CanvasRenderingContext2D, level: number): void {
+function drawMonkeyHand(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  furColor: string,
+  palmColor = '#fde68a',
+): void {
+  ctx.fillStyle = furColor;
+  ctx.strokeStyle = '#291509';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(x, y, 4.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = palmColor;
+  ctx.beginPath();
+  ctx.arc(x + 1, y, 2.1, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawBananaMonkey(ctx: CanvasRenderingContext2D, opts: MonkeyTowerVisualOpts): void {
+  const isCalvo = opts.level >= 3;
+  const furBase = isCalvo ? '#dc2626' : '#b45309';
+
+  // Throwing arm & curved banana
+  const throwSwing = opts.recoil * 0.45;
   ctx.save();
-  ctx.translate(16, 9);
-  ctx.rotate(0.4);
-  ctx.fillStyle = level >= 3 ? '#f59e0b' : '#38bdf8';
-  ctx.strokeStyle = '#0c4a6e';
+  ctx.rotate(throwSwing);
+  drawMonkeyHand(ctx, 13, 9, furBase);
+  const banGrad = ctx.createLinearGradient(12, 4, 21, 16);
+  banGrad.addColorStop(0, isCalvo ? '#fed7aa' : '#fef08a');
+  banGrad.addColorStop(1, isCalvo ? '#f97316' : '#eab308');
+  ctx.fillStyle = banGrad;
+  ctx.strokeStyle = isCalvo ? '#9a3412' : '#713f12';
   ctx.lineWidth = 1.8;
-  roundRect(ctx, -5, -9, 10, 18, 4);
+  ctx.beginPath();
+  ctx.arc(16, 8, 8.2, -0.7, 1.45);
+  ctx.quadraticCurveTo(17, 7, 20, 2.5);
   ctx.fill();
   ctx.stroke();
   ctx.restore();
 
-  drawMonkeyBaseHead(ctx, '#92400e', '#fed7aa', level >= 2, false);
+  drawMonkeyHand(ctx, 9, -11, furBase);
 
-  ctx.fillStyle = level >= 2 ? '#38bdf8' : '#0284c7';
-  ctx.fillRect(-10, -13, 6, 26);
+  drawMonkeyTowerBase(ctx, opts, {
+    furHi: isCalvo ? '#f87171' : '#d97706',
+    furBase,
+    furDark: isCalvo ? '#991b1b' : '#78350f',
+    faceHi: isCalvo ? '#fecaca' : '#fef3c7',
+    faceShade: isCalvo ? '#fca5a5' : '#fed7aa',
+    innerEar: '#fda4af',
+    angry: opts.level >= 2,
+    vesgo: false,
+    baldShiny: isCalvo,
+    shouting: isCalvo,
+  });
+
+  if (opts.level >= 1 && opts.level < 3) {
+    // Headband with trailing tails
+    ctx.fillStyle = opts.level === 2 ? '#22c55e' : '#facc15';
+    ctx.strokeStyle = '#291509';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.roundRect(-11, -13, 7, 26, 3);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-11, -4);
+    ctx.lineTo(-19, -8);
+    ctx.lineTo(-16, -2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  if (isCalvo) {
+    // Cartoon steam puffs from furious bald dome!
+    ctx.fillStyle = 'rgba(255,255,255,0.82)';
+    const puff = Math.sin(opts.time * 12) * 3;
+    ctx.beginPath();
+    ctx.arc(-14, -7 + puff, 4.2, 0, Math.PI * 2);
+    ctx.arc(-17, 7 - puff, 3.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
-function drawSniperMonkey(ctx: CanvasRenderingContext2D, level: number): void {
-  ctx.fillStyle = '#1e293b';
+function drawHavaianasMonkey(ctx: CanvasRenderingContext2D, opts: MonkeyTowerVisualOpts): void {
+  const furBase = '#92400e';
+  // Throwing hand + Havaianas flip-flop
+  ctx.save();
+  ctx.translate(16, 9);
+  ctx.rotate(0.4 + opts.recoil * 0.5);
+  const shoeGrad = ctx.createLinearGradient(-5, -9, 5, 9);
+  shoeGrad.addColorStop(0, opts.level >= 3 ? '#fde047' : '#7dd3fc');
+  shoeGrad.addColorStop(1, opts.level >= 3 ? '#d97706' : '#0284c7');
+  ctx.fillStyle = shoeGrad;
+  ctx.strokeStyle = opts.level >= 3 ? '#78350f' : '#0c4a6e';
+  ctx.lineWidth = 1.8;
+  roundRect(ctx, -5.5, -9.5, 11, 19, 4.5);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(-3.5, 3);
+  ctx.lineTo(0, -4);
+  ctx.lineTo(3.5, 3);
+  ctx.stroke();
+  ctx.restore();
+
+  drawMonkeyHand(ctx, 13, 10, furBase);
+  drawMonkeyHand(ctx, 9, -11, furBase);
+
+  drawMonkeyTowerBase(ctx, opts, {
+    furHi: '#b45309',
+    furBase,
+    furDark: '#451a03',
+    faceHi: '#fef3c7',
+    faceShade: '#fed7aa',
+    innerEar: '#fda4af',
+    angry: opts.level >= 2,
+    vesgo: false,
+    shouting: opts.level >= 3,
+  });
+
+  // Headband (becomes golden crown headband at Lv3!)
+  ctx.fillStyle = opts.level >= 3 ? '#facc15' : opts.level >= 2 ? '#38bdf8' : '#0284c7';
   ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 1.5;
-  ctx.fillRect(4, 4, 24, 5);
-  ctx.strokeRect(4, 4, 24, 5);
-  if (level >= 1) {
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.roundRect(-10.5, -13, 6.5, 26, 3);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawSniperMonkey(ctx: CanvasRenderingContext2D, opts: MonkeyTowerVisualOpts): void {
+  const furBase = '#78350f';
+  // Long sniper rifle + scope + laser sight
+  const barrelGrad = ctx.createLinearGradient(4, 3, 28, 9);
+  barrelGrad.addColorStop(0, '#334155');
+  barrelGrad.addColorStop(1, '#0f172a');
+  ctx.fillStyle = barrelGrad;
+  ctx.strokeStyle = '#020617';
+  ctx.lineWidth = 1.6;
+  roundRect(ctx, 3, 4, 25, 5.5, 2);
+  ctx.fill();
+  ctx.stroke();
+
+  if (opts.level >= 1) {
     ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(8, 1, 9, 4);
+    ctx.strokeStyle = '#0c4a6e';
+    ctx.lineWidth = 1.2;
+    roundRect(ctx, 9, 0.5, 9, 4, 1.5);
+    ctx.fill();
+    ctx.stroke();
   }
-  if (level >= 3) {
+  if (opts.level >= 3) {
     ctx.fillStyle = '#ef4444';
     ctx.beginPath();
-    ctx.arc(29, 6.5, 2.5, 0, Math.PI * 2);
+    ctx.arc(29, 6.8, 2.8, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  drawMonkeyBaseHead(ctx, '#78350f', '#fde68a', false, true);
+  drawMonkeyHand(ctx, 10, 8, furBase);
+  drawMonkeyHand(ctx, 16, 4, furBase);
 
-  ctx.fillStyle = level >= 2 ? '#dc2626' : '#4d7c0f';
+  drawMonkeyTowerBase(ctx, opts, {
+    furHi: '#a16207',
+    furBase,
+    furDark: '#451a03',
+    faceHi: '#fef9c3',
+    faceShade: '#fde68a',
+    innerEar: '#fda4af',
+    angry: false,
+    vesgo: true,
+  });
+
+  // Tactical beret / ghillie cap
+  ctx.fillStyle = opts.level >= 2 ? '#dc2626' : '#4d7c0f';
   ctx.strokeStyle = '#1a2e05';
   ctx.lineWidth = 1.8;
   ctx.beginPath();
-  ctx.ellipse(-4, 0, 10, 12, 0, 0, Math.PI * 2);
+  ctx.ellipse(-4, 0, 10.5, 12.5, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+  if (opts.level >= 3) {
+    // Ghillie leaves on cap
+    ctx.fillStyle = '#4ade80';
+    ctx.beginPath();
+    ctx.ellipse(-9, -6, 4.5, 2.2, 0.4, 0, Math.PI * 2);
+    ctx.ellipse(-9, 6, 4.5, 2.2, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
-function drawCocoCannonMonkey(ctx: CanvasRenderingContext2D, level: number): void {
-  ctx.fillStyle = level >= 3 ? '#14532d' : '#1e293b';
+function drawCocoCannonMonkey(ctx: CanvasRenderingContext2D, opts: MonkeyTowerVisualOpts): void {
+  // Heavy coconut cannon barrel with shading
+  const canGrad = ctx.createLinearGradient(2, -10, 2, 10);
+  canGrad.addColorStop(0, opts.level >= 3 ? '#22c55e' : '#475569');
+  canGrad.addColorStop(0.5, opts.level >= 3 ? '#14532d' : '#1e293b');
+  canGrad.addColorStop(1, '#090d16');
+  ctx.fillStyle = canGrad;
   ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 2.5;
-  roundRect(ctx, 2, -9, 23, 18, 5);
+  ctx.lineWidth = 2.4;
+  roundRect(ctx, 2, -9.5, 23, 19, 5);
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = '#4ade80';
+  ctx.fillStyle = opts.level >= 3 ? '#fde047' : '#4ade80';
   ctx.fillRect(21, -7, 4, 14);
 
+  // Gunner monkey behind cannon with paws gripping sides
+  drawMonkeyHand(ctx, 4, -10, '#9a3412');
+  drawMonkeyHand(ctx, 4, 10, '#9a3412');
+
   ctx.save();
-  ctx.translate(-6, 0);
-  ctx.scale(0.82, 0.82);
-  drawMonkeyBaseHead(ctx, '#9a3412', '#fed7aa', level >= 2, false);
+  ctx.translate(-7, 0);
+  drawMonkeyTowerBase(ctx, opts, {
+    furHi: '#c2410c',
+    furBase: '#9a3412',
+    furDark: '#431407',
+    faceHi: '#fef3c7',
+    faceShade: '#fed7aa',
+    innerEar: '#fda4af',
+    angry: opts.level >= 2,
+    vesgo: false,
+    scale: 0.84,
+  });
   ctx.restore();
 }
 
-function drawDjMonkey(ctx: CanvasRenderingContext2D, level: number, time: number): void {
-  const bounce = 1 + Math.sin(time * 12) * 0.08;
+function drawDjMonkey(ctx: CanvasRenderingContext2D, opts: MonkeyTowerVisualOpts): void {
+  const bounce = 1 + Math.sin(opts.time * 12) * 0.08;
   ctx.save();
   ctx.translate(12, 0);
   ctx.scale(bounce, bounce);
   ctx.fillStyle = '#0f172a';
-  ctx.strokeStyle = level >= 2 ? '#facc15' : '#c084fc';
+  ctx.strokeStyle = opts.level >= 2 ? '#facc15' : '#c084fc';
   ctx.lineWidth = 2.5;
   roundRect(ctx, -6, -15, 14, 30, 5);
   ctx.fill();
   ctx.stroke();
-  ctx.fillStyle = '#a855f7';
+  ctx.fillStyle = opts.level >= 3 ? '#facc15' : '#a855f7';
   ctx.beginPath();
   ctx.arc(1, -7, 4.5, 0, Math.PI * 2);
   ctx.arc(1, 7, 4.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
+  drawMonkeyHand(ctx, 5, -10, '#7c2d12');
+  drawMonkeyHand(ctx, 5, 10, '#7c2d12');
+
   ctx.save();
   ctx.translate(-5, 0);
-  ctx.scale(0.9, 0.9);
-  drawMonkeyBaseHead(ctx, '#7c2d12', '#fed7aa', false, false);
-  ctx.strokeStyle = '#c084fc';
-  ctx.lineWidth = 3.5;
+  drawMonkeyTowerBase(ctx, opts, {
+    furHi: '#9a3412',
+    furBase: '#7c2d12',
+    furDark: '#431407',
+    faceHi: '#fef3c7',
+    faceShade: '#fed7aa',
+    innerEar: '#f9a8d4',
+    angry: false,
+    vesgo: false,
+    scale: 0.9,
+  });
+  // Neon DJ headphones
+  ctx.strokeStyle = opts.level >= 3 ? '#facc15' : '#c084fc';
+  ctx.lineWidth = 3.2;
   ctx.beginPath();
-  ctx.arc(0, 0, 15, Math.PI * 0.65, Math.PI * 1.35);
+  ctx.arc(0, 0, 14, Math.PI * 0.62, Math.PI * 1.38);
   ctx.stroke();
   ctx.fillStyle = '#e879f9';
-  ctx.fillRect(-3, -17, 7, 5);
-  ctx.fillRect(-3, 12, 7, 5);
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 1.4;
+  roundRect(ctx, -3, -16, 7, 5, 2);
+  ctx.fill();
+  ctx.stroke();
+  roundRect(ctx, -3, 11, 7, 5, 2);
+  ctx.fill();
+  ctx.stroke();
   ctx.restore();
 }
 
-function drawFarmTower(ctx: CanvasRenderingContext2D, level: number, time: number): void {
+function drawFarmTower(
+  ctx: CanvasRenderingContext2D,
+  level: number,
+  time: number,
+  ownerColor: string,
+): void {
   // Base wooden crate / bank foundation
-  ctx.fillStyle = level >= 3 ? '#eab308' : level >= 2 ? '#15803d' : '#92400e';
+  const crateGrad = ctx.createLinearGradient(-16, -13, 16, 13);
+  crateGrad.addColorStop(0, level >= 3 ? '#fde047' : level >= 2 ? '#22c55e' : '#b45309');
+  crateGrad.addColorStop(1, level >= 3 ? '#ca8a04' : level >= 2 ? '#14532d' : '#78350f');
+  ctx.fillStyle = crateGrad;
   ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 2.2;
+  ctx.lineWidth = 2.4;
   roundRect(ctx, -16, -13, 32, 26, 6);
   ctx.fill();
   ctx.stroke();
 
   if (level >= 3) {
-    // Banana Central Bank roof
     ctx.fillStyle = '#fef08a';
-    ctx.font = '900 10px system-ui, sans-serif';
+    ctx.font = '900 9.5px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('BANCO', 0, 10);
   }
@@ -989,9 +1302,9 @@ function drawFarmTower(ctx: CanvasRenderingContext2D, level: number, time: numbe
   ctx.save();
   ctx.translate(0, -4);
   ctx.rotate(sway);
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     ctx.save();
-    ctx.rotate((i * Math.PI) / 2 + 0.35);
+    ctx.rotate((i * Math.PI * 2) / 5 + 0.35);
     ctx.fillStyle = level >= 1 ? '#4ade80' : '#22c55e';
     ctx.strokeStyle = '#052e16';
     ctx.lineWidth = 1.6;
@@ -1013,9 +1326,38 @@ function drawFarmTower(ctx: CanvasRenderingContext2D, level: number, time: numbe
     ctx.fill();
     ctx.stroke();
   }
+
+  // Cute tiny farmer monkey helper peeking on the corner!
+  ctx.save();
+  ctx.translate(11, 8);
+  drawMonkeyTowerBase(
+    ctx,
+    { level, recoil: 0, ownerColor, time, seed: 2.3 },
+    {
+      furHi: '#d97706',
+      furBase: '#b45309',
+      furDark: '#78350f',
+      faceHi: '#fef3c7',
+      faceShade: '#fde68a',
+      innerEar: '#fda4af',
+      angry: false,
+      vesgo: false,
+      scale: 0.48,
+    },
+  );
+  // Straw farmer hat
+  ctx.fillStyle = '#fde047';
+  ctx.strokeStyle = '#854d0e';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.arc(-1, 0, 6.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
 }
 
-function drawMagoMonkey(ctx: CanvasRenderingContext2D, level: number, time: number): void {
+function drawMagoMonkey(ctx: CanvasRenderingContext2D, opts: MonkeyTowerVisualOpts): void {
+  const furBase = opts.level >= 3 ? '#312e81' : '#6d28d9';
   // Lightning vine staff
   ctx.strokeStyle = '#78350f';
   ctx.lineWidth = 3.5;
@@ -1025,33 +1367,47 @@ function drawMagoMonkey(ctx: CanvasRenderingContext2D, level: number, time: numb
   ctx.stroke();
 
   // Glowing orb on staff tip
-  const orbPulse = 4.5 + Math.sin(time * 10) * 1.2;
-  ctx.fillStyle = level >= 3 ? '#facc15' : '#22d3ee';
+  const orbPulse = 4.6 + Math.sin(opts.time * 10) * 1.2 + opts.recoil * 2.5;
+  ctx.fillStyle = opts.level >= 3 ? '#facc15' : '#22d3ee';
   ctx.strokeStyle = '#083344';
   ctx.lineWidth = 1.6;
   ctx.beginPath();
   ctx.arc(24, 10, orbPulse, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(22.5, 8.5, orbPulse * 0.35, 0, Math.PI * 2);
+  ctx.fill();
 
-  drawMonkeyBaseHead(
-    ctx,
-    level >= 3 ? '#312e81' : '#6d28d9',
-    '#fde68a',
-    level >= 2,
-    false,
-  );
+  drawMonkeyHand(ctx, 11, 10, furBase, '#fde68a');
+  drawMonkeyHand(ctx, 9, -11, furBase, '#fde68a');
+
+  drawMonkeyTowerBase(ctx, opts, {
+    furHi: opts.level >= 3 ? '#4f46e5' : '#8b5cf6',
+    furBase,
+    furDark: '#1e1b4b',
+    faceHi: '#fef9c3',
+    faceShade: '#fde68a',
+    innerEar: '#f9a8d4',
+    angry: opts.level >= 2,
+    vesgo: false,
+    shouting: opts.level >= 3,
+  });
 
   // Leaf / Vine shaman crown
-  ctx.strokeStyle = '#4ade80';
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = opts.level >= 3 ? '#facc15' : '#4ade80';
+  ctx.lineWidth = 3.2;
   ctx.beginPath();
   ctx.arc(0, 0, 14, Math.PI * 0.6, Math.PI * 1.4);
   ctx.stroke();
-  ctx.fillStyle = '#22d3ee';
+  ctx.fillStyle = opts.level >= 3 ? '#facc15' : '#22d3ee';
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 1.4;
   ctx.beginPath();
-  ctx.arc(-8, 0, 3.5, 0, Math.PI * 2);
+  ctx.arc(-8, 0, 3.8, 0, Math.PI * 2);
   ctx.fill();
+  ctx.stroke();
 }
 
 function drawBloon(ctx: CanvasRenderingContext2D, bloon: BloonInstance, time: number): void {

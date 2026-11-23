@@ -19,6 +19,20 @@
       <stop offset="0%" stop-color="#4ade80" />
       <stop offset="100%" stop-color="#15803d" />
     </linearGradient>
+    <radialGradient id="furHead" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ca8a04" />
+      <stop offset="60%" stop-color="#a16207" />
+      <stop offset="100%" stop-color="#713f12" />
+    </radialGradient>
+    <radialGradient id="cocoGrad" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#854d0e" />
+      <stop offset="55%" stop-color="#5c3a21" />
+      <stop offset="100%" stop-color="#2d190c" />
+    </radialGradient>
+    <linearGradient id="maskCream" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fef9c3" />
+      <stop offset="100%" stop-color="#fde68a" />
+    </linearGradient>
     <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
       <feGaussianBlur stdDeviation="4" result="blur" />
       <feMerge>
@@ -47,21 +61,20 @@
   </g>
 
   <!-- Boss Silhouette (Gorilão CEO da Faria Lima) in background right -->
-  <g transform="translate(465, 190)" opacity="0.9">
-    <!-- Gorilla Suit Body -->
+  <g transform="translate(465, 190)" opacity="0.92">
+    <circle cx="-40" cy="-68" r="13" fill="#27272a" stroke="#fb7185" stroke-width="2.5" />
+    <circle cx="40" cy="-68" r="13" fill="#27272a" stroke="#fb7185" stroke-width="2.5" />
     <path d="M-75 110 Q-85 -15 -35 -48 Q0 -62 35 -48 Q85 -15 75 110 Z" fill="#18182b" stroke="#fb7185" stroke-width="2.5" />
-    <!-- Giant Head -->
     <ellipse cx="0" cy="-68" rx="42" ry="36" fill="#18182b" stroke="#fb7185" stroke-width="2.5" />
-    <!-- Glowing Evil Boss Sunglasses / Eyes -->
+    <ellipse cx="0" cy="-58" rx="24" ry="16" fill="#3f3f46" />
     <rect x="-26" y="-82" width="22" height="11" rx="3" fill="#ef4444" filter="url(#glow)" />
     <rect x="4" y="-82" width="22" height="11" rx="3" fill="#ef4444" filter="url(#glow)" />
+    <rect x="-23" y="-80" width="7" height="3" fill="#fecaca" />
+    <rect x="7" y="-80" width="7" height="3" fill="#fecaca" />
     <rect x="-4" y="-78" width="8" height="3" fill="#fb7185" />
-    <!-- Red Tie -->
     <polygon points="0,-32 -11,-10 0,68 11,-10" fill="#ef4444" />
-    <!-- Briefcase -->
     <rect x="46" y="25" width="54" height="40" rx="5" fill="#78350f" stroke="#facc15" stroke-width="2" />
     <path d="M62 25 L62 16 L84 16 L84 25" fill="none" stroke="#facc15" stroke-width="3" />
-    <!-- Floating Stonks Down Arrow -->
     <text x="-65" y="-110" fill="#fb7185" font-family="monospace" font-weight="900" font-size="14">IBOV -18% 📉</text>
   </g>
 
@@ -89,56 +102,66 @@
   <!-- HERO: Hollow Chimp Knight -->
   <g transform="translate(185, 212)">
     <!-- Tail -->
-    <path d="M-26 32 Q-68 25 -62 -10 Q-56 -30 -40 -22" fill="none" stroke="#92400e" stroke-width="9" stroke-linecap="round" />
+    <path d="M-24 32 Q-68 25 -62 -10 Q-56 -30 -40 -22" fill="none" stroke="#1c0d04" stroke-width="14" stroke-linecap="round" />
+    <path d="M-24 32 Q-68 25 -62 -10 Q-56 -30 -40 -22" fill="none" stroke="#92400e" stroke-width="8.5" stroke-linecap="round" />
+    <circle cx="-40" cy="-22" r="4" fill="#fde68a" />
 
     <!-- Banana Leaf Cape -->
-    <path d="M-12 -10 Q-78 4 -95 48 Q-58 55 -35 42 Q-20 62 -6 56 Z" fill="url(#capeGrad)" stroke="#14532d" stroke-width="3" />
+    <path d="M-12 -10 Q-78 4 -95 48 Q-58 55 -35 42 Q-20 62 -6 56 Z" fill="url(#capeGrad)" stroke="#052e16" stroke-width="3.2" />
     <path d="M-22 6 L-72 34" stroke="#86efac" stroke-width="2.5" stroke-linecap="round" opacity="0.7" />
 
-    <!-- Body -->
-    <ellipse cx="0" cy="24" rx="26" ry="30" fill="#92400e" stroke="#451a03" stroke-width="3" />
-    <ellipse cx="4" cy="26" rx="16" ry="20" fill="#fde68a" opacity="0.85" />
+    <!-- Legs & Feet -->
+    <path d="M-12 48 L-20 78" stroke="#1c0d04" stroke-width="14" stroke-linecap="round" />
+    <path d="M-12 48 L-20 78" stroke="#78350f" stroke-width="9" stroke-linecap="round" />
+    <ellipse cx="-18" cy="79" rx="9" ry="5.5" fill="#fde68a" stroke="#1c0d04" stroke-width="2.8" />
+    <path d="M12 48 L24 76" stroke="#1c0d04" stroke-width="14" stroke-linecap="round" />
+    <path d="M12 48 L24 76" stroke="#78350f" stroke-width="9" stroke-linecap="round" />
+    <ellipse cx="26" cy="77" rx="9" ry="5.5" fill="#fde68a" stroke="#1c0d04" stroke-width="2.8" />
 
-    <!-- Legs -->
-    <path d="M-12 48 L-20 78" stroke="#78350f" stroke-width="11" stroke-linecap="round" />
-    <path d="M12 48 L24 76" stroke="#78350f" stroke-width="11" stroke-linecap="round" />
+    <!-- Body & Warrior Sash -->
+    <ellipse cx="0" cy="24" rx="26" ry="30" fill="#78350f" stroke="#1c0d04" stroke-width="3.2" />
+    <ellipse cx="4" cy="26" rx="16" ry="20" fill="#fde68a" opacity="0.92" />
+    <rect x="-23" y="13" width="46" height="10" rx="5" fill="#38bdf8" stroke="#1c0d04" stroke-width="2.5" />
+
+    <!-- Monkey Ears with pink inner ear -->
+    <circle cx="-26" cy="-16" r="11.5" fill="#a16207" stroke="#1c0d04" stroke-width="3.2" />
+    <circle cx="-26" cy="-16" r="6" fill="#fda4af" />
+    <circle cx="34" cy="-16" r="11.5" fill="#a16207" stroke="#1c0d04" stroke-width="3.2" />
+    <circle cx="34" cy="-16" r="6" fill="#fda4af" />
 
     <!-- Head -->
-    <circle cx="4" cy="-16" r="27" fill="#a16207" stroke="#451a03" stroke-width="3" />
-    <!-- Monkey Ears -->
-    <circle cx="-24" cy="-16" r="10" fill="#a16207" stroke="#451a03" stroke-width="3" />
-    <circle cx="-24" cy="-16" r="5" fill="#fcd34d" />
-    <circle cx="32" cy="-16" r="10" fill="#a16207" stroke="#451a03" stroke-width="3" />
-    <circle cx="32" cy="-16" r="5" fill="#fcd34d" />
-    <!-- Face Mask -->
-    <ellipse cx="6" cy="-10" rx="20" ry="16" fill="#fde68a" />
+    <circle cx="4" cy="-16" r="28" fill="url(#furHead)" stroke="#1c0d04" stroke-width="3.2" />
 
-    <!-- Goofy Cross-Eyed Expression -->
-    <circle cx="-3" cy="-15" r="7.5" fill="#ffffff" stroke="#1e293b" stroke-width="2" />
-    <circle cx="15" cy="-15" r="7.5" fill="#ffffff" stroke="#1e293b" stroke-width="2" />
-    <circle cx="0" cy="-14" r="3.2" fill="#0f172a" />
-    <circle cx="12" cy="-16" r="3.2" fill="#0f172a" />
+    <!-- Heart / Peanut Face Mask -->
+    <path d="M8 -22 C17 -31, 30 -22, 26 -11 C30 0, 18 8, 8 7 C-2 8, -14 0, -10 -11 C-14 -22, -1 -31, 8 -22 Z" fill="url(#maskCream)" stroke="#713f12" stroke-width="1.5" />
+
+    <!-- Expressive Eyes with white highlights & determined brows -->
+    <circle cx="-1" cy="-15" r="7.5" fill="#ffffff" stroke="#1c0d04" stroke-width="2.2" />
+    <circle cx="17" cy="-15" r="7.5" fill="#ffffff" stroke="#1c0d04" stroke-width="2.2" />
+    <circle cx="1.5" cy="-15" r="3.4" fill="#0f172a" />
+    <circle cx="19.5" cy="-15" r="3.4" fill="#0f172a" />
+    <circle cx="0" cy="-16.8" r="1.4" fill="#ffffff" />
+    <circle cx="18" cy="-16.8" r="1.4" fill="#ffffff" />
+    <path d="M-8 -24 L4 -20 M24 -24 L12 -20" stroke="#1c0d04" stroke-width="3.4" stroke-linecap="round" />
+
     <!-- Determined Grin -->
-    <path d="M-4 -2 Q7 6 18 -1" fill="none" stroke="#451a03" stroke-width="3" stroke-linecap="round" />
+    <path d="M1 -2 Q10 6 19 -2" fill="none" stroke="#1c0d04" stroke-width="3" stroke-linecap="round" />
 
     <!-- CRACKED COCONUT HELMET -->
-    <path d="M-24 -22 Q4 -56 32 -22 Z" fill="#5c3a21" stroke="#2d190c" stroke-width="3.5" />
-    <!-- Coconut Milk / White Rim -->
-    <path d="M-22 -22 Q4 -16 30 -22" fill="none" stroke="#fef3c7" stroke-width="4" stroke-linecap="round" />
-    <!-- Crack Line in Helmet -->
-    <path d="M6 -44 L2 -34 L9 -29 L3 -21" fill="none" stroke="#1c0d04" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-    <!-- Little Leaf Sprout on Top -->
-    <path d="M4 -43 Q14 -62 24 -50 Q12 -42 4 -43 Z" fill="#4ade80" stroke="#14532d" stroke-width="2" />
+    <path d="M-25 -22 Q4 -58 33 -22 Z" fill="url(#cocoGrad)" stroke="#1c0d04" stroke-width="3.5" />
+    <path d="M-23 -22 Q4 -15 31 -22" fill="none" stroke="#fef3c7" stroke-width="4.5" stroke-linecap="round" />
+    <path d="M6 -46 L2 -35 L9 -30 L3 -21" fill="none" stroke="#1c0d04" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M4 -44 Q15 -64 26 -51 Q13 -42 4 -44 Z" fill="#4ade80" stroke="#14532d" stroke-width="2.2" />
+    <circle cx="4" cy="-44" r="4" fill="#38bdf8" stroke="#1c0d04" stroke-width="1.8" />
 
     <!-- Sword Arm & SHARP BANANA SWORD -->
     <g transform="translate(26, 8) rotate(-28)">
-      <!-- Banana Blade -->
       <path d="M10 -8 Q52 -34 92 -14 Q56 14 10 6 Z" fill="url(#bladeGrad)" stroke="#713f12" stroke-width="3" filter="url(#glow)" />
-      <!-- Hilt -->
       <rect x="-4" y="-11" width="12" height="22" rx="3" fill="#451a03" stroke="#facc15" stroke-width="2" />
       <rect x="-14" y="-4" width="12" height="8" rx="3" fill="#78350f" />
     </g>
-    <circle cx="24" cy="14" r="8" fill="#a16207" stroke="#451a03" stroke-width="2.5" />
+    <circle cx="24" cy="14" r="8.5" fill="#a16207" stroke="#1c0d04" stroke-width="2.8" />
+    <circle cx="26" cy="14" r="4" fill="#fde68a" />
   </g>
 
   <!-- Floating Bananas & Sparks -->
