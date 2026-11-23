@@ -15,6 +15,18 @@
       <stop offset="50%" stop-color="#facc15"/>
       <stop offset="100%" stop-color="#eab308"/>
     </linearGradient>
+    <linearGradient id="fur" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#b45309"/>
+      <stop offset="100%" stop-color="#78350f"/>
+    </linearGradient>
+    <linearGradient id="hoodie" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="100%" stop-color="#eab308"/>
+    </linearGradient>
+    <linearGradient id="mask" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fef3c7"/>
+      <stop offset="100%" stop-color="#fcd34d"/>
+    </linearGradient>
     <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
       <feGaussianBlur stdDeviation="4" result="blur"/>
       <feComposite in="SourceGraphic" in2="blur" operator="over"/>
@@ -57,17 +69,16 @@
     <polygon points="365,246 374,234 378,248 392,244 380,256 388,268 374,260 362,268 368,255 356,248"/>
   </g>
 
-  <!-- Flying Monkey Skater (Doing a crazy grab!) -->
+  <!-- Flying Monkey Skater (Upgraded Silhouette, Shading & Expression) -->
   <g transform="translate(325, 145) rotate(-18)">
-    <!-- Tail -->
-    <path d="M-24 22 Q-68 18 -64 -18 Q-58 -36 -42 -26" fill="none" stroke="#78350f" stroke-width="9" stroke-linecap="round"/>
+    <!-- Outlined Curved Tail -->
+    <path d="M-24 22 Q-68 18 -64 -18 Q-58 -36 -42 -26" fill="none" stroke="#0f172a" stroke-width="14" stroke-linecap="round"/>
+    <path d="M-24 22 Q-68 18 -64 -18 Q-58 -36 -42 -26" fill="none" stroke="#78350f" stroke-width="8.5" stroke-linecap="round"/>
 
     <!-- Skateboard -->
     <g transform="translate(5, 58) rotate(8)">
       <rect x="-66" y="-7" width="132" height="14" rx="7" fill="url(#deck)" stroke="#0f172a" stroke-width="3"/>
-      <!-- Banana sticker on deck -->
       <path d="M-12 -3 Q0 6 14 -2" fill="none" stroke="#854d0e" stroke-width="3.5" stroke-linecap="round"/>
-      <!-- Trucks & Wheels -->
       <rect x="-44" y="7" width="14" height="6" fill="#94a3b8"/>
       <rect x="30" y="7" width="14" height="6" fill="#94a3b8"/>
       <circle cx="-37" cy="17" r="9" fill="#fb7185" stroke="#0f172a" stroke-width="2.5"/>
@@ -76,50 +87,75 @@
       <circle cx="37" cy="17" r="3" fill="#fff"/>
     </g>
 
-    <!-- Legs -->
-    <path d="M-14 26 L-30 48 L-28 56" fill="none" stroke="#78350f" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M12 24 L26 42 L34 52" fill="none" stroke="#78350f" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-    <!-- Sneakers -->
-    <ellipse cx="-26" cy="57" rx="11" ry="6" fill="#ef4444" stroke="#0f172a" stroke-width="2.5"/>
-    <ellipse cx="36" cy="54" rx="11" ry="6" fill="#ef4444" stroke="#0f172a" stroke-width="2.5"/>
+    <!-- Outlined Legs -->
+    <path d="M-14 26 L-30 48 L-28 56" fill="none" stroke="#0f172a" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M-14 26 L-30 48 L-28 56" fill="none" stroke="#78350f" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M12 24 L26 42 L34 52" fill="none" stroke="#0f172a" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M12 24 L26 42 L34 52" fill="none" stroke="#92400e" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
 
-    <!-- Torso (Hoodie) -->
-    <rect x="-24" y="-12" width="46" height="42" rx="16" fill="#facc15" stroke="#0f172a" stroke-width="3"/>
-    <path d="M-10 4 L12 4 L8 20 L-6 20 Z" fill="#854d0e" opacity="0.35"/>
+    <!-- Detailed Skate Sneakers -->
+    <g transform="translate(-26, 56)">
+      <ellipse cx="0" cy="0" rx="12" ry="6.5" fill="#ef4444" stroke="#0f172a" stroke-width="2.5"/>
+      <rect x="-10" y="3" width="20" height="4" rx="2" fill="#f8fafc"/>
+    </g>
+    <g transform="translate(36, 53)">
+      <ellipse cx="0" cy="0" rx="12" ry="6.5" fill="#ef4444" stroke="#0f172a" stroke-width="2.5"/>
+      <rect x="-10" y="3" width="20" height="4" rx="2" fill="#f8fafc"/>
+    </g>
 
-    <!-- Grabbing Arm & Wild Arm -->
-    <path d="M14 -2 L32 24 L22 52" fill="none" stroke="#92400e" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M-20 -2 L-46 -28 L-58 -16" fill="none" stroke="#92400e" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="-58" cy="-16" r="7" fill="#fcd34d" stroke="#0f172a" stroke-width="2.5"/>
-    <circle cx="22" cy="52" r="7" fill="#fcd34d" stroke="#0f172a" stroke-width="2.5"/>
+    <!-- Outlined Wild Back Arm -->
+    <path d="M-20 -2 L-46 -28 L-58 -16" fill="none" stroke="#0f172a" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M-20 -2 L-46 -28 L-58 -16" fill="none" stroke="#78350f" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="-58" cy="-16" r="7.5" fill="#fde68a" stroke="#0f172a" stroke-width="2.5"/>
+
+    <!-- Torso (Hoodie with Hood, Pocket & Strings) -->
+    <rect x="-24" y="-12" width="46" height="42" rx="16" fill="url(#hoodie)" stroke="#0f172a" stroke-width="3"/>
+    <rect x="-13" y="10" width="24" height="14" rx="6" fill="rgba(15,23,42,0.14)"/>
+    <ellipse cx="-10" cy="-9" rx="13" ry="6.5" fill="#facc15" stroke="#0f172a" stroke-width="2.5"/>
+    <path d="M0 -6 L-4 9 M7 -6 L4 8" stroke="#f8fafc" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- Outlined Grabbing Front Arm -->
+    <path d="M14 -2 L32 24 L22 52" fill="none" stroke="#0f172a" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M14 -2 L32 24 L22 52" fill="none" stroke="#b45309" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="22" cy="52" r="7.5" fill="#fde68a" stroke="#0f172a" stroke-width="2.5"/>
 
     <!-- Monkey Head -->
-    <g transform="translate(2, -32)">
-      <!-- Big Ears -->
-      <circle cx="-27" cy="2" r="11" fill="#78350f" stroke="#0f172a" stroke-width="2.5"/>
-      <circle cx="-27" cy="2" r="5.5" fill="#fcd34d"/>
-      <circle cx="27" cy="2" r="11" fill="#78350f" stroke="#0f172a" stroke-width="2.5"/>
-      <circle cx="27" cy="2" r="5.5" fill="#fcd34d"/>
+    <g transform="translate(2, -33)">
+      <!-- Big Ears with Rosy Inner Ear -->
+      <circle cx="-28" cy="2" r="11.5" fill="url(#fur)" stroke="#0f172a" stroke-width="2.8"/>
+      <circle cx="-27" cy="2.5" r="6" fill="#fda4af"/>
+      <circle cx="28" cy="2" r="11.5" fill="url(#fur)" stroke="#0f172a" stroke-width="2.8"/>
+      <circle cx="27" cy="2.5" r="6" fill="#fda4af"/>
 
-      <!-- Head & Face -->
-      <circle cx="0" cy="0" r="24" fill="#78350f" stroke="#0f172a" stroke-width="3"/>
-      <ellipse cx="0" cy="8" rx="19" ry="13" fill="#fde68a"/>
-      <circle cx="-8" cy="-4" r="8" fill="#fde68a"/>
-      <circle cx="8" cy="-4" r="8" fill="#fde68a"/>
+      <!-- Head & Heart/Peanut Face Mask -->
+      <circle cx="0" cy="0" r="24.5" fill="url(#fur)" stroke="#0f172a" stroke-width="3"/>
+      <path d="M1 -6 C-8 -18 -21 -10 -17 1 C-21 12 -10 21 1 20 C12 21 22 12 18 1 C22 -10 10 -18 1 -6 Z" fill="url(#mask)"/>
 
-      <!-- Goofy Crossed/Hyped Eyes -->
-      <circle cx="-8" cy="-4" r="5.5" fill="#fff" stroke="#0f172a" stroke-width="2"/>
-      <circle cx="8" cy="-4" r="5.5" fill="#fff" stroke="#0f172a" stroke-width="2"/>
-      <circle cx="-6" cy="-4" r="2.5" fill="#0f172a"/>
-      <circle cx="10" cy="-5" r="2.5" fill="#0f172a"/>
+      <!-- Expressive Hyped Eyebrows -->
+      <path d="M-14 -12 Q-8 -16 -3 -12" fill="none" stroke="#451a03" stroke-width="2.6" stroke-linecap="round"/>
+      <path d="M3 -12 Q9 -16 15 -12" fill="none" stroke="#451a03" stroke-width="2.6" stroke-linecap="round"/>
 
-      <!-- Hyped Mouth -->
-      <path d="M-10 9 Q0 22 12 9 Z" fill="#7f1d1d" stroke="#0f172a" stroke-width="2"/>
-      <path d="M-4 15 Q2 19 6 15" fill="#fb7185"/>
+      <!-- Goofy Hyped Eyes with Crisp Highlights -->
+      <circle cx="-8" cy="-4" r="6" fill="#fff" stroke="#0f172a" stroke-width="2"/>
+      <circle cx="8" cy="-4" r="6" fill="#fff" stroke="#0f172a" stroke-width="2"/>
+      <circle cx="-6" cy="-4" r="2.7" fill="#0f172a"/>
+      <circle cx="10" cy="-4.5" r="2.7" fill="#0f172a"/>
+      <circle cx="-7" cy="-5.5" r="1.1" fill="#fff"/>
+      <circle cx="9" cy="-6" r="1.1" fill="#fff"/>
 
-      <!-- Backwards Cap -->
-      <path d="M-23 -8 Q0 -34 23 -8 Z" fill="#ef4444" stroke="#0f172a" stroke-width="2.5"/>
-      <path d="M-22 -10 L-42 -5 L-38 2 L-20 -4 Z" fill="#dc2626" stroke="#0f172a" stroke-width="2.5"/>
+      <!-- Nostrils -->
+      <circle cx="-2" cy="4" r="1.3" fill="#92400e"/>
+      <circle cx="3" cy="4" r="1.3" fill="#92400e"/>
+
+      <!-- Hyped Mouth + Teeth + Tongue -->
+      <path d="M-10 8 Q1 23 12 8 Z" fill="#7f1d1d" stroke="#0f172a" stroke-width="2"/>
+      <rect x="-5" y="8.5" width="10" height="3.2" rx="1" fill="#ffffff"/>
+      <path d="M-4 15 Q1 19 6 15" fill="#fb7185"/>
+
+      <!-- Backwards Cap with Banana Pin -->
+      <path d="M-24 -8 Q0 -35 24 -8 Z" fill="#ef4444" stroke="#0f172a" stroke-width="2.5"/>
+      <path d="M-22 -10 L-43 -5 L-39 2 L-20 -4 Z" fill="#dc2626" stroke="#0f172a" stroke-width="2.5"/>
+      <circle cx="8" cy="-16" r="3.5" fill="#fde047"/>
     </g>
   </g>
 

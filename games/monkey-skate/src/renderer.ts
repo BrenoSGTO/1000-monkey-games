@@ -669,6 +669,8 @@ function drawLocalSkater(ctx: CanvasRenderingContext2D, sk: RenderLocalSkater, t
   drawMonkeyOnBoard(ctx, {
     x: sk.x,
     y: sk.y,
+    vx: sk.vx,
+    vy: sk.vy,
     angle: sk.angle,
     facing: sk.facing,
     color: sk.color,
@@ -678,6 +680,7 @@ function drawLocalSkater(ctx: CanvasRenderingContext2D, sk: RenderLocalSkater, t
     boardFlip: sk.boardFlip,
     isGrinding: sk.mode === 'grinding',
     isManual: sk.mode === 'manual',
+    balance: sk.mode === 'grinding' ? sk.grindBalance : sk.mode === 'manual' ? sk.manualBalance : 0,
     isTurbo: sk.turboTimer > 0,
     time,
   });
@@ -772,6 +775,8 @@ function drawRemoteSkater(ctx: CanvasRenderingContext2D, remote: RemotePlayerSta
     drawMonkeyOnBoard(ctx, {
       x: remote.renderX,
       y: remote.renderY,
+      vx: s.vx,
+      vy: s.vy,
       angle: remote.renderAngle,
       facing: s.facing,
       color: remote.color,
@@ -781,6 +786,7 @@ function drawRemoteSkater(ctx: CanvasRenderingContext2D, remote: RemotePlayerSta
       boardFlip: s.boardFlip,
       isGrinding: s.mode === 'grinding',
       isManual: s.mode === 'manual',
+      balance: 0,
       isTurbo: false,
       time,
     });
@@ -815,6 +821,8 @@ function drawNameTag(
 interface MonkeyBoardDrawOpts {
   x: number;
   y: number;
+  vx?: number;
+  vy?: number;
   angle: number;
   facing: 1 | -1;
   color: string;
@@ -824,15 +832,80 @@ interface MonkeyBoardDrawOpts {
   boardFlip: number;
   isGrinding: boolean;
   isManual: boolean;
+  balance?: number;
   isTurbo: boolean;
   time: number;
 }
 
+type MonkeyMood = 'chill' | 'hyped' | 'nervous' | 'panic' | 'dizzy';
+
+function getFurVariant(color: string): { light: string; dark: string; cap: string } {
+  let hash = 0;
+  for (let i = 0; i < color.length; i++) {
+    hash = (hash * 31 + color.charCodeAt(i)) | 0;
+  }
+  const variants = [
+    { light: '#b45309', dark: '#78350f', cap: '#ef4444' },
+    { light: '#c2691e', dark: '#7c2d12', cap: '#2563eb' },
+    { light: '#a16207', dark: '#713f12', cap: '#16a34a' },
+    { light: '#9a3412', dark: '#6c2710', cap: '#a855f7' },
+  ];
+  return variants[Math.abs(hash) % variants.length];
+}
+
+function drawMonkeyPaw(ctx: CanvasRenderingContext2D, x: number, y: number, r = 4.5): void {
+  ctx.fillStyle = '#fde68a';
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawSneaker(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  angle: number,
+  accent: string,
+): void {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  // Sneaker upper
+  ctx.fillStyle = accent;
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.ellipse(1, -1, 7.2, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  // White rubber sole & toe cap
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(-5.5, 1.2, 12.5, 2.2);
+  ctx.beginPath();
+  ctx.arc(5.5, -0.5, 2.6, -Math.PI * 0.5, Math.PI * 0.5);
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawMonkeyOnBoard(ctx: CanvasRenderingContext2D, o: MonkeyBoardDrawOpts): void {
+  const vx = o.vx ?? 0;
+  const vy = o.vy ?? 0;
+  const fur = getFurVariant(o.color);
+  const crouch = (o.crouching ? 11 : 0) + (o.activeTrick === 'bananagrab' ? 11 : 0);
+  const christLift = o.activeTrick === 'christair' ? -18 : 0;
+
+  // Subtle squash & stretch from crouch / air velocity
+  const airStretch = Math.max(-0.08, Math.min(0.1, -vy * 0.00018));
+  const sx = o.crouching ? 1.07 : 1 - airStretch * 0.5;
+  const sy = o.crouching ? 0.92 : 1 + airStretch;
+
   ctx.save();
   ctx.translate(o.x, o.y);
   ctx.rotate(o.angle);
-  ctx.scale(o.facing, 1);
+  ctx.scale(o.facing * sx, sy);
 
   if (o.isManual) {
     // Pivot slightly on back wheels for tail manual look!
@@ -841,16 +914,25 @@ function drawMonkeyOnBoard(ctx: CanvasRenderingContext2D, o: MonkeyBoardDrawOpts
     ctx.translate(12, 0);
   }
 
-  const crouch = (o.crouching ? 12 : 0) + (o.activeTrick === 'bananagrab' ? 12 : 0);
-  const christLift = o.activeTrick === 'christair' ? -18 : 0;
-
-  // Tail
-  ctx.strokeStyle = '#78350f';
-  ctx.lineWidth = 6;
+  // Secondary-motion curved tail with dark outline + fur stroke
+  const speedLag = Math.max(-10, Math.min(10, Math.abs(vx) * 0.015));
+  const tailWag = Math.sin(o.time * (o.isTurbo ? 18 : 10)) * 7;
   ctx.lineCap = 'round';
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 8.5;
   ctx.beginPath();
   ctx.moveTo(-10, -24 + crouch + christLift);
-  ctx.quadraticCurveTo(-30, -30 + Math.sin(o.time * 10) * 8, -28, -48 + crouch);
+  ctx.bezierCurveTo(
+    -26 - speedLag * 0.5,
+    -26 + crouch + tailWag * 0.4,
+    -34 - speedLag,
+    -44 + tailWag,
+    -24 - speedLag * 0.6,
+    -52 + crouch + tailWag * 0.5,
+  );
+  ctx.stroke();
+  ctx.strokeStyle = fur.dark;
+  ctx.lineWidth = 5;
   ctx.stroke();
 
   // Skateboard
@@ -872,70 +954,136 @@ function drawMonkeyOnBoard(ctx: CanvasRenderingContext2D, o: MonkeyBoardDrawOpts
     ctx.strokeStyle = '#fde047';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.ellipse(0, -86 + christLift, 16, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, -88 + christLift, 17, 5, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
 
-  // Legs
-  ctx.strokeStyle = '#78350f';
-  ctx.lineWidth = 7;
+  // Legs with cartoon outline + fur stroke
+  const hipY = -22 + crouch + christLift;
+  const drawLeg = (kx: number, ky: number, fx: number, fy: number, sxStart: number) => {
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 9.5;
+    ctx.beginPath();
+    ctx.moveTo(sxStart, hipY);
+    ctx.lineTo(kx, ky);
+    ctx.lineTo(fx, fy);
+    ctx.stroke();
+    ctx.strokeStyle = fur.dark;
+    ctx.lineWidth = 5.5;
+    ctx.stroke();
+  };
+  drawLeg(-12 + crouch * 0.3, -14 + christLift * 0.7, -10, -7 + christLift * 0.5, -5);
+  drawLeg(13 + crouch * 0.2, -14 + christLift * 0.7, 10, -7 + christLift * 0.5, 5);
+
+  // Skate Sneakers
+  drawSneaker(ctx, -10, -6 + christLift * 0.5, 0, o.color);
+  drawSneaker(ctx, 11, -6 + christLift * 0.5, 0, o.color);
+
+  // Back Arm
+  const chestY = -44 + crouch + christLift;
+  const wave = o.isGrinding || o.isManual ? Math.sin(o.time * 22) * 8 : Math.sin(o.time * 7) * 2;
+  const backHandX =
+    o.activeTrick === 'christair'
+      ? -32
+      : o.activeTrick === 'bananagrab'
+        ? -22
+        : -22;
+  const backHandY =
+    o.activeTrick === 'christair'
+      ? chestY + 4
+      : o.activeTrick === 'bananagrab'
+        ? chestY - 8
+        : chestY + 12 + wave;
+
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  const hipY = -22 + crouch + christLift;
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 9;
   ctx.beginPath();
-  ctx.moveTo(-5, hipY);
-  ctx.lineTo(-12 + crouch * 0.3, -14 + christLift * 0.7);
-  ctx.lineTo(-10, -6 + christLift * 0.5);
-  ctx.moveTo(5, hipY);
-  ctx.lineTo(13 + crouch * 0.2, -14 + christLift * 0.7);
-  ctx.lineTo(10, -6 + christLift * 0.5);
+  ctx.moveTo(-10, chestY + 6);
+  ctx.lineTo(backHandX, backHandY);
+  ctx.stroke();
+  ctx.strokeStyle = fur.dark;
+  ctx.lineWidth = 5.2;
+  ctx.stroke();
+  drawMonkeyPaw(ctx, backHandX, backHandY, 4.2);
+
+  // Hoodie Torso with gradient shading, hood & pocket
+  const hGrad = ctx.createLinearGradient(0, chestY, 0, chestY + 25);
+  hGrad.addColorStop(0, o.color);
+  hGrad.addColorStop(1, '#1e293b');
+  ctx.fillStyle = o.color;
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.roundRect(-12.5, chestY, 25, 25, 9);
+  ctx.fill();
   ctx.stroke();
 
-  // Sneakers
-  ctx.fillStyle = '#ef4444';
+  // Subtle hoodie shading overlay & kangaroo pocket
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.16)';
+  ctx.beginPath();
+  ctx.roundRect(-8, chestY + 13, 16, 9, 4);
+  ctx.fill();
+  // Bunched hood collar behind neck
+  ctx.fillStyle = o.color;
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.ellipse(-10, -6 + christLift * 0.5, 6, 3.5, 0, 0, Math.PI * 2);
-  ctx.ellipse(11, -6 + christLift * 0.5, 6, 3.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(-6, chestY + 2, 8, 4.5, -0.3, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+  // Fluttering white hoodie strings
+  const strFlutter = Math.sin(o.time * 18) * 2.5 - Math.min(6, Math.abs(vx) * 0.01);
+  ctx.strokeStyle = '#f8fafc';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(2, chestY + 4);
+  ctx.lineTo(2 + strFlutter, chestY + 12);
+  ctx.moveTo(6, chestY + 4);
+  ctx.lineTo(7 + strFlutter, chestY + 11);
+  ctx.stroke();
 
-  // Torso (Hoodie)
-  const chestY = -44 + crouch + christLift;
-  ctx.fillStyle = o.color;
+  // Front Arm + Paw
+  const frontHandX =
+    o.activeTrick === 'christair'
+      ? 30
+      : o.activeTrick === 'bananagrab'
+        ? 18
+        : 22;
+  const frontHandY =
+    o.activeTrick === 'christair'
+      ? chestY + 4
+      : o.activeTrick === 'bananagrab'
+        ? -8
+        : chestY + 10 - wave;
   ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 2.5;
+  ctx.lineWidth = 9;
   ctx.beginPath();
-  ctx.roundRect(-12, chestY, 24, 24, 9);
-  ctx.fill();
+  ctx.moveTo(10, chestY + 6);
+  ctx.lineTo(frontHandX, frontHandY);
   ctx.stroke();
-
-  // Arms
-  ctx.strokeStyle = '#92400e';
-  ctx.lineWidth = 6.5;
-  ctx.beginPath();
-  if (o.activeTrick === 'christair') {
-    ctx.moveTo(-10, chestY + 6);
-    ctx.lineTo(-32, chestY + 4);
-    ctx.moveTo(10, chestY + 6);
-    ctx.lineTo(30, chestY + 4);
-  } else if (o.activeTrick === 'bananagrab') {
-    ctx.moveTo(10, chestY + 6);
-    ctx.lineTo(18, -8);
-    ctx.moveTo(-10, chestY + 6);
-    ctx.lineTo(-22, chestY - 8);
-  } else {
-    const wave = o.isGrinding || o.isManual ? Math.sin(o.time * 22) * 8 : 0;
-    ctx.moveTo(-10, chestY + 6);
-    ctx.lineTo(-22, chestY + 12 + wave);
-    ctx.moveTo(10, chestY + 6);
-    ctx.lineTo(22, chestY + 10 - wave);
-  }
+  ctx.strokeStyle = fur.light;
+  ctx.lineWidth = 5.2;
   ctx.stroke();
+  drawMonkeyPaw(ctx, frontHandX, frontHandY, 4.4);
 
-  // Head
-  drawMonkeyHead(ctx, 2, chestY - 12, false, true);
+  // Expressive Skater Mood
+  let mood: MonkeyMood = 'chill';
+  if (o.activeTrick !== 'none' || o.isTurbo) mood = 'hyped';
+  else if ((o.isGrinding || o.isManual) && Math.abs(o.balance ?? 0) > 0.6) mood = 'nervous';
+
+  drawMonkeyHead(ctx, 2, chestY - 12, mood, true, {
+    time: o.time,
+    lookX: Math.max(-0.5, Math.min(1, vx * 0.002 * o.facing + 0.5)),
+    lookY: Math.max(-1, Math.min(1, vy * 0.002)),
+    furLight: fur.light,
+    furDark: fur.dark,
+    capColor: fur.cap,
+    seed: o.color.charCodeAt(1) || 1,
+  });
 
   ctx.restore();
 }
@@ -952,8 +1100,17 @@ function drawSkateboard(ctx: CanvasRenderingContext2D, turbo: boolean): void {
   ctx.arc(13, 3, 4.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(-13, 3, 1.4, 0, Math.PI * 2);
+  ctx.arc(13, 3, 1.4, 0, Math.PI * 2);
+  ctx.fill();
 
-  ctx.fillStyle = '#facc15';
+  const dGrad = ctx.createLinearGradient(-28, -8, 28, -2);
+  dGrad.addColorStop(0, '#fde047');
+  dGrad.addColorStop(0.5, '#facc15');
+  dGrad.addColorStop(1, '#eab308');
+  ctx.fillStyle = dGrad;
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 2.2;
   ctx.beginPath();
@@ -968,40 +1125,85 @@ function drawSkateboard(ctx: CanvasRenderingContext2D, turbo: boolean): void {
   ctx.stroke();
 }
 
+interface MonkeyHeadStyleOpts {
+  time?: number;
+  lookX?: number;
+  lookY?: number;
+  furLight?: string;
+  furDark?: string;
+  capColor?: string;
+  seed?: number;
+}
+
 function drawMonkeyHead(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  dizzy: boolean,
+  mood: MonkeyMood,
   hasCap: boolean,
+  opts: MonkeyHeadStyleOpts = {},
 ): void {
+  const {
+    time = 0,
+    lookX = 0.6,
+    lookY = 0,
+    furLight = '#b45309',
+    furDark = '#78350f',
+    capColor = '#ef4444',
+    seed = 0,
+  } = opts;
+  const blink = mood === 'chill' && (time + seed * 0.43) % 4.1 > 3.96;
+
   ctx.save();
   ctx.translate(x, y);
 
-  ctx.fillStyle = '#78350f';
-  ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(-14, 0, 6, 0, Math.PI * 2);
-  ctx.arc(14, 0, 6, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(0, 0, 13, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = '#fde68a';
-  ctx.beginPath();
-  ctx.ellipse(1, 4, 10, 7, 0, 0, Math.PI * 2);
-  ctx.arc(-4, -2, 4.5, 0, Math.PI * 2);
-  ctx.arc(5, -2, 4.5, 0, Math.PI * 2);
-  ctx.fill();
-
-  if (dizzy) {
+  // Big Ears with Rosy Inner Ear
+  for (const ex of [-14, 14]) {
+    ctx.fillStyle = furDark;
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(ex, 0, 6.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#fda4af';
+    ctx.beginPath();
+    ctx.arc(ex * 0.96, 0.4, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Head Fur with Gradient
+  const fGrad = ctx.createRadialGradient(-3, -4, 2, 0, 0, 14);
+  fGrad.addColorStop(0, furLight);
+  fGrad.addColorStop(1, furDark);
+  ctx.fillStyle = fGrad;
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.arc(0, 0, 13.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Heart / Peanut Facial Mask
+  const mGrad = ctx.createLinearGradient(0, -6, 0, 11);
+  mGrad.addColorStop(0, '#fef3c7');
+  mGrad.addColorStop(1, '#fcd34d');
+  ctx.fillStyle = mGrad;
+  ctx.beginPath();
+  ctx.moveTo(1, -3.5);
+  ctx.bezierCurveTo(-4, -10, -10.5, -5.5, -8.5, 0.5);
+  ctx.bezierCurveTo(-11, 6, -5.5, 11.5, 1, 11);
+  ctx.bezierCurveTo(7.5, 11.5, 12.5, 6, 10, 0.5);
+  ctx.bezierCurveTo(11.5, -5.5, 5.5, -10, 1, -3.5);
+  ctx.closePath();
+  ctx.fill();
+
+  // Eyes & Eyebrows
+  if (mood === 'dizzy') {
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(-6, -4);
     ctx.lineTo(-2, 0);
@@ -1012,38 +1214,122 @@ function drawMonkeyHead(
     ctx.moveTo(7, -4);
     ctx.lineTo(3, 0);
     ctx.stroke();
+
     ctx.fillStyle = '#7f1d1d';
     ctx.beginPath();
-    ctx.ellipse(1, 6, 4, 4.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(1, 6, 4.2, 4.5, 0, 0, Math.PI * 2);
     ctx.fill();
   } else {
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(-4, -2, 3.2, 0, Math.PI * 2);
-    ctx.arc(5, -2, 3.2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#0f172a';
-    ctx.beginPath();
-    ctx.arc(-3, -2, 1.6, 0, Math.PI * 2);
-    ctx.arc(6.2, -2.4, 1.6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#7f1d1d';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(1, 5, 4.5, 0.1, Math.PI - 0.1);
-    ctx.stroke();
+    for (const [idx, ex] of ([-4, 5] as const).entries()) {
+      const side = idx === 0 ? -1 : 1;
+      const ey = -2;
+      if (blink) {
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1.9;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(ex, ey + 0.5, 2.8, Math.PI * 1.1, Math.PI * 1.9);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(ex, ey, mood === 'panic' ? 3.8 : 3.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        const px = ex + (mood === 'panic' ? Math.sin(time * 36 + side) * 1.1 : lookX * 1.2);
+        const py = ey + (mood === 'panic' ? Math.cos(time * 30) * 1.0 : lookY * 1.0);
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(px, py, mood === 'panic' ? 1.3 : 1.7, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Crisp white specular highlight
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(px - 0.6, py - 0.7, 0.7, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Eyebrows
+      ctx.strokeStyle = '#451a03';
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = 'round';
+      const browLift = mood === 'hyped' || mood === 'panic' ? -1.8 : 0;
+      const browTilt = mood === 'nervous' ? side * 0.8 : mood === 'panic' ? -side * 1.1 : 0;
+      ctx.beginPath();
+      ctx.moveTo(ex - 2.6, ey - 4.4 + browLift - browTilt);
+      ctx.lineTo(ex + 2.6, ey - 4.4 + browLift + browTilt);
+      ctx.stroke();
+    }
+
+    // Mouth by mood
+    if (mood === 'panic') {
+      ctx.fillStyle = '#7f1d1d';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.ellipse(1, 6, 4.4, 4.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#fb7185';
+      ctx.beginPath();
+      ctx.ellipse(1, 8.2, 2.5, 1.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (mood === 'hyped') {
+      ctx.fillStyle = '#991b1b';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(1, 4.2, 5.2, 0.08, Math.PI - 0.08);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-2, 4.4, 6, 1.8);
+      ctx.fillStyle = '#fb7185';
+      ctx.beginPath();
+      ctx.arc(1, 8, 2.1, Math.PI, 0);
+      ctx.fill();
+    } else if (mood === 'nervous') {
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.roundRect(-3.5, 4.2, 9, 3.5, 1.5);
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = '#7f1d1d';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(1, 4.5, 4.5, 0.12, Math.PI - 0.12);
+      ctx.stroke();
+    }
   }
 
+  // Nostrils
+  ctx.fillStyle = '#92400e';
+  ctx.beginPath();
+  ctx.arc(-0.5, 2, 0.8, 0, Math.PI * 2);
+  ctx.arc(2.5, 2, 0.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Backwards Skater Cap
   if (hasCap) {
-    ctx.fillStyle = '#ef4444';
+    ctx.fillStyle = capColor;
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(0, -4, 13, Math.PI, 0);
+    ctx.arc(0, -4, 13.4, Math.PI, 0);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = '#dc2626';
+    // Brim facing backwards
+    ctx.fillStyle = '#0f172a';
     ctx.beginPath();
     ctx.moveTo(-11, -5);
     ctx.lineTo(-23, -2);
@@ -1051,7 +1337,19 @@ function drawMonkeyHead(
     ctx.lineTo(-9, -2);
     ctx.closePath();
     ctx.fill();
-    ctx.stroke();
+    ctx.fillStyle = capColor;
+    ctx.beginPath();
+    ctx.moveTo(-11, -5);
+    ctx.lineTo(-22, -2.5);
+    ctx.lineTo(-19.5, 1);
+    ctx.lineTo(-9.5, -2.5);
+    ctx.closePath();
+    ctx.fill();
+    // Tiny yellow banana pin on cap
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath();
+    ctx.arc(4, -9.5, 2.1, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   ctx.restore();
@@ -1067,6 +1365,8 @@ function drawRagdoll(
   const n = r.nodes;
   if (n.length < 11) return;
 
+  const fur = getFurVariant(color);
+
   ctx.save();
   ctx.translate(r.boardX, r.boardY);
   ctx.rotate(r.boardAngle);
@@ -1077,12 +1377,12 @@ function drawRagdoll(
     ctx.save();
     ctx.translate(r.capX, r.capY);
     ctx.rotate(r.capAngle);
-    ctx.fillStyle = '#ef4444';
+    ctx.fillStyle = fur.cap;
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(0, 0, 11, Math.PI, 0);
-    ctx.lineTo(-18, 2);
+    ctx.arc(0, 0, 11.5, Math.PI, 0);
+    ctx.lineTo(-19, 2);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
@@ -1093,44 +1393,69 @@ function drawRagdoll(
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  const drawLimb = (a: RagdollNode, b: RagdollNode, width: number, stroke: string) => {
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = width;
+  // Secondary-motion curved tail trailing pelvis velocity
+  const pvx = n[2].x - n[2].oldX;
+  const pvy = n[2].y - n[2].oldY;
+  const tx = n[2].x - Math.max(-18, Math.min(18, pvx * 3.5)) - 14;
+  const ty = n[2].y - Math.max(-18, Math.min(18, pvy * 3.5)) + Math.sin(time * 18) * 6;
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 8.5;
+  ctx.beginPath();
+  ctx.moveTo(n[2].x, n[2].y);
+  ctx.quadraticCurveTo((n[2].x + tx) * 0.5, n[2].y - 12, tx, ty);
+  ctx.stroke();
+  ctx.strokeStyle = fur.dark;
+  ctx.lineWidth = 5;
+  ctx.stroke();
+
+  const drawOutlinedLimb = (a: RagdollNode, b: RagdollNode, width: number, stroke: string) => {
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = width + 3.2;
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
     ctx.stroke();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = width;
+    ctx.stroke();
   };
 
-  drawLimb(n[1], n[3], 8, '#78350f');
-  drawLimb(n[3], n[4], 7, '#78350f');
-  drawLimb(n[2], n[7], 9, '#78350f');
-  drawLimb(n[7], n[8], 8, '#78350f');
+  // Back arm & back leg
+  drawOutlinedLimb(n[1], n[3], 7.5, color);
+  drawOutlinedLimb(n[3], n[4], 6.5, fur.dark);
+  drawOutlinedLimb(n[2], n[7], 8, fur.dark);
+  drawOutlinedLimb(n[7], n[8], 7, fur.dark);
 
-  drawLimb(n[1], n[2], 21, '#0f172a');
-  drawLimb(n[1], n[2], 16, color);
+  // Hoodie torso
+  drawOutlinedLimb(n[1], n[2], 18, color);
 
-  drawLimb(n[1], n[5], 8, '#92400e');
-  drawLimb(n[5], n[6], 7, '#92400e');
-  drawLimb(n[2], n[9], 9, '#92400e');
-  drawLimb(n[9], n[10], 8, '#92400e');
+  // Front arm & front leg
+  drawOutlinedLimb(n[1], n[5], 7.5, color);
+  drawOutlinedLimb(n[5], n[6], 6.5, fur.light);
+  drawOutlinedLimb(n[2], n[9], 8, fur.light);
+  drawOutlinedLimb(n[9], n[10], 7, fur.light);
 
-  ctx.fillStyle = '#ef4444';
-  ctx.beginPath();
-  ctx.arc(n[8].x, n[8].y, 6, 0, Math.PI * 2);
-  ctx.arc(n[10].x, n[10].y, 6, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#fde68a';
-  ctx.beginPath();
-  ctx.arc(n[4].x, n[4].y, 5, 0, Math.PI * 2);
-  ctx.arc(n[6].x, n[6].y, 5, 0, Math.PI * 2);
-  ctx.fill();
+  // Skate sneakers oriented along shins
+  drawSneaker(ctx, n[8].x, n[8].y, Math.atan2(n[8].y - n[7].y, n[8].x - n[7].x) - Math.PI * 0.5, color);
+  drawSneaker(ctx, n[10].x, n[10].y, Math.atan2(n[10].y - n[9].y, n[10].x - n[9].x) - Math.PI * 0.5, color);
 
+  // Monkey paws
+  drawMonkeyPaw(ctx, n[4].x, n[4].y, 4.6);
+  drawMonkeyPaw(ctx, n[6].x, n[6].y, 4.6);
+
+  // Head: panic screaming while flying fast, dizzy X eyes once slammed/settling
+  const headSpeed = Math.hypot(n[0].x - n[0].oldX, n[0].y - n[0].oldY);
+  const ragMood: MonkeyMood = headSpeed > 3.2 || r.elapsed < 0.7 ? 'panic' : 'dizzy';
   const headAngle = Math.atan2(n[1].y - n[0].y, n[1].x - n[0].x) - Math.PI * 0.5;
   ctx.save();
   ctx.translate(n[0].x, n[0].y);
   ctx.rotate(headAngle);
-  drawMonkeyHead(ctx, 0, 0, true, !r.capLost);
+  drawMonkeyHead(ctx, 0, 0, ragMood, !r.capLost, {
+    time,
+    furLight: fur.light,
+    furDark: fur.dark,
+    capColor: fur.cap,
+  });
   ctx.restore();
 
   for (let i = 0; i < 3; i++) {
