@@ -1,0 +1,26 @@
+{
+  "slug": "monkey-agario",
+  "title": "Agar.Mico: Macaco Come Macaco",
+  "subtitle": "Arena .io selvagem: devore bananas, engula macacos menores e fuja dos cactos-espinho!",
+  "inspiredBy": "Agar.io & Slither.io",
+  "description": "Você é uma bolota-macaco peluda e faminta! Coma bananas e cachos dourados para crescer, divida-se com Espaço para dar o bote, arremesse bananas com W e estoure rivais gigantes nos cactos-espinho! Enfrente bots hilários como Macaco do Pix e Tio do Zap no Solo ou jogue Online P2P com até 8 humanos nos modos Versus FFA e Times Co-op (Time Banana vs Time Coco)!",
+  "category": "acao",
+  "tags": ["io", "arena", "multiplayer", "versus", "coop", "bots", "banana"],
+  "emoji": "🐒",
+  "accentColor": "#facc15",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop-versus",
+    "maxPlayers": 8,
+    "summary": "Host autoritativo P2P para até 8 jogadores humanos + bots IA preenchendo a arena, nos modos Versus FFA (cada macaco por si) e Times Co-op (Time Banana vs Time Coco)!"
+  },
+  "controls": [
+    "Mouse / Joystick Touch: Guiar a bolota-macaco pela arena",
+    "WASD / Setas: Controle alternativo pelo teclado",
+    "Espaço: Dividir macaco ao meio (bote rápido para engolir menores!)",
+    "W / Botão Direito: Arremesso de Banana (ejeta massa e empurra cactos!)"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}

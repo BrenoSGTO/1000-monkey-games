@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Agar.Mico: Macaco Come Macaco — Click Macacos</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #06140e;
+        color: #f8fafc;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        touch-action: none;
+      }
+      #app {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+      canvas#game-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        cursor: crosshair;
+      }
+
+      /* In-game HUD (leaves top-left clear for SDK bar!) */
+      .ag-hud-top-center {
+        position: fixed;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 200;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        pointer-events: none;
+      }
+      .ag-pill {
+        background: rgba(6, 20, 14, 0.84);
+        border: 2px solid rgba(250, 204, 21, 0.55);
+        border-radius: 999px;
+        padding: 6px 14px;
+        font-size: 13px;
+        font-weight: 800;
+        color: #fef08a;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(4px);
+        white-space: nowrap;
+      }
+      .ag-pill strong {
+        color: #ffffff;
+      }
+
+      /* Teams score bar */
+      .ag-teams-bar {
+        position: fixed;
+        top: 52px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 200;
+        width: min(320px, 56vw);
+        background: rgba(6, 20, 14, 0.85);
+        border: 2px solid rgba(255, 255, 255, 0.16);
+        border-radius: 12px;
+        padding: 5px 8px;
+        pointer-events: none;
+        display: none;
+      }
+      .ag-teams-bar.open {
+        display: block;
+      }
+      .ag-teams-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        font-weight: 800;
+        margin-bottom: 4px;
+      }
+      .ag-teams-track {
+        height: 8px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: #0284c7;
+        display: flex;
+      }
+      .ag-teams-fill-banana {
+        background: #facc15;
+        height: 100%;
+        transition: width 0.25s ease;
+      }
+
+      /* Leaderboard */
+      .ag-leaderboard {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 200;
+        width: 215px;
+        background: rgba(6, 20, 14, 0.84);
+        border: 2px solid rgba(74, 222, 128, 0.35);
+        border-radius: 14px;
+        padding: 10px 12px;
+        pointer-events: none;
+        backdrop-filter: blur(4px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      }
+      .ag-leaderboard h4 {
+        margin: 0 0 6px;
+        font-size: 12px;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        color: #facc15;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .ag-lb-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .ag-lb-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #e2e8f0;
+        padding: 2px 5px;
+        border-radius: 6px;
+      }
+      .ag-lb-item.me {
+        background: rgba(250, 204, 21, 0.22);
+        color: #fef08a;
+      }
+      .ag-lb-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .ag-lb-mass {
+        font-variant-numeric: tabular-nums;
+        opacity: 0.85;
+        font-size: 11px;
+      }
+
+      /* Controls hint bar bottom-left (desktop) */
+      .ag-controls-hint {
+        position: fixed;
+        bottom: 12px;
+        left: 12px;
+        z-index: 200;
+        background: rgba(6, 20, 14, 0.78);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 10px;
+        padding: 6px 10px;
+        font-size: 11px;
+        color: #cbd5e1;
+        pointer-events: none;
+      }
+      .ag-controls-hint kbd {
+        background: #1e293b;
+        border: 1px solid #475569;
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-weight: 800;
+        color: #fef08a;
+        font-family: inherit;
+      }
+
+      /* Overlays (Title & Death) */
+      .ag-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 600;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(3, 12, 8, 0.7);
+        backdrop-filter: blur(6px);
+        padding: 16px;
+      }
+      .ag-overlay.open {
+        display: flex;
+      }
+      .ag-card {
+        width: 100%;
+        max-width: 520px;
+        max-height: 92vh;
+        overflow-y: auto;
+        background: linear-gradient(165deg, #0c261b 0%, #071610 100%);
+        border: 3px solid #facc15;
+        border-radius: 22px;
+        padding: 20px 22px;
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.75);
+      }
+      .ag-title {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 900;
+        color: #facc15;
+        text-align: center;
+        letter-spacing: 0.5px;
+        text-shadow: 0 3px 0 #713f12;
+      }
+      .ag-subtitle {
+        margin: 4px 0 14px;
+        text-align: center;
+        font-size: 13px;
+        color: #bbf7d0;
+        font-weight: 600;
+      }
+      .ag-section-label {
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #94a3b8;
+        margin: 12px 0 6px;
+      }
+      .ag-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .ag-input {
+        width: 100%;
+        background: #04100b;
+        color: #f8fafc;
+        border: 2px solid #1e4635;
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-size: 14px;
+        font-weight: 700;
+        outline: none;
+        user-select: text;
+        -webkit-user-select: text;
+      }
+      .ag-input:focus {
+        border-color: #facc15;
+      }
+      .ag-mode-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .ag-tab-btn {
+        background: #081c14;
+        color: #cbd5e1;
+        border: 2px solid #1e4635;
+        border-radius: 12px;
+        padding: 9px 10px;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.12s ease;
+      }
+      .ag-tab-btn.active {
+        background: rgba(250, 204, 21, 0.18);
+        border-color: #facc15;
+        color: #fef08a;
+      }
+      .ag-tab-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .ag-skins-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+      }
+      .ag-skin-btn {
+        background: #071912;
+        border: 2px solid #1e4635;
+        border-radius: 12px;
+        padding: 6px 4px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        color: #e2e8f0;
+        font-size: 10px;
+        font-weight: 800;
+        transition: transform 0.1s ease, border-color 0.12s ease;
+      }
+      .ag-skin-btn:hover {
+        transform: translateY(-2px);
+        border-color: #86efac;
+      }
+      .ag-skin-btn.active {
+        border-color: #facc15;
+        background: rgba(250, 204, 21, 0.16);
+        color: #fef08a;
+      }
+      .ag-skin-swatch {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 18px;
+        border: 2px solid rgba(0, 0, 0, 0.45);
+        box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.35);
+      }
+      .ag-play-btn {
+        width: 100%;
+        margin-top: 16px;
+        background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
+        color: #1c1917;
+        border: 2px solid #fef08a;
+        border-radius: 14px;
+        padding: 13px 18px;
+        font-size: 18px;
+        font-weight: 900;
+        letter-spacing: 0.6px;
+        cursor: pointer;
+        box-shadow: 0 5px 0 #a16207;
+        transition: transform 0.08s ease;
+      }
+      .ag-play-btn:hover {
+        transform: translateY(-1px);
+      }
+      .ag-play-btn:active {
+        transform: translateY(3px);
+        box-shadow: 0 2px 0 #a16207;
+      }
+      .ag-meta-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 10px;
+        font-size: 12px;
+        color: #94a3b8;
+        font-weight: 700;
+      }
+      .ag-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin: 14px 0;
+      }
+      .ag-stat-box {
+        background: #06150f;
+        border: 2px solid #1e4635;
+        border-radius: 12px;
+        padding: 10px 8px;
+        text-align: center;
+      }
+      .ag-stat-val {
+        font-size: 20px;
+        font-weight: 900;
+        color: #facc15;
+      }
+      .ag-stat-lbl {
+        font-size: 11px;
+        color: #94a3b8;
+        font-weight: 700;
+      }
+
+      /* Mobile Touch Controls */
+      .ag-touch-layer {
+        position: fixed;
+        inset: 0;
+        z-index: 300;
+        pointer-events: none;
+        display: none;
+      }
+      .ag-touch-layer.active {
+        display: block;
+      }
+      .ag-joy-zone {
+        position: fixed;
+        left: 16px;
+        bottom: 18px;
+        width: 136px;
+        height: 136px;
+        border-radius: 50%;
+        background: rgba(15, 35, 25, 0.42);
+        border: 2px solid rgba(250, 204, 21, 0.38);
+        pointer-events: auto;
+        touch-action: none;
+      }
+      .ag-joy-knob {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 54px;
+        height: 54px;
+        margin-left: -27px;
+        margin-top: -27px;
+        border-radius: 50%;
+        background: rgba(250, 204, 21, 0.85);
+        border: 3px solid #fef08a;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+        pointer-events: none;
+      }
+      .ag-touch-actions {
+        position: fixed;
+        right: 16px;
+        bottom: 18px;
+        display: flex;
+        gap: 12px;
+        pointer-events: auto;
+      }
+      .ag-touch-btn {
+        width: 68px;
+        height: 68px;
+        border-radius: 50%;
+        border: 3px solid #facc15;
+        background: rgba(6, 20, 14, 0.82);
+        color: #fef08a;
+        font-size: 11px;
+        font-weight: 900;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        box-shadow: 0 5px 14px rgba(0, 0, 0, 0.5);
+        touch-action: none;
+      }
+      .ag-touch-btn span {
+        font-size: 20px;
+        line-height: 1;
+      }
+      .ag-touch-btn:active {
+        transform: scale(0.92);
+        background: rgba(250, 204, 21, 0.28);
+      }
+
+      @media (max-width: 720px) {
+        .ag-leaderboard {
+          width: 155px;
+          padding: 7px 9px;
+          top: 50px;
+        }
+        .ag-hud-top-center {
+          top: 50px;
+          left: 10px;
+          transform: none;
+        }
+        .ag-controls-hint {
+          display: none;
+        }
+        .ag-skins-grid {
+          grid-template-columns: repeat(4, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+
+      <!-- In-game HUD -->
+      <div class="ag-hud-top-center" id="hud-stats">
+        <div class="ag-pill">🍌 Massa: <strong id="hud-mass">32</strong></div>
+        <div class="ag-pill">🏆 Rank: <strong id="hud-rank">-</strong></div>
+        <div class="ag-pill">🐒 Abates: <strong id="hud-kills">0</strong></div>
+      </div>
+
+      <div class="ag-teams-bar" id="teams-bar">
+        <div class="ag-teams-labels">
+          <span style="color: #facc15">🍌 Time Banana <span id="team1-pct">50%</span></span>
+          <span style="color: #38bdf8">🥥 Time Coco <span id="team2-pct">50%</span></span>
+        </div>
+        <div class="ag-teams-track">
+          <div class="ag-teams-fill-banana" id="team1-fill" style="width: 50%"></div>
+        </div>
+      </div>
+
+      <aside class="ag-leaderboard" id="leaderboard">
+        <h4>
+          <span>🏆 Ranking da Selva</span>
+          <span id="lb-mode" style="font-size: 10px; color: #86efac">FFA</span>
+        </h4>
+        <ol class="ag-lb-list" id="lb-list"></ol>
+      </aside>
+
+      <div class="ag-controls-hint">
+        <kbd>Mouse</kbd> / <kbd>WASD</kbd> Mover &nbsp;•&nbsp;
+        <kbd>Espaço</kbd> Dividir &nbsp;•&nbsp;
+        <kbd>W</kbd> / <kbd>Botão Dir.</kbd> Arremessar Banana
+      </div>
+
+      <!-- Mobile Touch Controls -->
+      <div class="ag-touch-layer" id="touch-layer">
+        <div class="ag-joy-zone" id="joy-zone">
+          <div class="ag-joy-knob" id="joy-knob"></div>
+        </div>
+        <div class="ag-touch-actions">
+          <button class="ag-touch-btn" id="btn-eject" type="button">
+            <span>🍌</span>Jogar
+          </button>
+          <button class="ag-touch-btn" id="btn-split" type="button">
+            <span>✂️</span>Dividir
+          </button>
+        </div>
+      </div>
+
+      <!-- Title Overlay -->
+      <div class="ag-overlay open" id="title-overlay">
+        <div class="ag-card">
+          <h1 class="ag-title">🐒 AGAR.MICO</h1>
+          <p class="ag-subtitle">Macaco Come Macaco — Arena .io de Bananas, Botes & Cactos!</p>
+
+          <div class="ag-section-label">Seu Apelido na Selva</div>
+          <input class="ag-input" id="input-name" type="text" maxlength="18" placeholder="Ex: Macaco do Pix" />
+
+          <div class="ag-section-label">Modo de Jogo</div>
+          <div class="ag-mode-tabs">
+            <button class="ag-tab-btn active" id="mode-ffa" type="button">⚔️ Versus FFA (Todos contra Todos)</button>
+            <button class="ag-tab-btn" id="mode-teams" type="button">🤝 Times Co-op (🍌 vs 🥥)</button>
+          </div>
+
+          <div id="team-picker" style="display: none; margin-top: 8px">
+            <div class="ag-mode-tabs">
+              <button class="ag-tab-btn active" id="pick-team-1" type="button">🍌 Time Banana</button>
+              <button class="ag-tab-btn" id="pick-team-2" type="button">🥥 Time Coco</button>
+            </div>
+          </div>
+
+          <div class="ag-section-label">Escolha sua Skin</div>
+          <div class="ag-skins-grid" id="skins-grid"></div>
+
+          <button class="ag-play-btn" id="btn-play" type="button">🍌 JOGAR AGORA!</button>
+
+          <div class="ag-meta-bar">
+            <span id="best-score-label">🏆 Recorde: 0 massa</span>
+            <span id="net-mode-label">🌐 Solo + Bots IA (ou Co-op P2P no topo!)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Death / Respawn Overlay -->
+      <div class="ag-overlay" id="death-overlay">
+        <div class="ag-card" style="text-align: center">
+          <h2 class="ag-title" style="color: #fb7185; text-shadow: 0 3px 0 #881337" id="death-headline">
+            VIROU VITAMINA DE BANANA!
+          </h2>
+          <p class="ag-subtitle" id="death-sub">Engolido por Macaco do Pix</p>
+
+          <div class="ag-stats-grid">
+            <div class="ag-stat-box">
+              <div class="ag-stat-val" id="stat-peak">0</div>
+              <div class="ag-stat-lbl">Massa Máxima</div>
+            </div>
+            <div class="ag-stat-box">
+              <div class="ag-stat-val" id="stat-kills">0</div>
+              <div class="ag-stat-lbl">Macacos Engolidos</div>
+            </div>
+            <div class="ag-stat-box">
+              <div class="ag-stat-val" id="stat-time">0s</div>
+              <div class="ag-stat-lbl">Tempo Vivo</div>
+            </div>
+          </div>
+
+          <div id="death-record-badge" style="display: none; color: #4ade80; font-weight: 900; margin-bottom: 8px">
+            🎉 NOVO RECORDE PESSOAL!
+          </div>
+
+          <button class="ag-play-btn" id="btn-respawn" type="button">🐒 JOGAR DE NOVO!</button>
+          <button
+            class="ag-tab-btn"
+            id="btn-back-menu"
+            type="button"
+            style="width: 100%; margin-top: 8px"
+          >
+            ⚙️ Trocar Skin / Modo
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
