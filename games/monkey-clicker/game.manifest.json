@@ -1,0 +1,27 @@
+{
+  "slug": "monkey-clicker",
+  "title": "Banana Clicker: Império do Macaco",
+  "subtitle": "Clique na Banana Gigante, contrate macacos estagiários e domine o multiverso do potássio!",
+  "inspiredBy": "Cookie Clicker",
+  "description": "Clique sem parar na Banana Gigante sob o olhar do Macaco Vesgo! Contrate Macacos Estagiários, plante Bananeiras Quânticas, inaugure o Banco Central da Selva e abra o Portal do Macaco Cósmico. Cace Bananas Douradas, sobreviva a greves e ao Gorila Cobrador de Impostos, reencarne como um Macaco Mais Evoluído e jogue Solo, em Co-op na Cooperativa Bananeira ou em Corrida Versus online com cursores ao vivo!",
+  "category": "arcade",
+  "tags": ["clicker", "idle", "incremental", "bananas", "coop", "versus", "multiplayer"],
+  "emoji": "🍌",
+  "accentColor": "#facc15",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop-versus",
+    "maxPlayers": 6,
+    "summary": "Co-op 'Cooperativa Bananeira' (banana compartilhada + construções em equipe) e Corrida Versus até a meta de bananas com cursores ao vivo via PeerRoom!"
+  },
+  "controls": [
+    "Clique / Toque ou Barra de Espaço: Clicar na Banana Gigante e acumular Combo",
+    "Clique nas Bananas Douradas e na Chuva de Bananas: Bônus explosivos e frenesi!",
+    "Clique no Gorila Cobrador / Greve: Espante eventos caóticos para roubar bônus",
+    "Painel Direito (ou abas no celular): Comprar Construções, Upgrades, Conquistas e Reencarnar",
+    "Co-op Online (topo esquerdo): Crie ou entre em sala P2P para Cooperativa ou Corrida Versus"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}

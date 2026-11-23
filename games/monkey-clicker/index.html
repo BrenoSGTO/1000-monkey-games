@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Banana Clicker: Império do Macaco — Click Macacos</title>
+    <style>
+      :root {
+        --bg-deep: #0b1912;
+        --panel-bg: #112319;
+        --card-bg: #183023;
+        --card-hover: #214130;
+        --border-gold: #facc15;
+        --border-soft: #2e5540;
+        --text-main: #fef9c3;
+        --text-sub: #bbf7d0;
+        --accent: #facc15;
+        --green: #4ade80;
+        --danger: #fb7185;
+      }
+
+      * {
+        box-sizing: border-box;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg-deep);
+        color: var(--text-main);
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+
+      #app {
+        display: grid;
+        grid-template-columns: 1fr 410px;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      /* Left Stage (Canvas + Top Stats) */
+      .mc-stage {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: radial-gradient(circle at 50% 45%, #163b29 0%, #09140e 100%);
+      }
+
+      canvas#game-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+        touch-action: none;
+      }
+
+      /* Top counter bar - leaves space on top-left for mountMonkeyHud */
+      .mc-topbar {
+        position: absolute;
+        top: 52px;
+        left: 12px;
+        right: 12px;
+        z-index: 20;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        pointer-events: none;
+      }
+
+      .mc-counter-card {
+        pointer-events: auto;
+        background: rgba(10, 22, 16, 0.86);
+        border: 2px solid #eab308;
+        border-radius: 16px;
+        padding: 8px 16px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(6px);
+      }
+
+      .mc-banana-count {
+        font-size: clamp(22px, 3vw, 32px);
+        font-weight: 900;
+        color: #fde047;
+        line-height: 1.1;
+        text-shadow: 0 2px 0 #713f12;
+      }
+
+      .mc-bps-row {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 3px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #bbf7d0;
+      }
+
+      .mc-pill {
+        background: rgba(250, 204, 21, 0.16);
+        border: 1px solid rgba(250, 204, 21, 0.45);
+        color: #fef08a;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .mc-pill.chaos {
+        background: rgba(244, 63, 94, 0.22);
+        border-color: #fb7185;
+        color: #fecdd3;
+        animation: mc-pulse 0.8s infinite alternate;
+      }
+
+      .mc-pill.fever {
+        background: rgba(250, 204, 21, 0.3);
+        border-color: #fde047;
+        color: #fff;
+        animation: mc-pulse 0.5s infinite alternate;
+      }
+
+      @keyframes mc-pulse {
+        from { transform: scale(1); }
+        to { transform: scale(1.05); }
+      }
+
+      .mc-stage-actions {
+        pointer-events: auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .mc-mini-btn {
+        background: rgba(15, 23, 42, 0.88);
+        color: #fef08a;
+        border: 2px solid #475569;
+        border-radius: 10px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform 0.1s ease, border-color 0.15s ease;
+      }
+      .mc-mini-btn:hover {
+        border-color: #facc15;
+        transform: translateY(-1px);
+      }
+
+      /* Multiplayer Race / Coop Banner */
+      .mc-mp-bar {
+        position: absolute;
+        bottom: 12px;
+        left: 12px;
+        right: 12px;
+        z-index: 20;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .mc-mp-card {
+        pointer-events: auto;
+        background: rgba(10, 22, 16, 0.88);
+        border: 2px solid #4ade80;
+        border-radius: 14px;
+        padding: 8px 12px;
+        font-size: 12px;
+        backdrop-filter: blur(6px);
+      }
+
+      .mc-race-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 4px;
+      }
+
+      .mc-race-track {
+        flex: 1;
+        height: 10px;
+        background: #0f172a;
+        border-radius: 999px;
+        overflow: hidden;
+        border: 1px solid #334155;
+      }
+
+      .mc-race-fill {
+        height: 100%;
+        border-radius: 999px;
+        transition: width 0.2s ease;
+      }
+
+      /* Right Shop Sidebar */
+      .mc-sidebar {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        background: var(--panel-bg);
+        border-left: 3px solid #2d5a3f;
+        overflow: hidden;
+      }
+
+      .mc-tabs {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+        padding: 8px;
+        background: #0d1b13;
+        border-bottom: 2px solid #234732;
+      }
+
+      .mc-tab-btn {
+        background: #162e20;
+        color: #bbf7d0;
+        border: 2px solid #2b543c;
+        border-radius: 10px;
+        padding: 8px 4px;
+        font-size: 11px;
+        font-weight: 800;
+        cursor: pointer;
+        text-align: center;
+        transition: background 0.15s ease, border-color 0.15s ease;
+      }
+      .mc-tab-btn.active {
+        background: #422006;
+        color: #fde047;
+        border-color: #facc15;
+      }
+
+      .mc-shop-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        background: #12261b;
+        border-bottom: 1px solid #234732;
+        font-size: 12px;
+        font-weight: 800;
+        color: #fde047;
+      }
+
+      .mc-bulk-group {
+        display: flex;
+        gap: 4px;
+      }
+
+      .mc-bulk-btn {
+        background: #1a3727;
+        color: #bbf7d0;
+        border: 1px solid #35684b;
+        border-radius: 6px;
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      .mc-bulk-btn.active {
+        background: #eab308;
+        color: #422006;
+        border-color: #fef08a;
+      }
+
+      .mc-shop-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .mc-item-card {
+        display: grid;
+        grid-template-columns: 44px 1fr auto;
+        align-items: center;
+        gap: 10px;
+        background: var(--card-bg);
+        border: 2px solid var(--border-soft);
+        border-radius: 12px;
+        padding: 9px 10px;
+        cursor: pointer;
+        text-align: left;
+        color: var(--text-main);
+        transition: transform 0.08s ease, border-color 0.15s ease, background 0.15s ease;
+      }
+      .mc-item-card:hover:not(:disabled) {
+        background: var(--card-hover);
+        border-color: #facc15;
+        transform: translateY(-1px);
+      }
+      .mc-item-card:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+      .mc-item-card:disabled {
+        opacity: 0.48;
+        cursor: not-allowed;
+      }
+      .mc-item-card.owned {
+        border-color: #4ade80;
+        background: #133120;
+      }
+
+      .mc-item-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.28);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+      }
+
+      .mc-item-name {
+        font-weight: 900;
+        font-size: 13px;
+        color: #fef08a;
+      }
+
+      .mc-item-desc {
+        font-size: 11px;
+        color: #a7f3d0;
+        line-height: 1.3;
+        margin-top: 2px;
+      }
+
+      .mc-item-meta {
+        font-size: 11px;
+        font-weight: 800;
+        color: #fcd34d;
+        margin-top: 3px;
+      }
+
+      .mc-item-right {
+        text-align: right;
+      }
+
+      .mc-item-count {
+        font-size: 18px;
+        font-weight: 900;
+        color: #4ade80;
+        line-height: 1;
+      }
+
+      .mc-item-cost {
+        font-size: 12px;
+        font-weight: 900;
+        color: #fde047;
+        margin-top: 3px;
+      }
+
+      /* Prestige & Achievements Cards */
+      .mc-prestige-box {
+        background: linear-gradient(180deg, #2e1065 0%, #1e1b4b 100%);
+        border: 2px solid #c084fc;
+        border-radius: 14px;
+        padding: 14px;
+        text-align: center;
+      }
+
+      .mc-prestige-btn {
+        margin-top: 10px;
+        width: 100%;
+        background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
+        color: #422006;
+        border: 2px solid #fef08a;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 14px;
+        font-weight: 900;
+        cursor: pointer;
+        box-shadow: 0 4px 0 #854d0e;
+      }
+      .mc-prestige-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+
+      /* Overlays (Title & Results) */
+      .mc-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 500;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 58px 16px 16px;
+        background: radial-gradient(circle at 50% 30%, rgba(20, 83, 45, 0.9), rgba(6, 15, 10, 0.95));
+        backdrop-filter: blur(6px);
+      }
+      .mc-overlay.hidden {
+        display: none;
+      }
+
+      .mc-modal {
+        width: min(760px, 100%);
+        max-height: calc(100vh - 76px);
+        overflow-y: auto;
+        background: linear-gradient(180deg, #12291c 0%, #09150e 100%);
+        border: 3px solid #facc15;
+        border-radius: 20px;
+        padding: 22px 24px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.78);
+      }
+
+      .mc-title {
+        margin: 0;
+        font-size: clamp(22px, 3.2vw, 32px);
+        font-weight: 900;
+        color: #fde047;
+        text-shadow: 0 3px 0 #713f12;
+      }
+
+      .mc-sub {
+        margin: 4px 0 0;
+        font-size: 13px;
+        color: #bbf7d0;
+      }
+
+      .mc-mode-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .mc-mode-btn {
+        background: #173324;
+        border: 2px solid #2e5d42;
+        border-radius: 12px;
+        padding: 12px;
+        color: #fef9c3;
+        text-align: left;
+        cursor: pointer;
+        transition: transform 0.1s ease, border-color 0.15s ease;
+      }
+      .mc-mode-btn:hover {
+        transform: translateY(-2px);
+        border-color: #facc15;
+      }
+      .mc-mode-btn.active {
+        background: #422006;
+        border-color: #facc15;
+        box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.35);
+      }
+
+      .mc-play-btn {
+        background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
+        color: #422006;
+        border: 3px solid #fef08a;
+        border-radius: 14px;
+        padding: 12px 28px;
+        font-size: 18px;
+        font-weight: 900;
+        cursor: pointer;
+        box-shadow: 0 5px 0 #854d0e;
+      }
+      .mc-play-btn:hover {
+        transform: translateY(-2px);
+      }
+      .mc-play-btn:active {
+        transform: translateY(2px);
+        box-shadow: 0 2px 0 #854d0e;
+      }
+
+      .mc-sec-btn {
+        background: #1e293b;
+        color: #f8fafc;
+        border: 2px solid #64748b;
+        border-radius: 12px;
+        padding: 10px 18px;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .mc-footer {
+        margin-top: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      /* Mobile layout */
+      @media (max-width: 860px) {
+        #app {
+          grid-template-columns: 1fr;
+          grid-template-rows: 54% 46%;
+        }
+        .mc-sidebar {
+          border-left: none;
+          border-top: 3px solid #2d5a3f;
+        }
+        .mc-topbar {
+          top: 48px;
+        }
+        .mc-counter-card {
+          padding: 6px 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="mc-stage">
+        <canvas id="game-canvas"></canvas>
+
+        <div class="mc-topbar">
+          <div class="mc-counter-card">
+            <div class="mc-banana-count" id="ui-bananas">0 🍌</div>
+            <div class="mc-bps-row">
+              <span id="ui-bps">0 /seg</span>
+              <span id="ui-bpc">+1 /clique</span>
+              <span class="mc-pill" id="ui-combo" style="display:none;">COMBO x1</span>
+              <span class="mc-pill" id="ui-event-pill" style="display:none;">EVENTO</span>
+            </div>
+          </div>
+
+          <div class="mc-stage-actions">
+            <button class="mc-mini-btn" id="btn-menu" title="Voltar ao menu inicial">📋 Modo</button>
+            <button class="mc-mini-btn" id="btn-reset" title="Reiniciar partida">🔄 Reiniciar</button>
+          </div>
+        </div>
+
+        <div class="mc-mp-bar" id="ui-mp-bar" style="display:none;">
+          <div class="mc-mp-card" id="ui-mp-card"></div>
+        </div>
+      </div>
+
+      <aside class="mc-sidebar">
+        <div class="mc-tabs">
+          <button class="mc-tab-btn active" data-tab="buildings">🏗️ Império</button>
+          <button class="mc-tab-btn" data-tab="upgrades">⚡ Zoeiras</button>
+          <button class="mc-tab-btn" data-tab="achievements">🏆 Medalhas</button>
+          <button class="mc-tab-btn" data-tab="prestige">🧬 Evoluir</button>
+        </div>
+
+        <div class="mc-shop-header" id="ui-shop-header">
+          <span id="ui-shop-title">Construções Primatas</span>
+          <div class="mc-bulk-group" id="ui-bulk-group">
+            <button class="mc-bulk-btn active" data-bulk="1">1x</button>
+            <button class="mc-bulk-btn" data-bulk="10">10x</button>
+            <button class="mc-bulk-btn" data-bulk="100">100x</button>
+          </div>
+        </div>
+
+        <div class="mc-shop-list" id="ui-shop-list"></div>
+      </aside>
+    </div>
+
+    <!-- Title / Mode Menu Overlay -->
+    <div id="menu-overlay" class="mc-overlay">
+      <div class="mc-modal">
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;">
+          <div>
+            <h1 class="mc-title">🍌 Banana Clicker: Império do Macaco</h1>
+            <p class="mc-sub">Clique na Banana Gigante, contrate macacos duvidosos e conquiste o cosmos!</p>
+          </div>
+          <div id="menu-best-badge" style="font-size:12px;font-weight:900;color:#fde047;background:#422006;padding:6px 12px;border-radius:999px;border:1px solid #facc15;">
+            🏆 Recorde: 0 🍌
+          </div>
+        </div>
+
+        <div class="mc-mode-grid" id="menu-modes">
+          <button class="mc-mode-btn active" data-mode="solo">
+            <div style="font-weight:900;font-size:15px;color:#fde047;">🐒 Solo Infinito</div>
+            <div style="font-size:12px;color:#bbf7d0;margin-top:4px;">Salva automático no navegador! Construa seu império e reencarne quando ficar rico.</div>
+          </button>
+          <button class="mc-mode-btn" data-mode="coop">
+            <div style="font-weight:900;font-size:15px;color:#4ade80;">🤝 Cooperativa Bananeira</div>
+            <div style="font-size:12px;color:#bbf7d0;margin-top:4px;">Co-op P2P! Todos clicam na mesma banana gigante, somam produção e veem os cursores ao vivo!</div>
+          </button>
+          <button class="mc-mode-btn" data-mode="versus">
+            <div style="font-weight:900;font-size:15px;color:#fb7185;">🏁 Corrida Versus P2P</div>
+            <div style="font-size:12px;color:#bbf7d0;margin-top:4px;">Quem chega primeiro na meta de bananas? Cursores ao vivo e placar em tempo real!</div>
+          </button>
+        </div>
+
+        <div id="menu-race-box" style="display:none;margin-top:12px;background:#173324;border:1px solid #35684b;border-radius:12px;padding:10px 12px;">
+          <div style="font-size:12px;font-weight:800;color:#fde047;margin-bottom:6px;">🎯 Meta da Corrida Versus:</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="menu-race-targets">
+            <button class="mc-bulk-btn active" data-goal="25000">25 Mil 🍌 (Rápida)</button>
+            <button class="mc-bulk-btn" data-goal="250000">250 Mil 🍌 (Média)</button>
+            <button class="mc-bulk-btn" data-goal="2500000">2,5 Milhões 🍌 (Insana)</button>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;background:rgba(15,23,42,0.65);border:1px solid #334155;border-radius:12px;padding:10px 14px;font-size:12px;color:#e2e8f0;line-height:1.5;">
+          <div>🍌 <strong>Clique / Toque / Espaço:</strong> Esmague a Banana Gigante! Mantenha ritmo rápido para subir o <strong>Combo</strong>!</div>
+          <div>✨ <strong>Banana Dourada & Eventos Caóticos:</strong> Clique rápido antes que sumam para ativar Frenesi 7x ou espantar o Gorila Cobrador!</div>
+          <div>🌐 <strong>Online P2P:</strong> Use o botão verde <em>Co-op Online</em> no topo esquerdo para criar ou entrar numa sala com amigos!</div>
+        </div>
+
+        <div class="mc-footer">
+          <div id="menu-status" style="font-size:13px;font-weight:700;color:#86efac;">
+            Pronto para clicar no modo Solo!
+          </div>
+          <button id="menu-play-btn" class="mc-play-btn">🍌 JOGAR AGORA!</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Versus Finish / Prestige Summary Modal -->
+    <div id="results-overlay" class="mc-overlay hidden">
+      <div class="mc-modal" style="max-width:520px;text-align:center;">
+        <h2 class="mc-title" id="res-title">🏆 Fim da Corrida!</h2>
+        <p class="mc-sub" id="res-subtitle">Um macaco dominou a selva!</p>
+        <div id="res-stats" style="margin:14px 0;font-size:14px;color:#fef9c3;line-height:1.6;"></div>
+        <div class="mc-footer" style="justify-content:center;">
+          <button id="res-replay-btn" class="mc-play-btn">🔄 Jogar Novamente</button>
+          <button id="res-menu-btn" class="mc-sec-btn">📋 Voltar ao Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

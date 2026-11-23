@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#14532d"/>
+      <stop offset="55%" stop-color="#064e3b"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="44%" cy="48%" r="52%">
+      <stop offset="0%" stop-color="#fde047" stop-opacity="0.72"/>
+      <stop offset="50%" stop-color="#f59e0b" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="giantBanana" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="50%" stop-color="#facc15"/>
+      <stop offset="100%" stop-color="#ca8a04"/>
+    </linearGradient>
+    <linearGradient id="monkeyFur" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#b45309"/>
+      <stop offset="100%" stop-color="#78350f"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Jungle Cosmic Background -->
+  <rect width="640" height="360" fill="url(#sky)"/>
+  <rect width="640" height="360" fill="url(#sunGlow)"/>
+
+  <!-- Sunburst Rays -->
+  <g transform="translate(275, 175)" opacity="0.16" fill="#fef08a">
+    <polygon points="0,0 -45,-210 45,-210"/>
+    <polygon points="0,0 130,-175 190,-115"/>
+    <polygon points="0,0 215,-25 215,55"/>
+    <polygon points="0,0 165,145 95,195"/>
+    <polygon points="0,0 -35,210 -115,185"/>
+    <polygon points="0,0 -195,95 -215,15"/>
+    <polygon points="0,0 -185,-115 -125,-175"/>
+  </g>
+
+  <!-- Jungle Leaves Framing -->
+  <path d="M-20,60 Q70,10 140,85 Q60,95 -20,120 Z" fill="#16a34a" opacity="0.55"/>
+  <path d="M660,40 Q560,15 510,95 Q590,105 660,130 Z" fill="#15803d" opacity="0.55"/>
+  <path d="M-10,330 Q120,250 220,360 L-10,360 Z" fill="#14532d" opacity="0.85"/>
+  <path d="M650,330 Q510,255 410,360 L650,360 Z" fill="#14532d" opacity="0.85"/>
+
+  <!-- Small Floating Bananas & Golden Sparks -->
+  <g transform="translate(105, 92) rotate(-25)">
+    <path d="M-24,8 C-8,-14 14,-14 26,6 C10,-1 -8,-1 -24,8 Z" fill="#fde047" stroke="#854d0e" stroke-width="3"/>
+  </g>
+  <g transform="translate(530, 84) rotate(28) scale(1.1)">
+    <path d="M-24,8 C-8,-14 14,-14 26,6 C10,-1 -8,-1 -24,8 Z" fill="#facc15" stroke="#854d0e" stroke-width="3"/>
+  </g>
+  <g transform="translate(555, 196) rotate(-18) scale(0.95)">
+    <path d="M-24,8 C-8,-14 14,-14 26,6 C10,-1 -8,-1 -24,8 Z" fill="#fef08a" stroke="#ca8a04" stroke-width="3"/>
+  </g>
+
+  <!-- Sparkle stars -->
+  <g fill="#fef9c3">
+    <circle cx="170" cy="65" r="4"/>
+    <circle cx="388" cy="58" r="5"/>
+    <circle cx="490" cy="145" r="3.5"/>
+    <circle cx="130" cy="215" r="4"/>
+  </g>
+
+  <!-- Giant Clickable Banana (Center Left) -->
+  <g transform="translate(248, 174) rotate(-14)">
+    <path d="M-78,42 C-70,-35 -10,-98 76,-106 C58,-28 24,48 -68,74 C-82,78 -82,58 -78,42 Z"
+          fill="url(#giantBanana)" stroke="#713f12" stroke-width="7" stroke-linejoin="round"/>
+    <!-- Highlight ridge -->
+    <path d="M-42,32 C-24,-22 14,-66 56,-84" fill="none" stroke="#fef9c3" stroke-width="8" stroke-linecap="round" opacity="0.7"/>
+    <!-- Stem & tip -->
+    <path d="M72,-104 L88,-118" stroke="#713f12" stroke-width="11" stroke-linecap="round"/>
+    <circle cx="-74" cy="61" r="7" fill="#713f12"/>
+  </g>
+
+  <!-- Click Ripple Ring + Cursor -->
+  <circle cx="255" cy="176" r="32" fill="none" stroke="#fef08a" stroke-width="4" opacity="0.85"/>
+  <circle cx="255" cy="176" r="50" fill="none" stroke="#fde047" stroke-width="2.5" stroke-dasharray="8 6" opacity="0.7"/>
+  <!-- Giant Pointer Cursor -->
+  <g transform="translate(260, 182)">
+    <polygon points="0,0 0,34 9,26 17,41 24,37 16,22 27,20" fill="#ffffff" stroke="#0f172a" stroke-width="3.5" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Floating +999 Text -->
+  <text x="155" y="102" font-family="system-ui, sans-serif" font-size="26" font-weight="900" fill="#fef08a" stroke="#713f12" stroke-width="4" paint-order="stroke" transform="rotate(-10 155 102)">+777 🍌!</text>
+  <text x="345" y="96" font-family="system-ui, sans-serif" font-size="20" font-weight="900" fill="#4ade80" stroke="#052e16" stroke-width="4" paint-order="stroke" transform="rotate(8 345 96)">POTÁSSIO!</text>
+
+  <!-- Expressive Googly Monkey Mascot (Right) -->
+  <g transform="translate(432, 186)">
+    <!-- Ears -->
+    <circle cx="-54" cy="-12" r="22" fill="#78350f" stroke="#451a03" stroke-width="4.5"/>
+    <circle cx="-54" cy="-12" r="12" fill="#fed7aa"/>
+    <circle cx="54" cy="-12" r="22" fill="#78350f" stroke="#451a03" stroke-width="4.5"/>
+    <circle cx="54" cy="-12" r="12" fill="#fed7aa"/>
+    <!-- Body -->
+    <ellipse cx="0" cy="64" rx="46" ry="44" fill="url(#monkeyFur)" stroke="#451a03" stroke-width="4.5"/>
+    <ellipse cx="0" cy="66" rx="28" ry="30" fill="#fed7aa"/>
+    <!-- Golden Crown -->
+    <polygon points="-28,-54 -22,-84 -7,-66 0,-92 7,-66 22,-84 28,-54" fill="#facc15" stroke="#854d0e" stroke-width="3.5" stroke-linejoin="round"/>
+    <!-- Head -->
+    <circle cx="0" cy="-12" r="52" fill="url(#monkeyFur)" stroke="#451a03" stroke-width="4.5"/>
+    <!-- Face mask -->
+    <ellipse cx="0" cy="8" rx="38" ry="28" fill="#fed7aa"/>
+    <ellipse cx="-18" cy="-16" rx="17" ry="18" fill="#fed7aa"/>
+    <ellipse cx="18" cy="-16" rx="17" ry="18" fill="#fed7aa"/>
+    <!-- Googly Eyes -->
+    <circle cx="-18" cy="-16" r="13" fill="#ffffff" stroke="#1e293b" stroke-width="3.5"/>
+    <circle cx="18" cy="-16" r="13" fill="#ffffff" stroke="#1e293b" stroke-width="3.5"/>
+    <circle cx="-13" cy="-13" r="5.5" fill="#0f172a"/>
+    <circle cx="13" cy="-19" r="5.5" fill="#0f172a"/>
+    <circle cx="-11" cy="-15" r="2" fill="#ffffff"/>
+    <circle cx="15" cy="-21" r="2" fill="#ffffff"/>
+    <!-- Nose -->
+    <circle cx="-5" cy="1" r="3" fill="#78350f"/>
+    <circle cx="5" cy="1" r="3" fill="#78350f"/>
+    <!-- Big Happy Mouth -->
+    <path d="M-20,12 Q0,34 20,12 Z" fill="#7f1d1d" stroke="#451a03" stroke-width="3.5"/>
+    <ellipse cx="0" cy="21" rx="10" ry="5.5" fill="#fb7185"/>
+    <!-- Hand reaching toward banana -->
+    <circle cx="-64" cy="24" r="16" fill="#fed7aa" stroke="#451a03" stroke-width="4"/>
+  </g>
+
+  <!-- Title Banner -->
+  <g transform="translate(320, 320)">
+    <rect x="-265" y="-26" width="530" height="44" rx="22" fill="#0f172a" stroke="#facc15" stroke-width="4"/>
+    <text x="0" y="3" text-anchor="middle" font-family="system-ui, sans-serif" font-size="22" font-weight="900" fill="#fde047" letter-spacing="0.4">🍌 BANANA CLICKER: IMPÉRIO DO MACACO</text>
+  </g>
+</svg>
