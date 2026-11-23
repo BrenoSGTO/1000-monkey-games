@@ -1,0 +1,26 @@
+{
+  "slug": "monkey-flappy",
+  "title": "Flappy Mico: Voo da Vergonha",
+  "subtitle": "Voe com hélice de banana entre bambus, pombos furiosos e helicópteros de coco!",
+  "inspiredBy": "Flappy Bird",
+  "description": "Controle um mico com hélice de banana na cabeça por 3 biomas caóticos (Selva, Cidade do Corre e Espaço Bananático)! Desvie de troncos de bambu, cipós, pássaros raivosos e helicópteros de coco, colete moedas-banana, ative Ímã, Escudo de Coco e Modo Turbo, desbloqueie 6 skins, ria das mortes ragdoll e dispute corridas simultâneas P2P no mesmo seed ou 2P Local!",
+  "category": "arcade",
+  "tags": ["arcade", "1-botão", "flappy", "ragdoll", "biomas", "skins", "2p-local", "multiplayer"],
+  "emoji": "🍌",
+  "accentColor": "#facc15",
+  "multiplayer": {
+    "supported": true,
+    "mode": "versus",
+    "maxPlayers": 8,
+    "summary": "Corrida simultânea P2P no mesmo seed com fantasmas dos amigos visíveis em tempo real, placar de vitórias da sessão, Buzina de Macaco (B) e modo 2P Local no mesmo teclado!"
+  },
+  "controls": [
+    "Solo / Online: Espaço / W / Seta Cima / Clique / Toque na tela: Bater asas e girar hélice de banana",
+    "2P Local (Mesmo Teclado): Jogador 1 (W / Espaço) vs Jogador 2 (Seta Cima / Enter / K)",
+    "B: Buzina de Macaco (provocar amigos no Online)",
+    "R: Reinício instantâneo"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
