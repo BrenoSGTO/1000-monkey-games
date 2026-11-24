@@ -5,6 +5,7 @@ import { OvercookedNet } from './net';
 import { RECIPES } from './recipes';
 import { KitchenRenderer } from './renderer';
 import { KitchenSimulation } from './simulation';
+import './mascot';
 import type { ChefInputState, GameMode, KitchenId, SimSnapshot } from './types';
 
 const SLUG = 'monkey-overcooked';

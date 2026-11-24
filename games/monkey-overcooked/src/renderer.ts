@@ -1,5 +1,7 @@
 import { GRID_COLS, GRID_ROWS, KITCHENS } from './kitchens';
 import { INGREDIENTS, RECIPES } from './recipes';
+import { FIGURE_HEIGHT_UNITS, HANDS, drawMonkey, makeFace, type HandPos, type Mood } from './monkeyart';
+import { chefApron, chefHat, chefStyle } from './monkeylook';
 import type {
   ChefState,
   FloatingText,
@@ -565,99 +567,79 @@ export class KitchenRenderer {
     const bob = Math.sin(chef.walkCycle) * 2.2;
     const chopBob = chef.isWorking ? Math.sin(this.animTime * 28) * 3 : 0;
 
-    // Ears
-    ctx.fillStyle = '#7c2d12';
-    ctx.strokeStyle = '#291509';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(-r * 0.88, -r * 0.15 + bob * 0.4, r * 0.34, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(r * 0.88, -r * 0.15 + bob * 0.4, r * 0.34, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+    // ── macaco-chef (pintor compartilhado) ──
+    {
+      const speed = Math.hypot(chef.vx, chef.vy);
+      const walking = speed > 0.25;
+      const dashing = chef.dashTimer > 0;
+      const slipping = chef.slipTimer > 0;
+      const shouting = Boolean(chef.shoutText);
+      const t = this.animTime;
+      let mood: Mood = chef.held ? 'happy' : 'neutral';
+      let armL: HandPos | undefined;
+      let armR: HandPos | undefined;
+      const u = (s * 0.68) / FIGURE_HEIGHT_UNITS;
+      const feetY = r * 0.78;
+      if (slipping) mood = 'dizzy';
+      else if (chef.panic) mood = 'scared';
+      else if (shouting) mood = 'shouting';
+      else if (dashing) mood = 'angry';
+      else if (chef.isWorking) mood = 'focus';
+      else if (walking) mood = 'happy';
 
-    // Inner ears
-    ctx.fillStyle = '#fed7aa';
-    ctx.beginPath();
-    ctx.arc(-r * 0.88, -r * 0.15 + bob * 0.4, r * 0.18, 0, Math.PI * 2);
-    ctx.arc(r * 0.88, -r * 0.15 + bob * 0.4, r * 0.18, 0, Math.PI * 2);
-    ctx.fill();
+      if (slipping) {
+        armL = HANDS.up(-1, t * 20);
+        armR = HANDS.up(1, t * 20 + 1.3);
+      } else if (chef.isWorking) {
+        // picando/lavando: mãos alternando na frente do peito
+        armL = { x: -0.45, y: -1.35 + Math.sin(this.animTime * 28) * 0.28 };
+        armR = { x: 0.45, y: -1.35 - Math.sin(this.animTime * 28) * 0.28 };
+      } else if (chef.held) {
+        // segura o item: mãos vão até ele
+        const hx = (chef.dirX * r * 1.15) / u;
+        const hy = (chef.dirY * r * 0.95 + chopBob - feetY) / u;
+        const cx = Math.max(-1.1, Math.min(1.1, hx));
+        const cy = Math.max(-2.1, Math.min(-0.8, hy - 0.2));
+        armL = { x: cx - 0.45, y: cy };
+        armR = { x: cx + 0.45, y: cy };
+      } else if (chef.panic) {
+        armL = HANDS.up(-1, t * 24);
+        armR = HANDS.up(1, t * 24 + 2);
+      }
 
-    // Apron / Body
-    ctx.fillStyle = '#f8fafc';
-    this.roundRect(ctx, -r * 0.72, r * 0.05, r * 1.44, r * 0.75, 6);
-    ctx.fill();
-    ctx.stroke();
+      const lookX = chef.dirX;
+      const lookY = chef.dirY * 0.8;
+      const turn = chef.dirX * 0.6;
+      const face = makeFace(mood, t, chef.index * 1.7 + 0.4, { x: lookX, y: lookY });
 
-    ctx.fillStyle = chef.color;
-    this.roundRect(ctx, -r * 0.44, r * 0.14, r * 0.88, r * 0.56, 4);
-    ctx.fill();
-
-    // Head
-    ctx.fillStyle = '#9a3412';
-    ctx.beginPath();
-    ctx.arc(0, -r * 0.16 + bob * 0.4, r * 0.78, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // Face mask (tan)
-    ctx.fillStyle = '#fed7aa';
-    ctx.beginPath();
-    ctx.ellipse(0, r * 0.06 + bob * 0.4, r * 0.58, r * 0.42, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(-r * 0.25, -r * 0.22 + bob * 0.4, r * 0.26, 0, Math.PI * 2);
-    ctx.arc(r * 0.25, -r * 0.22 + bob * 0.4, r * 0.26, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Eyes (looking toward facing dir, wide if panicked!)
-    const eyeR = chef.panic ? r * 0.22 : r * 0.17;
-    const lookX = chef.dirX * r * 0.08;
-    const lookY = chef.dirY * r * 0.06;
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(-r * 0.24, -r * 0.22 + bob * 0.4, eyeR, 0, Math.PI * 2);
-    ctx.arc(r * 0.24, -r * 0.22 + bob * 0.4, eyeR, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#0f172a';
-    ctx.beginPath();
-    ctx.arc(-r * 0.24 + lookX, -r * 0.22 + lookY + bob * 0.4, r * 0.08, 0, Math.PI * 2);
-    ctx.arc(r * 0.24 + lookX, -r * 0.22 + lookY + bob * 0.4, r * 0.08, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Mouth
-    if (chef.panic) {
-      ctx.fillStyle = '#7f1d1d';
-      ctx.beginPath();
-      ctx.ellipse(0, r * 0.14 + bob * 0.4, r * 0.2, r * 0.16, 0, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      ctx.strokeStyle = '#451a03';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, r * 0.08 + bob * 0.4, r * 0.2, 0.15 * Math.PI, 0.85 * Math.PI);
-      ctx.stroke();
+      ctx.save();
+      ctx.translate(0, feetY);
+      if (slipping) ctx.rotate(Math.sin(t * 22) * 0.18);
+      drawMonkey(ctx, {
+        style: chefStyle(chef.index),
+        face,
+        height: s * 0.68,
+        turn,
+        squashX: dashing ? 0.9 : 1,
+        squashY: dashing ? 1.08 : 1 + (chef.isWorking ? Math.sin(t * 28) * 0.02 : 0),
+        breathe: Math.sin(t * 2.4 + chef.index),
+        walk: chef.walkCycle,
+        walkAmp: walking ? Math.min(1, speed * 0.55) : 0,
+        tailPhase: t * (walking ? 7 : 2.5) + chef.index,
+        tailAmp: dashing ? 0.9 : walking ? 0.5 : 0.3,
+        tailSide: chef.dirX >= 0 ? -1 : 1,
+        earFlop: walking ? Math.sin(chef.walkCycle * 2 - 0.7) * 0.6 : Math.sin(t * 1.4 + chef.index) * 0.1,
+        headTilt: Math.sin(t * 0.9 + chef.index) * 0.03,
+        lean: dashing ? chef.dirX * 0.22 : 0,
+        armL,
+        armR,
+        tuft: false,
+        accessory: chefHat(chef.color, t, chef.isWorking),
+        bodyAccessory: chefApron(chef.color),
+        outlinePx: Math.max(1.8, s * 0.03),
+      });
+      ctx.restore();
     }
-
-    // Chef Hat!
-    const hatY = -r * 0.82 + bob * 0.55 + chopBob * 0.5;
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(-r * 0.26, hatY - r * 0.18, r * 0.28, 0, Math.PI * 2);
-    ctx.arc(r * 0.26, hatY - r * 0.18, r * 0.28, 0, Math.PI * 2);
-    ctx.arc(0, hatY - r * 0.28, r * 0.34, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // Colored headband
-    ctx.fillStyle = chef.color;
-    this.roundRect(ctx, -r * 0.54, hatY - r * 0.08, r * 1.08, r * 0.24, 3);
-    ctx.fill();
-    ctx.stroke();
 
     // Held Item in front of chef
     if (chef.held) {
@@ -671,10 +653,10 @@ export class KitchenRenderer {
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     const tagW = ctx.measureText(chef.name).width + 10;
-    this.roundRect(ctx, -tagW * 0.5, r * 0.82, tagW, 15, 6);
+    this.roundRect(ctx, -tagW * 0.5, r * 1.0, tagW, 15, 6);
     ctx.fill();
     ctx.fillStyle = chef.color;
-    ctx.fillText(chef.name, 0, r * 0.82 + 11);
+    ctx.fillText(chef.name, 0, r * 1.0 + 11);
 
     // Speech Shout Bubble!
     if (chef.shoutText) {

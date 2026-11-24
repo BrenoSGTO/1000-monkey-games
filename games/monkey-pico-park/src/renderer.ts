@@ -1,4 +1,6 @@
 import { LEVELS } from './levels';
+import { HANDS, drawMonkey as paintMonkey, makeFace, type Face, type HandPos, type Mood } from './monkeyart';
+import { paletteAccessory, paletteAccessoryHidesTuft, styleForPalette } from './monkeylook';
 import {
   MONKEY_PALETTES,
   WORLD_H,
@@ -662,100 +664,92 @@ function drawMonkey(
   const isSquished = m.squishedTimer > 0;
   const isSoloActive = world.mode === 'solo' && m.id === world.activeSoloIndex;
 
+  // ── apresentação (somente visual) ──
+  const speed = Math.abs(m.vx);
+  const runningOnGround = m.grounded && speed > 12;
+  const airborne = !m.grounded;
+  const shouting = Boolean(m.shoutText) && m.shoutTimer > 0;
+  const celebrating = world.phase === 'level_clear' || world.phase === 'victory';
+  let mood: Mood = 'neutral';
+  let armL: HandPos | undefined;
+  let armR: HandPos | undefined;
+  const over: Partial<Face> = {};
+  if (isSquished) {
+    mood = 'scared';
+  } else if (shouting) {
+    mood = 'shouting';
+    armL = HANDS.cheer(-1, t * 12);
+    armR = HANDS.cheer(1, t * 12);
+  } else if (celebrating) {
+    mood = 'cheer';
+    armL = HANDS.cheer(-1, t * 9 + m.id);
+    armR = HANDS.cheer(1, t * 9 + m.id);
+  } else if (airborne && m.vy < -40) {
+    mood = 'cheer';
+    over.mouthOpen = 0.35;
+    armL = HANDS.up(-1, t * 14);
+    armR = HANDS.up(1, t * 14 + 1);
+  } else if (airborne) {
+    mood = 'scared';
+    over.sweat = false;
+    over.mouthOpen = 0.45;
+    armL = HANDS.out(-1);
+    armR = HANDS.out(1);
+  } else if (runningOnGround || isSoloActive) {
+    mood = 'happy';
+  } else if (m.standingOnMonkeyId !== null) {
+    mood = 'focus';
+    over.lid = 0.05;
+  }
+  const faceDir = m.facing;
+  over.lookY = airborne ? (m.vy < 0 ? -0.6 : 0.5) : 0;
+  const idleGlance = !runningOnGround && !airborne ? Math.sin(t * 0.9 + m.id * 2.1) * 0.5 : 0;
+  const face = makeFace(
+    mood,
+    t,
+    m.id * 1.9,
+    { x: runningOnGround || airborne ? faceDir : faceDir * 0.6 + idleGlance, y: over.lookY },
+    over,
+  );
+  const turn = runningOnGround || airborne ? faceDir * 0.85 : faceDir * 0.55 + idleGlance * 0.5;
+
   ctx.save();
   ctx.translate(cx, bottomY);
+
+  // sombra de contato
+  {
+    const sg = ctx.createRadialGradient(0, -1, 1, 0, -1, 17);
+    sg.addColorStop(0, 'rgba(20,40,20,0.28)');
+    sg.addColorStop(1, 'rgba(20,40,20,0)');
+    ctx.fillStyle = sg;
+    ctx.beginPath();
+    ctx.ellipse(0, -1, 17, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   ctx.scale(m.squashX, m.squashY);
-
-  // Tail wiggle
-  const tailWag = Math.sin(t * 7 + m.id) * 6;
-  ctx.strokeStyle = pal.outline;
-  ctx.lineWidth = 4.5;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(-m.facing * 12, -10);
-  ctx.quadraticCurveTo(-m.facing * 26, -18 + tailWag, -m.facing * 22, -29 + tailWag);
-  ctx.stroke();
-
-  // Ears
-  ctx.fillStyle = pal.body;
-  ctx.strokeStyle = pal.outline;
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.arc(-m.w * 0.5, -m.h * 0.62, 6.5, 0, Math.PI * 2);
-  ctx.arc(m.w * 0.5, -m.h * 0.62, 6.5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  // Body (Pico Park chunky rounded silhouette)
-  ctx.fillStyle = pal.body;
-  ctx.strokeStyle = pal.outline;
-  ctx.lineWidth = 3;
-  roundRectPath(ctx, -m.w * 0.5, -m.h, m.w, m.h, 12);
-  ctx.fill();
-  ctx.stroke();
-
-  // Belly / Face patch
-  ctx.fillStyle = pal.belly;
-  ctx.beginPath();
-  ctx.ellipse(m.facing * 2, -m.h * 0.46, 12, 11, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Cute hair tuft
-  ctx.strokeStyle = pal.outline;
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(-3, -m.h);
-  ctx.quadraticCurveTo(0, -m.h - 7, 4, -m.h);
-  ctx.stroke();
-
-  // Googly Eyes (cross-eyed vesgo!)
-  const eyeY = -m.h * 0.62;
-  const eyeOffset = m.facing * 2.5;
-  const eyeR = isSquished ? 6 : 5;
-  ctx.fillStyle = '#ffffff';
-  ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 1.8;
-
-  ctx.beginPath();
-  ctx.arc(-6 + eyeOffset, eyeY, eyeR, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(6 + eyeOffset, eyeY, eyeR, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  // Pupils (slightly vesgo / reactive!)
-  ctx.fillStyle = '#0f172a';
-  if (isSquished) {
-    // Panic googly pupils!
-    ctx.beginPath();
-    ctx.arc(-7 + eyeOffset, eyeY - 1.5, 2.1, 0, Math.PI * 2);
-    ctx.arc(8 + eyeOffset, eyeY + 1.5, 2.1, 0, Math.PI * 2);
-    ctx.fill();
-  } else {
-    // Classic vesgo look toward facing direction
-    ctx.beginPath();
-    ctx.arc(-4.5 + eyeOffset + m.facing * 1.4, eyeY, 2.2, 0, Math.PI * 2);
-    ctx.arc(5.5 + eyeOffset + m.facing * 0.8, eyeY - 0.5, 2.2, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Mouth
-  if (isSquished) {
-    ctx.fillStyle = pal.outline;
-    ctx.beginPath();
-    ctx.ellipse(eyeOffset, -m.h * 0.34, 4.5, 3.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-  } else {
-    ctx.strokeStyle = pal.outline;
-    ctx.lineWidth = 2.2;
-    ctx.beginPath();
-    ctx.arc(eyeOffset, -m.h * 0.38, 4.5, 0.15, Math.PI - 0.15);
-    ctx.stroke();
-  }
-
+  paintMonkey(ctx, {
+    style: styleForPalette(m.paletteIndex),
+    face,
+    height: m.h,
+    turn,
+    squashX: 1,
+    squashY: 1,
+    breathe: Math.sin(t * 2.6 + m.id),
+    walk: runningOnGround ? m.animTime * 15 : 0,
+    walkAmp: runningOnGround ? Math.min(1, speed / 150) : 0,
+    tailPhase: t * (runningOnGround ? 8 : 3) + m.id,
+    tailAmp: 0.3 + Math.min(0.5, speed / 300) + (airborne ? 0.2 : 0),
+    tailSide: m.facing >= 0 ? -1 : 1,
+    earFlop: Math.max(-1, Math.min(1, -m.vy * 0.0035)) + Math.sin(t * 1.4 + m.id) * 0.08,
+    headTilt: Math.sin(t * 0.8 + m.id) * 0.03 + (runningOnGround ? m.facing * 0.05 : 0),
+    lean: runningOnGround ? m.facing * 0.05 : 0,
+    armL,
+    armR,
+    tuft: !paletteAccessoryHidesTuft(m.paletteIndex),
+    accessory: paletteAccessory(m.paletteIndex, turn, t),
+    outlinePx: 2.2,
+  });
   ctx.restore();
 
   // Player Name / Active Indicator above monkey
@@ -950,6 +944,47 @@ function drawPlayingHud(
   ctx.restore();
 }
 
+/** Duas torres de macacos comemorando nas laterais da tela de título. */
+function drawMenuMascots(ctx: CanvasRenderingContext2D, t: number): void {
+  const towers: Array<{ x: number; pals: number[]; moods: Mood[]; dir: number }> = [
+    { x: 80, pals: [0, 1, 2], moods: ['cheer', 'shouting', 'happy'], dir: 1 },
+    { x: WORLD_W - 80, pals: [3, 4, 5], moods: ['happy', 'cheer', 'shouting'], dir: -1 },
+  ];
+  const H = 84;
+  for (const tw of towers) {
+    for (let i = 0; i < tw.pals.length; i++) {
+      const level = tw.pals.length - 1 - i; // i=0 é o de cima
+      const pal = tw.pals[i];
+      const phase = t * 3 + pal * 1.3;
+      const bounce = Math.max(0, Math.sin(phase)) * 6;
+      const squash = 1 - Math.max(0, -Math.sin(phase)) * 0.05;
+      const baseY = WORLD_H - 56 - level * (H * 0.78) - (level === 0 ? 0 : bounce * 0.3);
+      ctx.save();
+      ctx.translate(tw.x, baseY - (i === 0 ? bounce : 0));
+      ctx.scale(1, squash);
+      const turn = tw.dir * 0.5;
+      paintMonkey(ctx, {
+        style: styleForPalette(pal),
+        face: makeFace(tw.moods[i], t, pal * 2.3, { x: tw.dir * 0.4, y: -0.1 }),
+        height: H,
+        turn,
+        breathe: Math.sin(t * 2.6 + pal),
+        tailPhase: t * 5 + pal,
+        tailAmp: 0.6,
+        tailSide: tw.dir > 0 ? 1 : -1,
+        earFlop: Math.sin(t * 3 + pal) * 0.4,
+        headTilt: Math.sin(t * 2 + pal) * 0.08,
+        armL: HANDS.cheer(-1, t * 7 + pal),
+        armR: HANDS.cheer(1, t * 7 + pal),
+        tuft: !paletteAccessoryHidesTuft(pal),
+        accessory: paletteAccessory(pal, turn, t),
+        outlinePx: 2.6,
+      });
+      ctx.restore();
+    }
+  }
+}
+
 function drawMenuOverlay(
   ctx: CanvasRenderingContext2D,
   world: WorldState,
@@ -960,6 +995,8 @@ function drawMenuOverlay(
   ctx.save();
   ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
   ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+
+  drawMenuMascots(ctx, t);
 
   // Main Card
   const cardX = 160;
@@ -978,7 +1015,7 @@ function drawMenuOverlay(
   ctx.fillStyle = '#14532d';
   ctx.font = '900 42px system-ui, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('🔑 PICO MACACO: A CHAVE DA BANANA 🍌', WORLD_W * 0.5, cardY + 56 + bounce);
+  ctx.fillText('🔑 MICO PARK: A CHAVE DA BANANA 🍌', WORLD_W * 0.5, cardY + 56 + bounce);
 
   ctx.fillStyle = '#475569';
   ctx.font = '700 16px system-ui, sans-serif';
