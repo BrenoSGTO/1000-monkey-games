@@ -651,26 +651,41 @@ export class MotorwaysRenderer {
       ctx.fill();
       ctx.restore();
 
-      // House distinct shape body
-      ctx.fillStyle = theme.fill;
+      // House distinct shape body with subtle gradient
+      const hGrad = ctx.createLinearGradient(-r, -r, r, r);
+      hGrad.addColorStop(0, theme.light);
+      hGrad.addColorStop(0.28, theme.fill);
+      hGrad.addColorStop(1, theme.roof);
+      ctx.fillStyle = hGrad;
       ctx.strokeStyle = theme.dark;
       ctx.lineWidth = Math.max(2, cs * 0.06);
       this.drawHouseBody(ctx, theme.shape, r);
       ctx.fill();
       ctx.stroke();
 
+      // Inner cozy roof trim
+      ctx.fillStyle = night ? 'rgba(15,23,42,0.22)' : 'rgba(255,255,255,0.24)';
+      this.drawHouseBody(ctx, theme.shape, r * 0.68);
+      ctx.fill();
+
       // Fruit symbol inside house for instant colorblind / visual clarity
-      ctx.font = `${Math.max(10, Math.floor(cs * 0.34))}px system-ui, sans-serif`;
+      ctx.font = `${Math.max(10, Math.floor(cs * 0.31))}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(theme.fruitEmoji, 0, -cs * 0.06);
+      ctx.fillText(theme.fruitEmoji, -cs * 0.09, -cs * 0.08);
 
-      // Parked car pips
+      // Tiny minimalist monkey peeking from the house porch
+      this.drawHouseMonkeyPeek(ctx, cs * 0.14, -cs * 0.08, cs * 0.11, sim.timeSec + h.x * 0.7, h.carsParked > 0);
+
+      // Parked mini-cars pips
       for (let i = 0; i < h.carsParked; i++) {
+        const px = -cs * 0.11 + i * cs * 0.22;
+        const py = cs * 0.21;
         ctx.fillStyle = night ? '#f8fafc' : '#1e293b';
-        ctx.beginPath();
-        ctx.arc(-cs * 0.1 + i * cs * 0.2, cs * 0.2, cs * 0.06, 0, Math.PI * 2);
+        this.roundRect(ctx, px - cs * 0.075, py - cs * 0.045, cs * 0.15, cs * 0.09, cs * 0.03);
         ctx.fill();
+        ctx.fillStyle = theme.light;
+        ctx.fillRect(px - cs * 0.02, py - cs * 0.03, cs * 0.05, cs * 0.06);
       }
 
       ctx.restore();
@@ -1010,8 +1025,8 @@ export class MotorwaysRenderer {
         car.rage > 0.35 ? Math.sin(sim.timeSec * 38 + renderX * 5) * cs * 0.025 * car.rage : 0;
       const px = this.offsetX + renderX * cs + rageJitter;
       const py = this.offsetY + renderY * cs;
-      const carW = cs * 0.44;
-      const carH = cs * 0.28;
+      const carW = cs * 0.48;
+      const carH = cs * 0.31;
 
       ctx.save();
       ctx.translate(px, py);
@@ -1031,16 +1046,48 @@ export class MotorwaysRenderer {
         ctx.fill();
       }
 
+      // Ground shadow
       ctx.fillStyle = 'rgba(0,0,0,0.28)';
-      this.roundRect(ctx, -carW / 2 + 1, -carH / 2 + 2, carW, carH, cs * 0.08);
+      this.roundRect(ctx, -carW / 2 + 1, -carH / 2 + 2, carW, carH, cs * 0.09);
       ctx.fill();
 
-      ctx.fillStyle = theme.fill;
+      // Wagging curved tail sticking out the back of the convertible
+      const tailWag =
+        car.rage > 0.35
+          ? Math.sin(sim.timeSec * 28 + renderX) * cs * 0.06
+          : Math.sin(sim.timeSec * 8 + renderX) * cs * 0.045;
+      ctx.strokeStyle = '#451a03';
+      ctx.lineWidth = Math.max(1.8, cs * 0.06);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-carW * 0.42, 0);
+      ctx.quadraticCurveTo(-carW * 0.64, tailWag, -carW * 0.72, -cs * 0.08 + tailWag);
+      ctx.stroke();
+
+      // Car body with 2-tone gradient shading
+      const cGrad = ctx.createLinearGradient(0, -carH / 2, 0, carH / 2);
+      cGrad.addColorStop(0, theme.light);
+      cGrad.addColorStop(0.32, theme.fill);
+      cGrad.addColorStop(1, theme.roof);
+      ctx.fillStyle = cGrad;
       ctx.strokeStyle = theme.dark;
       ctx.lineWidth = Math.max(1.5, cs * 0.045);
-      this.roundRect(ctx, -carW / 2, -carH / 2, carW, carH, cs * 0.08);
+      this.roundRect(ctx, -carW / 2, -carH / 2, carW, carH, cs * 0.09);
       ctx.fill();
       ctx.stroke();
+
+      // Open-top cockpit + windshield glass
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.32)';
+      this.roundRect(ctx, -carW * 0.28, -carH * 0.36, carW * 0.44, carH * 0.72, cs * 0.05);
+      ctx.fill();
+      ctx.fillStyle = night ? '#38bdf8' : '#bae6fd';
+      this.roundRect(ctx, carW * 0.14, -carH * 0.34, carW * 0.12, carH * 0.68, cs * 0.03);
+      ctx.fill();
+
+      // Headlights
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(carW * 0.44, -carH * 0.34, 2, carH * 0.2);
+      ctx.fillRect(carW * 0.44, carH * 0.14, 2, carH * 0.2);
 
       if (car.speed < 0.45) {
         ctx.fillStyle = '#ef4444';
@@ -1051,33 +1098,127 @@ export class MotorwaysRenderer {
       // Honk sound-wave arcs when furious
       if (car.moodTimer > 0.6 && car.rage > 0.15) {
         ctx.strokeStyle = '#fde047';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 1.6;
         ctx.beginPath();
-        ctx.arc(carW * 0.55, 0, cs * 0.16, -0.7, 0.7);
+        ctx.arc(carW * 0.56, 0, cs * 0.17, -0.7, 0.7);
         ctx.stroke();
       }
 
-      // Goofy Monkey Driver Head
-      const headR = cs * 0.11;
-      ctx.fillStyle = '#78350f';
+      // Expressive Minimalist Monkey Driver Head (top-3/4 view facing +X)
+      const headR = cs * 0.135;
+      const hx = carW * 0.02;
+      const earJitter = car.rage > 0.35 ? Math.sin(sim.timeSec * 30) * headR * 0.09 : 0;
+      const blink = (sim.timeSec + (car.homeHouseId.charCodeAt(0) || 0) * 0.37) % 4.1 > 3.96;
+
+      // Ears with rosy inner ear
+      for (const side of [-1, 1] as const) {
+        const ey = side * (headR * 0.94 + earJitter);
+        ctx.fillStyle = '#78350f';
+        ctx.strokeStyle = '#451a03';
+        ctx.lineWidth = Math.max(1, cs * 0.03);
+        ctx.beginPath();
+        ctx.arc(hx - headR * 0.12, ey, headR * 0.48, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#fda4af';
+        ctx.beginPath();
+        ctx.arc(hx - headR * 0.05, ey * 0.96, headR * 0.24, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Head fur with radial gradient + outline
+      const fGrad = ctx.createRadialGradient(hx + headR * 0.2, -headR * 0.2, 1, hx, 0, headR);
+      fGrad.addColorStop(0, '#b45309');
+      fGrad.addColorStop(1, '#78350f');
+      ctx.fillStyle = fGrad;
+      ctx.strokeStyle = '#451a03';
+      ctx.lineWidth = Math.max(1.1, cs * 0.035);
       ctx.beginPath();
-      ctx.arc(carW * 0.06, -headR * 0.95, headR * 0.5, 0, Math.PI * 2);
-      ctx.arc(carW * 0.06, headR * 0.95, headR * 0.5, 0, Math.PI * 2);
+      ctx.arc(hx, 0, headR, 0, Math.PI * 2);
       ctx.fill();
+      ctx.stroke();
+
+      // Peanut / heart face mask oriented toward +X
+      ctx.fillStyle = '#fde68a';
       ctx.beginPath();
-      ctx.arc(carW * 0.08, 0, headR, 0, Math.PI * 2);
+      ctx.ellipse(hx + headR * 0.38, -headR * 0.24, headR * 0.44, headR * 0.34, 0, 0, Math.PI * 2);
+      ctx.ellipse(hx + headR * 0.38, headR * 0.24, headR * 0.44, headR * 0.34, 0, 0, Math.PI * 2);
+      ctx.ellipse(hx + headR * 0.56, 0, headR * 0.36, headR * 0.52, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = '#fff';
+      // Eyes (blinking, tracking, or furious)
+      const eyeX = hx + headR * 0.36;
+      const eyeY = headR * 0.34;
+      for (const side of [-1, 1] as const) {
+        if (blink && car.rage < 0.35) {
+          ctx.strokeStyle = '#451a03';
+          ctx.lineWidth = Math.max(1, cs * 0.03);
+          ctx.beginPath();
+          ctx.moveTo(eyeX - headR * 0.12, side * eyeY - headR * 0.14);
+          ctx.lineTo(eyeX + headR * 0.12, side * eyeY + headR * 0.14);
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(eyeX, side * eyeY, headR * 0.28, 0, Math.PI * 2);
+          ctx.fill();
+
+          const lookShift = car.speed < 0.45 ? -headR * 0.04 : headR * 0.08;
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(eyeX + lookShift, side * eyeY, headR * 0.14, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Eye specular highlight
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(eyeX + lookShift - headR * 0.04, side * eyeY - headR * 0.05, Math.max(0.7, headR * 0.06), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Angry furrowed eyebrows when stuck/raging
+      if (car.rage > 0.25 || car.speed < 0.45) {
+        ctx.strokeStyle = car.rage > 0.45 ? '#991b1b' : '#451a03';
+        ctx.lineWidth = Math.max(1.1, cs * 0.035);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(eyeX - headR * 0.16, -eyeY - headR * 0.24);
+        ctx.lineTo(eyeX + headR * 0.16, -headR * 0.08);
+        ctx.moveTo(eyeX - headR * 0.16, eyeY + headR * 0.24);
+        ctx.lineTo(eyeX + headR * 0.16, headR * 0.08);
+        ctx.stroke();
+      }
+
+      // Expressive mouth at front of muzzle
+      const mx = hx + headR * 0.72;
+      if (car.rage > 0.4) {
+        ctx.fillStyle = '#991b1b';
+        ctx.beginPath();
+        ctx.ellipse(mx, 0, headR * 0.18, headR * 0.26, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (onMw) {
+        ctx.fillStyle = '#991b1b';
+        ctx.beginPath();
+        ctx.arc(mx - headR * 0.05, 0, headR * 0.22, -Math.PI * 0.45, Math.PI * 0.45);
+        ctx.fill();
+      } else {
+        ctx.strokeStyle = '#78350f';
+        ctx.lineWidth = Math.max(0.9, cs * 0.025);
+        ctx.beginPath();
+        ctx.arc(mx - headR * 0.1, 0, headR * 0.16, -0.7, 0.7);
+        ctx.stroke();
+      }
+
+      // Subtle color-faction headband/cap flair on crown of monkey head
+      ctx.fillStyle = theme.fill;
+      ctx.strokeStyle = theme.dark;
+      ctx.lineWidth = Math.max(0.8, cs * 0.022);
       ctx.beginPath();
-      ctx.arc(carW * 0.13, -headR * 0.38, headR * 0.36, 0, Math.PI * 2);
-      ctx.arc(carW * 0.13, headR * 0.38, headR * 0.36, 0, Math.PI * 2);
+      ctx.arc(hx - headR * 0.35, 0, headR * 0.55, Math.PI * 0.6, Math.PI * 1.4);
       ctx.fill();
-      ctx.fillStyle = '#000';
-      ctx.beginPath();
-      ctx.arc(carW * 0.15, -headR * 0.35, headR * 0.18, 0, Math.PI * 2);
-      ctx.arc(carW * 0.15, headR * 0.41, headR * 0.18, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.stroke();
 
       ctx.restore();
 
@@ -1287,6 +1428,84 @@ export class MotorwaysRenderer {
       ctx.fillText(f.text, px, py);
       ctx.restore();
     }
+  }
+
+  private drawHouseMonkeyPeek(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    r: number,
+    phase: number,
+    happy: boolean,
+  ): void {
+    const bob = happy ? Math.sin(phase * 4) * r * 0.16 : 0;
+    const blink = phase % 4.4 > 4.26;
+    ctx.save();
+    ctx.translate(x, y + bob);
+
+    // Ears
+    for (const ex of [-r * 0.95, r * 0.95]) {
+      ctx.fillStyle = '#78350f';
+      ctx.strokeStyle = '#451a03';
+      ctx.lineWidth = Math.max(0.8, r * 0.22);
+      ctx.beginPath();
+      ctx.arc(ex, 0, r * 0.44, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#fda4af';
+      ctx.beginPath();
+      ctx.arc(ex, r * 0.04, r * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Head
+    ctx.fillStyle = '#92400e';
+    ctx.strokeStyle = '#451a03';
+    ctx.lineWidth = Math.max(0.9, r * 0.24);
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Peanut mask
+    ctx.fillStyle = '#fde68a';
+    ctx.beginPath();
+    ctx.ellipse(0, r * 0.28, r * 0.72, r * 0.48, 0, 0, Math.PI * 2);
+    ctx.arc(-r * 0.3, -r * 0.14, r * 0.34, 0, Math.PI * 2);
+    ctx.arc(r * 0.3, -r * 0.14, r * 0.34, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyes
+    if (blink) {
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = Math.max(0.8, r * 0.2);
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.45, -r * 0.16);
+      ctx.lineTo(-r * 0.15, -r * 0.16);
+      ctx.moveTo(r * 0.15, -r * 0.16);
+      ctx.lineTo(r * 0.45, -r * 0.16);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(-r * 0.3, -r * 0.16, r * 0.17, 0, Math.PI * 2);
+      ctx.arc(r * 0.3, -r * 0.16, r * 0.17, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(-r * 0.35, -r * 0.22, Math.max(0.5, r * 0.07), 0, Math.PI * 2);
+      ctx.arc(r * 0.25, -r * 0.22, Math.max(0.5, r * 0.07), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Smile
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = Math.max(0.8, r * 0.18);
+    ctx.beginPath();
+    ctx.arc(0, r * 0.22, r * 0.28, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+
+    ctx.restore();
   }
 
   private easeOutBack(t: number): number {

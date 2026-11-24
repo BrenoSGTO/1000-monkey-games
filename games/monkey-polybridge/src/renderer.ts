@@ -114,7 +114,7 @@ export function renderBridgeWorld(
     }
   }
   for (const r of world.ragdolls) {
-    drawRagdollMonkey(ctx, r);
+    drawRagdollMonkey(ctx, r, timeSec);
   }
 
   // Crocodiles & front water ripples
@@ -1004,6 +1004,16 @@ function drawVehicle(
   ctx.scale(v.direction, 1);
 
   if (v.kind === 'cart') {
+    // Curved monkey tail behind driver
+    const tailWag = Math.sin(timeSec * 10) * 4;
+    ctx.strokeStyle = '#451a03';
+    ctx.lineWidth = 4.2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-2, -22);
+    ctx.quadraticCurveTo(-18, -28 + tailWag, -22, -38 + tailWag);
+    ctx.stroke();
+
     ctx.fillStyle = '#b45309';
     ctx.strokeStyle = '#451a03';
     ctx.lineWidth = 2.5;
@@ -1016,11 +1026,22 @@ function drawVehicle(
     ctx.fillText('🍌', -24, -22);
     ctx.fillText('🍌', -10, -25);
     if (!v.ejected) {
-      drawMonkeyHead(ctx, 10, -28, 9, panic);
-      ctx.fillStyle = '#facc15';
+      // Safety vest torso
+      ctx.fillStyle = '#f97316';
+      ctx.strokeStyle = '#451a03';
+      ctx.lineWidth = 1.6;
       ctx.beginPath();
-      ctx.arc(10, -32, 8, Math.PI, 0);
+      ctx.roundRect(4, -26, 12, 10, 3);
       ctx.fill();
+      ctx.stroke();
+      drawMonkeyHead(ctx, 10, -30, 9.5, panic, '#92400e', {
+        hat: 'hardhat',
+        hatColor: '#facc15',
+        happy: v.finished,
+        timeSec,
+        lookX: 0.9,
+        seed: 1,
+      });
     }
   } else if (v.kind === 'kombi') {
     ctx.fillStyle = '#facc15';
@@ -1034,18 +1055,46 @@ function drawVehicle(
     ctx.fillRect(-41, -18, 82, 8);
 
     const winXs = [-33, -10, 13];
+    const furColors = ['#78350f', '#92400e', '#b45309'];
+    const hats: Array<'none' | 'cap' | 'bandana'> = ['bandana', 'none', 'cap'];
+    const hatColors = ['#38bdf8', '#facc15', '#ef4444'];
     for (let i = 0; i < winXs.length; i++) {
       ctx.fillStyle = '#bae6fd';
-      ctx.fillRect(winXs[i], -33, 18, 13);
+      ctx.fillRect(winXs[i], -34, 18, 14);
       ctx.strokeStyle = '#78350f';
       ctx.lineWidth = 1.5;
-      ctx.strokeRect(winXs[i], -33, 18, 13);
+      ctx.strokeRect(winXs[i], -34, 18, 14);
       if (!v.ejected) {
-        drawMonkeyHead(ctx, winXs[i] + 9, -26, 6.5, panic);
+        drawMonkeyHead(ctx, winXs[i] + 9, -27, 6.8, panic, furColors[i], {
+          hat: hats[i],
+          hatColor: hatColors[i],
+          happy: v.finished,
+          timeSec,
+          lookX: i === 2 ? 0.9 : 0.4,
+          seed: i + 2,
+        });
       }
     }
     if (!v.ejected) {
-      drawMonkeyHead(ctx, -6, -42, 6, panic);
+      // Lookout monkey popping out of roof hatch waving!
+      const wave = Math.sin(timeSec * (panic ? 22 : 9)) * 4;
+      ctx.strokeStyle = '#451a03';
+      ctx.lineWidth = 3.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-12, -39);
+      ctx.lineTo(-20, -47 + wave);
+      ctx.moveTo(0, -39);
+      ctx.lineTo(8, -47 - wave);
+      ctx.stroke();
+      drawMonkeyHead(ctx, -6, -45, 7.2, panic, '#a16207', {
+        hat: 'hardhat',
+        hatColor: '#facc15',
+        happy: v.finished,
+        timeSec,
+        lookX: 0.8,
+        seed: 7,
+      });
     }
   } else if (v.kind === 'tanker') {
     ctx.fillStyle = '#ef4444';
@@ -1056,9 +1105,16 @@ function drawVehicle(
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = '#bae6fd';
-    ctx.fillRect(24, -31, 16, 12);
+    ctx.fillRect(23, -32, 17, 14);
     if (!v.ejected) {
-      drawMonkeyHead(ctx, 31, -24, 6.2, panic);
+      drawMonkeyHead(ctx, 31, -25, 6.8, panic, '#78350f', {
+        hat: 'cap',
+        hatColor: '#2563eb',
+        happy: v.finished,
+        timeSec,
+        lookX: 0.9,
+        seed: 9,
+      });
     }
 
     ctx.fillStyle = '#78350f';
@@ -1073,6 +1129,16 @@ function drawVehicle(
     ctx.textAlign = 'center';
     ctx.fillText('🥥 COCO 10T', -18, -23);
   } else if (v.kind === 'moped') {
+    // Streaming tail
+    const tailWave = Math.sin(timeSec * 16) * 4;
+    ctx.strokeStyle = '#451a03';
+    ctx.lineWidth = 3.8;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-4, -18);
+    ctx.quadraticCurveTo(-18, -14 + tailWave, -25, -22 - tailWave);
+    ctx.stroke();
+
     ctx.fillStyle = '#ef4444';
     ctx.strokeStyle = '#450a0a';
     ctx.lineWidth = 2.5;
@@ -1088,15 +1154,27 @@ function drawVehicle(
     ctx.stroke();
 
     if (!v.ejected) {
+      // Flowing scarf + arms reaching handlebars
       ctx.strokeStyle = '#facc15';
       ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.moveTo(-2, -22);
-      ctx.lineTo(-20, -24 + Math.sin(timeSec * 20) * 4);
+      ctx.moveTo(-2, -23);
+      ctx.lineTo(-22, -25 + Math.sin(timeSec * 20) * 4);
       ctx.stroke();
-      drawMonkeyHead(ctx, 2, -28, 9, panic);
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(-5, -32, 14, 5);
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 3.8;
+      ctx.beginPath();
+      ctx.moveTo(2, -22);
+      ctx.lineTo(15, -25);
+      ctx.stroke();
+      drawMonkeyHead(ctx, 2, -30, 9.5, panic, '#92400e', {
+        hat: 'goggles',
+        hatColor: '#38bdf8',
+        happy: v.finished,
+        timeSec,
+        lookX: 1,
+        seed: 12,
+      });
     }
   }
 
@@ -1163,6 +1241,16 @@ function drawWheel(
   ctx.restore();
 }
 
+interface MonkeyHeadOpts {
+  hat?: 'hardhat' | 'cap' | 'goggles' | 'bandana' | 'none';
+  hatColor?: string;
+  happy?: boolean;
+  timeSec?: number;
+  lookX?: number;
+  lookY?: number;
+  seed?: number;
+}
+
 function drawMonkeyHead(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -1170,81 +1258,293 @@ function drawMonkeyHead(
   r: number,
   panic: boolean,
   furColor = '#78350f',
+  opts: MonkeyHeadOpts = {},
 ): void {
+  const {
+    hat = 'none',
+    hatColor = '#facc15',
+    happy = false,
+    timeSec = 0,
+    lookX = 0.6,
+    lookY = 0,
+    seed = 0,
+  } = opts;
+  const blink = !panic && (timeSec + seed * 0.61) % 3.9 > 3.76;
+
   ctx.save();
   ctx.translate(x, y);
-  ctx.fillStyle = furColor;
-  ctx.beginPath();
-  ctx.arc(-r * 0.95, 0, r * 0.42, 0, Math.PI * 2);
-  ctx.arc(r * 0.95, 0, r * 0.42, 0, Math.PI * 2);
-  ctx.fill();
 
+  // Big ears with dark outline & rosy inner ear
+  for (const side of [-1, 1] as const) {
+    const ex = side * r * 0.96;
+    ctx.fillStyle = furColor;
+    ctx.strokeStyle = '#291002';
+    ctx.lineWidth = Math.max(1.2, r * 0.2);
+    ctx.beginPath();
+    ctx.arc(ex, 0, r * 0.44, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#fda4af';
+    ctx.beginPath();
+    ctx.arc(ex * 0.97, r * 0.04, r * 0.23, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Head fur with radial gradient + outline
+  const fGrad = ctx.createRadialGradient(-r * 0.25, -r * 0.3, r * 0.1, 0, 0, r);
+  fGrad.addColorStop(0, '#c2691e');
+  fGrad.addColorStop(0.5, furColor);
+  fGrad.addColorStop(1, '#451a03');
+  ctx.fillStyle = fGrad;
+  ctx.strokeStyle = '#291002';
+  ctx.lineWidth = Math.max(1.4, r * 0.22);
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.fill();
+  ctx.stroke();
 
-  ctx.fillStyle = '#fde68a';
-  ctx.beginPath();
-  ctx.ellipse(0, r * 0.28, r * 0.72, r * 0.52, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.arc(-r * 0.32, -r * 0.18, r * 0.28, 0, Math.PI * 2);
-  ctx.arc(r * 0.32, -r * 0.18, r * 0.28, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#0f172a';
-  const pupilOffset = panic ? (Math.random() - 0.5) * 1.4 : 0.6;
-  ctx.beginPath();
-  ctx.arc(-r * 0.28 + pupilOffset, -r * 0.18, r * 0.13, 0, Math.PI * 2);
-  ctx.arc(r * 0.36 - pupilOffset, -r * 0.18, r * 0.13, 0, Math.PI * 2);
-  ctx.fill();
-
-  if (panic) {
-    ctx.fillStyle = '#7f1d1d';
+  // Top hair tuft when no hat
+  if (hat === 'none' || hat === 'bandana') {
+    ctx.fillStyle = furColor;
     ctx.beginPath();
-    ctx.ellipse(0, r * 0.42, r * 0.28, r * 0.32, 0, 0, Math.PI * 2);
+    ctx.moveTo(-r * 0.22, -r * 0.92);
+    ctx.quadraticCurveTo(0, -r * 1.35, r * 0.25, -r * 0.95);
+    ctx.closePath();
     ctx.fill();
-  } else {
-    ctx.strokeStyle = '#78350f';
-    ctx.lineWidth = 1.4;
+  }
+
+  // Heart / Peanut facial mask
+  const mGrad = ctx.createLinearGradient(0, -r * 0.45, 0, r * 0.85);
+  mGrad.addColorStop(0, '#fef3c7');
+  mGrad.addColorStop(1, '#fcd34d');
+  ctx.fillStyle = mGrad;
+  ctx.beginPath();
+  ctx.moveTo(0, -r * 0.28);
+  ctx.bezierCurveTo(-r * 0.35, -r * 0.72, -r * 0.78, -r * 0.4, -r * 0.65, r * 0.02);
+  ctx.bezierCurveTo(-r * 0.85, r * 0.42, -r * 0.45, r * 0.84, 0, r * 0.8);
+  ctx.bezierCurveTo(r * 0.45, r * 0.84, r * 0.85, r * 0.42, r * 0.65, r * 0.02);
+  ctx.bezierCurveTo(r * 0.78, -r * 0.4, r * 0.35, -r * 0.72, 0, -r * 0.28);
+  ctx.closePath();
+  ctx.fill();
+
+  // Eyes + Eyebrows
+  for (const side of [-1, 1] as const) {
+    const ex = side * r * 0.33;
+    const ey = -r * 0.16;
+    if (blink) {
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = Math.max(1.2, r * 0.16);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(ex, ey + r * 0.04, r * 0.22, Math.PI * 1.1, Math.PI * 1.9);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = Math.max(0.8, r * 0.1);
+      ctx.beginPath();
+      ctx.arc(ex, ey, r * 0.27, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      const px = ex + (panic ? Math.sin(timeSec * 32 + side * 2) * r * 0.08 : lookX * r * 0.09);
+      const py = ey + (panic ? Math.cos(timeSec * 28) * r * 0.06 : lookY * r * 0.08);
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(px, py, panic ? r * 0.11 : r * 0.14, 0, Math.PI * 2);
+      ctx.fill();
+
+      // White specular eye highlight
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(px - r * 0.04, py - r * 0.05, Math.max(0.7, r * 0.055), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Reactive eyebrows
+    ctx.strokeStyle = '#451a03';
+    ctx.lineWidth = Math.max(1.1, r * 0.14);
+    ctx.lineCap = 'round';
+    const lift = panic ? -r * 0.15 : happy ? -r * 0.1 : 0;
+    const tilt = panic ? -side * r * 0.1 : 0;
     ctx.beginPath();
-    ctx.arc(0, r * 0.24, r * 0.3, 0.2, Math.PI - 0.2);
+    ctx.moveTo(ex - r * 0.2, ey - r * 0.34 + lift - tilt);
+    ctx.lineTo(ex + r * 0.2, ey - r * 0.34 + lift + tilt);
     ctx.stroke();
   }
+
+  // Nostrils
+  ctx.fillStyle = '#92400e';
+  ctx.beginPath();
+  ctx.arc(-r * 0.1, r * 0.15, Math.max(0.7, r * 0.06), 0, Math.PI * 2);
+  ctx.arc(r * 0.1, r * 0.15, Math.max(0.7, r * 0.06), 0, Math.PI * 2);
+  ctx.fill();
+
+  // Dynamic Mouth
+  if (panic) {
+    ctx.fillStyle = '#7f1d1d';
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = Math.max(0.9, r * 0.1);
+    ctx.beginPath();
+    ctx.ellipse(0, r * 0.45, r * 0.28, r * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#fb7185';
+    ctx.beginPath();
+    ctx.ellipse(0, r * 0.56, r * 0.16, r * 0.12, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (happy) {
+    ctx.fillStyle = '#991b1b';
+    ctx.beginPath();
+    ctx.arc(0, r * 0.3, r * 0.34, 0.1, Math.PI - 0.1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-r * 0.18, r * 0.32, r * 0.36, r * 0.11);
+  } else {
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = Math.max(1.1, r * 0.14);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(0, r * 0.26, r * 0.28, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+  }
+
+  // Hats & Accessories
+  if (hat === 'hardhat') {
+    ctx.fillStyle = hatColor;
+    ctx.strokeStyle = '#451a03';
+    ctx.lineWidth = Math.max(1.2, r * 0.15);
+    ctx.beginPath();
+    ctx.arc(0, -r * 0.36, r * 0.92, Math.PI, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#eab308';
+    ctx.fillRect(-r * 1.05, -r * 0.42, r * 2.1, r * 0.22);
+    ctx.strokeRect(-r * 1.05, -r * 0.42, r * 2.1, r * 0.22);
+  } else if (hat === 'cap') {
+    ctx.fillStyle = hatColor;
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = Math.max(1, r * 0.14);
+    ctx.beginPath();
+    ctx.arc(0, -r * 0.38, r * 0.88, Math.PI, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillRect(0, -r * 0.45, r * 1.1, r * 0.2);
+  } else if (hat === 'bandana') {
+    ctx.fillStyle = hatColor;
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = Math.max(0.9, r * 0.12);
+    ctx.beginPath();
+    ctx.roundRect(-r * 0.85, -r * 0.72, r * 1.7, r * 0.28, r * 0.12);
+    ctx.fill();
+    ctx.stroke();
+  } else if (hat === 'goggles') {
+    ctx.fillStyle = hatColor;
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = Math.max(1, r * 0.12);
+    ctx.beginPath();
+    ctx.roundRect(-r * 0.72, -r * 0.4, r * 1.44, r * 0.45, r * 0.15);
+    ctx.fill();
+    ctx.stroke();
+  }
+
   ctx.restore();
 }
 
-function drawRagdollMonkey(ctx: CanvasRenderingContext2D, r: RagdollMonkey): void {
-  ctx.save();
-  ctx.strokeStyle = r.tint;
-  ctx.lineWidth = 4.5;
-  ctx.lineCap = 'round';
+function drawRagdollMonkey(ctx: CanvasRenderingContext2D, r: RagdollMonkey, timeSec: number): void {
+  const vx = r.hip.x - r.hip.oldX;
+  const vy = r.hip.y - r.hip.oldY;
+  const shoulderX = r.head.x + (r.hip.x - r.head.x) * 0.32;
+  const shoulderY = r.head.y + (r.hip.y - r.head.y) * 0.32;
+  const vestColors = ['#facc15', '#f97316', '#38bdf8', '#4ade80'];
+  const vestIdx = Math.abs(r.id.charCodeAt(r.id.length - 1) || 0) % vestColors.length;
+  const vestColor = vestColors[vestIdx];
 
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Secondary-motion curved tail whipping behind hip velocity
+  const tailWag = Math.sin(timeSec * 16 + vestIdx) * 5;
+  const tx = r.hip.x - Math.max(-14, Math.min(14, vx * 4)) - 12;
+  const ty = r.hip.y - Math.max(-14, Math.min(14, vy * 4)) + tailWag;
+  ctx.strokeStyle = '#291002';
+  ctx.lineWidth = 6;
   ctx.beginPath();
-  ctx.moveTo(r.head.x, r.head.y);
-  ctx.lineTo(r.hip.x, r.hip.y);
-  ctx.moveTo(r.head.x, r.head.y + 4);
-  ctx.lineTo(r.handL.x, r.handL.y);
-  ctx.moveTo(r.head.x, r.head.y + 4);
-  ctx.lineTo(r.handR.x, r.handR.y);
   ctx.moveTo(r.hip.x, r.hip.y);
-  ctx.lineTo(r.footL.x, r.footL.y);
-  ctx.moveTo(r.hip.x, r.hip.y);
-  ctx.lineTo(r.footR.x, r.footR.y);
+  ctx.quadraticCurveTo((r.hip.x + tx) * 0.5, r.hip.y - 10, tx, ty);
+  ctx.stroke();
+  ctx.strokeStyle = r.tint;
+  ctx.lineWidth = 3.2;
   ctx.stroke();
 
-  drawMonkeyHead(ctx, r.head.x, r.head.y, 9.5, true, r.tint);
+  // Outlined limbs helper
+  const drawLimb = (ax: number, ay: number, bx: number, by: number, w: number, fill: string) => {
+    ctx.strokeStyle = '#291002';
+    ctx.lineWidth = w + 2.8;
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(bx, by);
+    ctx.stroke();
+    ctx.strokeStyle = fill;
+    ctx.lineWidth = w;
+    ctx.stroke();
+  };
+
+  // Back leg & arm
+  drawLimb(r.hip.x, r.hip.y, r.footL.x, r.footL.y, 5, r.tint);
+  drawLimb(shoulderX, shoulderY, r.handL.x, r.handL.y, 4.5, r.tint);
+
+  // Torso with bright engineer safety vest
+  drawLimb(shoulderX, shoulderY, r.hip.x, r.hip.y, 9.5, vestColor);
+
+  // Front leg & arm
+  drawLimb(r.hip.x, r.hip.y, r.footR.x, r.footR.y, 5, r.tint);
+  drawLimb(shoulderX, shoulderY, r.handR.x, r.handR.y, 4.5, r.tint);
+
+  // Cute Monkey Paws & Boots
+  ctx.fillStyle = '#fde68a';
+  ctx.strokeStyle = '#291002';
+  ctx.lineWidth = 1.5;
+  for (const paw of [r.handL, r.handR]) {
+    ctx.beginPath();
+    ctx.arc(paw.x, paw.y, 3.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#451a03';
+  for (const foot of [r.footL, r.footR]) {
+    ctx.beginPath();
+    ctx.arc(foot.x, foot.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Head aligned with spine
+  const headAngle = Math.atan2(r.head.y - r.hip.y, r.head.x - r.hip.x) + Math.PI * 0.5;
+  ctx.save();
+  ctx.translate(r.head.x, r.head.y);
+  ctx.rotate(headAngle);
+  drawMonkeyHead(ctx, 0, 0, 10, true, r.tint, {
+    hat: 'bandana',
+    hatColor: vestColor,
+    timeSec,
+    seed: vestIdx,
+  });
+  ctx.restore();
 
   if (r.shoutTimer > 0) {
     ctx.font = '900 11px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.strokeStyle = '#7f1d1d';
-    ctx.lineWidth = 3;
-    ctx.strokeText(r.shout, r.head.x, r.head.y - 16);
+    ctx.lineWidth = 3.2;
+    ctx.strokeText(r.shout, r.head.x, r.head.y - 18);
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(r.shout, r.head.x, r.head.y - 16);
+    ctx.fillText(r.shout, r.head.x, r.head.y - 18);
   }
   ctx.restore();
 }

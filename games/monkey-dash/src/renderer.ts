@@ -67,80 +67,265 @@ export interface RenderContextState {
   hideRemotes?: boolean;
 }
 
+function drawPeanutMask(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  fill: string | CanvasGradient,
+): void {
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  // Top heart/peanut brow arches dipping in the center
+  ctx.moveTo(cx, cy - ry * 0.42);
+  ctx.bezierCurveTo(
+    cx - rx * 0.48,
+    cy - ry * 1.15,
+    cx - rx * 1.05,
+    cy - ry * 0.62,
+    cx - rx * 0.88,
+    cy - ry * 0.02,
+  );
+  // Left cheek sweep to chin
+  ctx.bezierCurveTo(
+    cx - rx * 1.08,
+    cy + ry * 0.52,
+    cx - rx * 0.62,
+    cy + ry * 1.02,
+    cx,
+    cy + ry * 0.96,
+  );
+  // Right cheek sweep up
+  ctx.bezierCurveTo(
+    cx + rx * 0.62,
+    cy + ry * 1.02,
+    cx + rx * 1.08,
+    cy + ry * 0.52,
+    cx + rx * 0.88,
+    cy - ry * 0.02,
+  );
+  // Right brow arch back to center dip
+  ctx.bezierCurveTo(
+    cx + rx * 1.05,
+    cy - ry * 0.62,
+    cx + rx * 0.48,
+    cy - ry * 1.15,
+    cx,
+    cy - ry * 0.42,
+  );
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawMonkeyEar(
+  ctx: CanvasRenderingContext2D,
+  ex: number,
+  ey: number,
+  er: number,
+  furDark: string,
+  furLight: string,
+  innerColor: string,
+  rimColor: string,
+): void {
+  const grad = ctx.createRadialGradient(ex - er * 0.25, ey - er * 0.25, 1, ex, ey, er);
+  grad.addColorStop(0, furLight);
+  grad.addColorStop(1, furDark);
+  ctx.fillStyle = grad;
+  ctx.strokeStyle = rimColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(ex, ey, er, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = innerColor;
+  ctx.beginPath();
+  ctx.arc(ex, ey + er * 0.06, er * 0.52, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawMonkeyFaceEyes(
+  ctx: CanvasRenderingContext2D,
+  eyeY: number,
+  spread: number,
+  eyeR: number,
+  lookX: number,
+  lookY: number,
+  blink: boolean,
+  panic: boolean,
+  vesgo: boolean,
+  browColor: string,
+): void {
+  for (const side of [-1, 1] as const) {
+    const ex = side * spread;
+    if (blink && !panic) {
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(ex, eyeY + 0.5, eyeR * 0.78, Math.PI * 1.1, Math.PI * 1.9);
+      ctx.stroke();
+    } else {
+      // Sclera
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(ex, eyeY, eyeR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Pupil (vesgo gives playful crossed charm; panic makes them jittery/wide)
+      const vesgoDx = vesgo ? -side * 1.3 : 0;
+      const vesgoDy = vesgo ? side * 0.7 : 0;
+      const px = ex + Math.max(-eyeR * 0.36, Math.min(eyeR * 0.36, lookX + vesgoDx));
+      const py = eyeY + Math.max(-eyeR * 0.36, Math.min(eyeR * 0.36, lookY + vesgoDy));
+      const pr = panic ? eyeR * 0.36 : eyeR * 0.46;
+
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(px, py, pr, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Crisp specular eye highlight
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(px - pr * 0.35, py - pr * 0.35, Math.max(0.9, pr * 0.36), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Reactive eyebrows
+    ctx.strokeStyle = browColor;
+    ctx.lineWidth = 1.9;
+    ctx.lineCap = 'round';
+    const browLift = panic ? -2.2 : lookY < -0.5 ? -1.4 : 0;
+    const tilt = panic ? side * -1.4 : side * 0.9;
+    ctx.beginPath();
+    ctx.moveTo(ex - eyeR * 0.7, eyeY - eyeR - 1.6 + browLift - tilt * 0.4);
+    ctx.quadraticCurveTo(
+      ex,
+      eyeY - eyeR - 2.6 + browLift,
+      ex + eyeR * 0.7,
+      eyeY - eyeR - 1.4 + browLift + tilt * 0.4,
+    );
+    ctx.stroke();
+  }
+}
+
 function drawSkinAccessory(
   ctx: CanvasRenderingContext2D,
   skin: MonkeySkinId,
   accentColor: string,
   eyeY: number,
   topY: number,
+  timeSec = 0,
+  panic = false,
 ): void {
-  if (skin === 'bald') {
-    // Shiny bald dome highlight + 3 comical wispy hairs
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
-    ctx.beginPath();
-    ctx.ellipse(-4, topY + 4, 6, 2.4, -0.35, 0, Math.PI * 2);
+  if (skin === 'classic') {
+    // Player-colored sporty headband for instant multiplayer distinction
+    ctx.fillStyle = accentColor;
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.3;
+    roundRect(ctx, -15, topY + 2.5, 30, 4.5, 2.2);
     ctx.fill();
-    ctx.strokeStyle = '#451a03';
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    ctx.moveTo(-2, topY);
-    ctx.quadraticCurveTo(-5, topY - 7, -8, topY - 5);
-    ctx.moveTo(1, topY);
-    ctx.quadraticCurveTo(1, topY - 8, 4, topY - 6);
-    ctx.moveTo(4, topY);
-    ctx.quadraticCurveTo(7, topY - 6, 9, topY - 4);
     ctx.stroke();
+  } else if (skin === 'bald') {
+    // Shiny bald dome specular + 3 springy hairs + sweat drop when panicking
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.62)';
+    ctx.beginPath();
+    ctx.ellipse(-5, topY + 4.5, 6.5, 2.4, -0.32, 0, Math.PI * 2);
+    ctx.fill();
+    const sway = Math.sin(timeSec * 12) * 1.4;
+    ctx.strokeStyle = '#451a03';
+    ctx.lineWidth = 1.7;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-2, topY + 0.5);
+    ctx.quadraticCurveTo(-5, topY - 7, -8 + sway, topY - 5);
+    ctx.moveTo(1, topY + 0.5);
+    ctx.quadraticCurveTo(1, topY - 8.5, 4 + sway, topY - 6.5);
+    ctx.moveTo(4, topY + 0.5);
+    ctx.quadraticCurveTo(7, topY - 6, 9 + sway, topY - 4);
+    ctx.stroke();
+    if (panic) {
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.moveTo(12, topY + 5);
+      ctx.quadraticCurveTo(15, topY + 10, 12, topY + 12);
+      ctx.quadraticCurveTo(9, topY + 10, 12, topY + 5);
+      ctx.fill();
+    }
   } else if (skin === 'shades') {
     // Cool Juliette neon sunglasses
     ctx.fillStyle = '#020617';
-    ctx.strokeStyle = '#22d3ee';
-    ctx.lineWidth = 1.5;
-    roundRect(ctx, -13, eyeY - 4.5, 11.5, 8.5, 2);
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 1.6;
+    roundRect(ctx, -13.5, eyeY - 4.8, 12, 8.8, 2.6);
     ctx.fill();
     ctx.stroke();
-    roundRect(ctx, 1.5, eyeY - 4.5, 11.5, 8.5, 2);
+    roundRect(ctx, 1.5, eyeY - 4.8, 12, 8.8, 2.6);
     ctx.fill();
     ctx.stroke();
+    ctx.fillStyle = accentColor;
     ctx.fillRect(-1.5, eyeY - 2, 3, 2.2);
     // Lens glare
-    ctx.strokeStyle = 'rgba(255,255,255,0.65)';
-    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = 1.3;
     ctx.beginPath();
-    ctx.moveTo(-10, eyeY + 1);
-    ctx.lineTo(-5, eyeY - 3);
-    ctx.moveTo(4, eyeY + 1);
-    ctx.lineTo(9, eyeY - 3);
+    ctx.moveTo(-10.5, eyeY + 1.2);
+    ctx.lineTo(-5, eyeY - 3.2);
+    ctx.moveTo(4.5, eyeY + 1.2);
+    ctx.lineTo(10, eyeY - 3.2);
     ctx.stroke();
   } else if (skin === 'crown') {
-    // Royal golden crown
-    ctx.fillStyle = '#facc15';
-    ctx.strokeStyle = '#b45309';
+    // 3D-shaded golden crown with ruby & cyan gems
+    const cGrad = ctx.createLinearGradient(0, topY - 14, 0, topY + 2);
+    cGrad.addColorStop(0, '#fef08a');
+    cGrad.addColorStop(0.5, '#facc15');
+    cGrad.addColorStop(1, '#d97706');
+    ctx.fillStyle = cGrad;
+    ctx.strokeStyle = '#78350f';
     ctx.lineWidth = 1.6;
     ctx.beginPath();
-    ctx.moveTo(-11, topY + 1);
-    ctx.lineTo(-12, topY - 10);
-    ctx.lineTo(-5, topY - 4);
-    ctx.lineTo(0, topY - 13);
-    ctx.lineTo(5, topY - 4);
-    ctx.lineTo(12, topY - 10);
-    ctx.lineTo(11, topY + 1);
+    ctx.moveTo(-11.5, topY + 1.5);
+    ctx.lineTo(-13, topY - 10);
+    ctx.lineTo(-5.5, topY - 4);
+    ctx.lineTo(0, topY - 14);
+    ctx.lineTo(5.5, topY - 4);
+    ctx.lineTo(13, topY - 10);
+    ctx.lineTo(11.5, topY + 1.5);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = '#fb7185';
     ctx.beginPath();
-    ctx.arc(0, topY - 3, 2.2, 0, Math.PI * 2);
+    ctx.arc(0, topY - 3.5, 2.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = accentColor;
+    ctx.beginPath();
+    ctx.arc(-6.5, topY - 2.5, 1.4, 0, Math.PI * 2);
+    ctx.arc(6.5, topY - 2.5, 1.4, 0, Math.PI * 2);
     ctx.fill();
   } else if (skin === 'neon') {
-    // Cyber laser visor
+    // Cyber laser visor with animated scan dot
     ctx.save();
     ctx.shadowColor = accentColor;
     ctx.shadowBlur = 10;
-    ctx.fillStyle = accentColor;
-    roundRect(ctx, -13, eyeY - 3.5, 26, 6.5, 3);
+    ctx.fillStyle = '#020617';
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, -13.5, eyeY - 4, 27, 7.5, 3.5);
     ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = accentColor;
+    roundRect(ctx, -11, eyeY - 2, 22, 3.5, 1.8);
+    ctx.fill();
+    const scanX = Math.sin(timeSec * 7) * 7.5;
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(-9, eyeY - 1.5, 18, 2);
+    ctx.beginPath();
+    ctx.arc(scanX, eyeY - 0.2, 1.6, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 }
@@ -158,6 +343,7 @@ export function drawMonkeySprite(
   vy: number,
   alpha = 1,
   skin: MonkeySkinId = 'classic',
+  timeSec = 0,
 ): void {
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -165,86 +351,153 @@ export function drawMonkeySprite(
   ctx.rotate(rot);
   ctx.scale(scaleX, scaleY * (form !== 'cube' && form !== 'ball' && grav === -1 ? -1 : 1));
 
+  const panic = Math.abs(vy) > 480;
+  const blink = (timeSec + Math.abs(cx) * 0.002) % 3.8 > 3.66;
+  const lookY = Math.max(-1.6, Math.min(1.6, vy * 0.003));
+  const lookX = 1.1;
+  const isNeon = skin === 'neon';
+  const furLight = isNeon ? '#334155' : skin === 'bald' ? '#d97706' : '#b45309';
+  const furDark = isNeon ? '#0f172a' : skin === 'bald' ? '#92400e' : '#78350f';
+  const innerEar = isNeon ? accentColor : '#fda4af';
+
   if (form === 'cube') {
     const r = PLAYER_SIZE / 2;
-    // Ears
-    ctx.fillStyle = skin === 'neon' ? '#0f172a' : '#78350f';
-    ctx.strokeStyle = accentColor;
-    ctx.lineWidth = 2;
-    for (const ex of [-r - 3, r + 3]) {
-      ctx.beginPath();
-      ctx.arc(ex, -4, 6.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = skin === 'neon' ? accentColor : '#fca5a5';
-      ctx.beginPath();
-      ctx.arc(ex, -4, 3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = skin === 'neon' ? '#0f172a' : '#78350f';
-    }
 
-    // Cube body
+    // Curved tail with secondary motion behind the cube
+    const wag = Math.sin(timeSec * 12) * 3.5 + Math.max(-6, Math.min(6, vy * 0.01));
+    ctx.save();
+    ctx.strokeStyle = furDark;
+    ctx.lineWidth = 4.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-r + 2, 6);
+    ctx.bezierCurveTo(-r - 10, 4 + wag * 0.5, -r - 12, -10 + wag, -r - 5, -13 + wag);
+    ctx.stroke();
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+
+    // Big ears with rosy inner ear & neon rim
+    drawMonkeyEar(ctx, -r - 3, -3, 6.8, furDark, furLight, innerEar, accentColor);
+    drawMonkeyEar(ctx, r + 3, -3, 6.8, furDark, furLight, innerEar, accentColor);
+
+    // Cube body with radial fur gradient & neon glow
     ctx.shadowColor = accentColor;
     ctx.shadowBlur = 12;
-    ctx.fillStyle = skin === 'neon' ? '#0f172a' : skin === 'bald' ? '#b45309' : '#92400e';
+    const bodyGrad = ctx.createLinearGradient(0, -r, 0, r);
+    bodyGrad.addColorStop(0, furLight);
+    bodyGrad.addColorStop(1, furDark);
+    ctx.fillStyle = bodyGrad;
     ctx.strokeStyle = accentColor;
     ctx.lineWidth = 2.8;
-    roundRect(ctx, -r, -r, PLAYER_SIZE, PLAYER_SIZE, 6);
+    roundRect(ctx, -r, -r, PLAYER_SIZE, PLAYER_SIZE, 8);
     ctx.fill();
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // Face mask
-    ctx.fillStyle = skin === 'neon' ? '#1e293b' : '#fde68a';
-    roundRect(ctx, -r + 4, -2, PLAYER_SIZE - 8, r - 1, 6);
-    ctx.fill();
-
-    // Crossed eyes (vesgo!)
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 1.4;
-    for (const ex of [-6.5, 6.5]) {
+    // Hair tuft on top (when not bald/crown)
+    if (skin !== 'bald' && skin !== 'crown') {
+      ctx.fillStyle = furLight;
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 1.6;
       ctx.beginPath();
-      ctx.arc(ex, -6, 5.2, 0, Math.PI * 2);
+      ctx.moveTo(-4, -r + 1);
+      ctx.quadraticCurveTo(-1, -r - 6, 3, -r - 3);
+      ctx.quadraticCurveTo(2, -r + 1, 5, -r + 1);
+      ctx.closePath();
       ctx.fill();
       ctx.stroke();
     }
-    const panic = Math.abs(vy) > 550;
-    ctx.fillStyle = '#0f172a';
-    ctx.beginPath();
-    ctx.arc(-4.2, panic ? -4.5 : -5.5, 2.3, 0, Math.PI * 2);
-    ctx.arc(4.2, panic ? -7.5 : -6.8, 2.3, 0, Math.PI * 2);
-    ctx.fill();
 
-    // Mouth
-    ctx.fillStyle = '#991b1b';
-    ctx.beginPath();
-    if (panic) {
-      ctx.ellipse(0, 8, 5.5, 5, 0, 0, Math.PI * 2);
+    // Heart / Peanut face mask with gradient
+    const maskGrad = ctx.createLinearGradient(0, -10, 0, r - 2);
+    if (isNeon) {
+      maskGrad.addColorStop(0, '#1e293b');
+      maskGrad.addColorStop(1, '#0f172a');
     } else {
-      ctx.arc(0, 4.5, 7, 0.1, Math.PI - 0.1);
+      maskGrad.addColorStop(0, '#fef3c7');
+      maskGrad.addColorStop(1, '#fcd34d');
     }
+    drawPeanutMask(ctx, 0, 2, 13.5, 11.5, maskGrad);
+
+    // Cute nostrils
+    ctx.fillStyle = isNeon ? accentColor : '#92400e';
+    ctx.beginPath();
+    ctx.arc(-2, 2.2, 1, 0, Math.PI * 2);
+    ctx.arc(2, 2.2, 1, 0, Math.PI * 2);
     ctx.fill();
-    if (!panic) {
+
+    // Expressive eyes with highlight + blink + eyebrows
+    drawMonkeyFaceEyes(
+      ctx,
+      -5.5,
+      6.2,
+      4.9,
+      lookX,
+      lookY,
+      blink,
+      panic,
+      skin === 'classic',
+      isNeon ? accentColor : '#451a03',
+    );
+
+    // Expressive Mouth
+    if (panic) {
+      ctx.fillStyle = '#7f1d1d';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.ellipse(0, 8.8, 5.2, 4.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#fb7185';
+      ctx.beginPath();
+      ctx.ellipse(0, 10.6, 3, 1.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (skin === 'shades') {
+      ctx.strokeStyle = '#7f1d1d';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-4.5, 8);
+      ctx.quadraticCurveTo(1, 10.5, 6.5, 6.2);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#991b1b';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(0, 5.5, 6.6, 0.12, Math.PI - 0.12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(-3, 5, 6, 2.5);
+      ctx.fillRect(-3.4, 5.8, 6.8, 2.2);
+      ctx.fillStyle = '#fb7185';
+      ctx.beginPath();
+      ctx.arc(0, 10, 2.6, Math.PI, 0);
+      ctx.fill();
     }
 
-    drawSkinAccessory(ctx, skin, accentColor, -6, -r);
+    drawSkinAccessory(ctx, skin, accentColor, -5.5, -r, timeSec, panic);
   } else if (form === 'ball') {
     const r = PLAYER_SIZE / 2;
-    // Outer spiked wheel ring
     ctx.save();
+    // Outer spiked wheel ring with gradient & neon edge
     ctx.shadowColor = accentColor;
     ctx.shadowBlur = 14;
-    ctx.fillStyle = skin === 'neon' ? '#1e1b4b' : '#7c2d12';
+    const gearGrad = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r + 2);
+    gearGrad.addColorStop(0, furLight);
+    gearGrad.addColorStop(1, isNeon ? '#1e1b4b' : '#451a03');
+    ctx.fillStyle = gearGrad;
     ctx.strokeStyle = accentColor;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2.8;
     ctx.beginPath();
     const teeth = 8;
     for (let i = 0; i < teeth * 2; i++) {
       const ang = (i * Math.PI) / teeth;
-      const rad = i % 2 === 0 ? r + 2 : r - 3;
+      const rad = i % 2 === 0 ? r + 2.5 : r - 3;
       const px = Math.cos(ang) * rad;
       const py = Math.sin(ang) * rad;
       if (i === 0) ctx.moveTo(px, py);
@@ -255,106 +508,172 @@ export function drawMonkeySprite(
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // Inner monkey face
-    ctx.fillStyle = skin === 'neon' ? '#0f172a' : '#fde68a';
+    // Inner monkey medallion
+    ctx.fillStyle = furDark;
     ctx.beginPath();
-    ctx.arc(0, 0, r - 6, 0, Math.PI * 2);
+    ctx.arc(0, 0, r - 4, 0, Math.PI * 2);
     ctx.fill();
 
-    // Crossed eyes
-    ctx.fillStyle = '#ffffff';
-    for (const ex of [-4.5, 4.5]) {
-      ctx.beginPath();
-      ctx.arc(ex, -2, 3.6, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.fillStyle = '#0f172a';
-    ctx.beginPath();
-    ctx.arc(-3.2, -1.5, 1.7, 0, Math.PI * 2);
-    ctx.arc(3.2, -2.5, 1.7, 0, Math.PI * 2);
-    ctx.fill();
+    // Peanut mask inside ball
+    drawPeanutMask(ctx, 0, 1.5, 10.5, 9, isNeon ? '#1e293b' : '#fde68a');
+
+    drawMonkeyFaceEyes(
+      ctx,
+      -2.4,
+      4.5,
+      3.7,
+      lookX * 0.8,
+      lookY * 0.8,
+      blink,
+      panic,
+      skin === 'classic',
+      isNeon ? accentColor : '#451a03',
+    );
 
     ctx.fillStyle = '#991b1b';
     ctx.beginPath();
-    ctx.arc(0, 4, 4.5, 0, Math.PI);
+    if (panic) {
+      ctx.ellipse(0, 5.2, 3.6, 3, 0, 0, Math.PI * 2);
+    } else {
+      ctx.arc(0, 4.2, 4.6, 0.1, Math.PI - 0.1);
+    }
     ctx.fill();
 
-    drawSkinAccessory(ctx, skin, accentColor, -2, -r + 2);
+    drawSkinAccessory(ctx, skin, accentColor, -2.4, -r + 2, timeSec, panic);
     ctx.restore();
   } else if (form === 'ship') {
-    // Exhaust flame
-    const flicker = 0.8 + Math.random() * 0.45;
+    // Plasma thruster flame
+    const flicker = 0.82 + Math.sin(timeSec * 45) * 0.22;
     ctx.fillStyle = '#f97316';
     ctx.beginPath();
-    ctx.moveTo(-16, 2);
-    ctx.lineTo(-28 * flicker, 6);
+    ctx.moveTo(-16, 1);
+    ctx.lineTo(-30 * flicker, 5.5);
     ctx.lineTo(-16, 10);
     ctx.closePath();
     ctx.fill();
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.moveTo(-16, 3);
+    ctx.lineTo(-23 * flicker, 5.5);
+    ctx.lineTo(-16, 8);
+    ctx.closePath();
+    ctx.fill();
 
-    // Banana Rocket Hull
+    // Fluttering monkey tail/scarf behind cockpit
+    const flap = Math.sin(timeSec * 18) * 3.5;
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 3.2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-5, -2);
+    ctx.quadraticCurveTo(-15, -6 + flap, -23, -2 - flap * 0.6);
+    ctx.stroke();
+
+    // Monkey pilot sitting inside rocket
+    drawMonkeyEar(ctx, -7, -6, 4.2, furDark, furLight, innerEar, accentColor);
+    drawMonkeyEar(ctx, 7, -6, 4.2, furDark, furLight, innerEar, accentColor);
+    const pGrad = ctx.createRadialGradient(-2, -6, 1, 0, -4, 10);
+    pGrad.addColorStop(0, furLight);
+    pGrad.addColorStop(1, furDark);
+    ctx.fillStyle = pGrad;
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(0, -4, 9.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    drawPeanutMask(ctx, 1, -2.5, 7, 5.5, isNeon ? '#1e293b' : '#fde68a');
+    drawMonkeyFaceEyes(ctx, -5, 3.3, 2.8, 1, lookY * 0.6, blink, panic, false, '#451a03');
+
+    if (skin === 'crown' || skin === 'bald' || skin === 'neon') {
+      drawSkinAccessory(ctx, skin, accentColor, -5, -13, timeSec, panic);
+    } else {
+      // Pilot aviator goggles rim
+      ctx.strokeStyle = skin === 'shades' ? accentColor : '#38bdf8';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(-5.5, -8, 12, 5.5);
+    }
+
+    // Banana Rocket Hull with metallic gradient
     ctx.shadowColor = accentColor;
     ctx.shadowBlur = 12;
-    ctx.fillStyle = '#facc15';
+    const hullGrad = ctx.createLinearGradient(0, 0, 0, 16);
+    hullGrad.addColorStop(0, '#fef08a');
+    hullGrad.addColorStop(0.55, '#facc15');
+    hullGrad.addColorStop(1, '#ca8a04');
+    ctx.fillStyle = hullGrad;
     ctx.strokeStyle = accentColor;
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2.4;
     ctx.beginPath();
-    ctx.moveTo(-17, 4);
-    ctx.quadraticCurveTo(0, 17, 20, 4);
-    ctx.quadraticCurveTo(6, 5, -17, 4);
+    ctx.moveTo(-18, 3);
+    ctx.quadraticCurveTo(0, 17.5, 21, 3.5);
+    ctx.quadraticCurveTo(6, 5.5, -18, 3);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // Monkey pilot head
-    ctx.fillStyle = skin === 'neon' ? '#0f172a' : '#92400e';
+    // Accent racing stripe on hull
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(0, -3, 9, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#fde047';
-    ctx.lineWidth = 1.6;
+    ctx.moveTo(-11, 7.5);
+    ctx.quadraticCurveTo(1, 11.5, 14, 6.5);
     ctx.stroke();
-
-    // Goggles / skin flair
-    if (skin === 'crown') {
-      drawSkinAccessory(ctx, 'crown', accentColor, -5, -12);
-    } else if (skin === 'bald') {
-      drawSkinAccessory(ctx, 'bald', accentColor, -5, -12);
-    } else {
-      ctx.fillStyle = skin === 'neon' ? accentColor : '#38bdf8';
-      ctx.fillRect(-5, -7, 11, 5);
-      ctx.strokeStyle = '#0f172a';
-      ctx.strokeRect(-5, -7, 11, 5);
-    }
   } else {
-    // Wave cyber-chimp dart
+    // Wave cyber-chimp dart with monkey ear fins & cockpit eye mask
     ctx.shadowColor = accentColor;
     ctx.shadowBlur = 14;
-    ctx.fillStyle = accentColor;
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2.2;
+
+    // Ear-fins
+    ctx.fillStyle = furDark;
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 1.8;
     ctx.beginPath();
-    ctx.moveTo(18, 0);
-    ctx.lineTo(-13, -12);
+    ctx.arc(-4, -9, 5, 0, Math.PI * 2);
+    ctx.arc(-4, 9, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    const dartGrad = ctx.createLinearGradient(-13, 0, 18, 0);
+    dartGrad.addColorStop(0, furDark);
+    dartGrad.addColorStop(0.55, accentColor);
+    dartGrad.addColorStop(1, '#ffffff');
+    ctx.fillStyle = dartGrad;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.1;
+    ctx.beginPath();
+    ctx.moveTo(19, 0);
+    ctx.lineTo(-13, -12.5);
     ctx.lineTo(-7, 0);
-    ctx.lineTo(-13, 12);
+    ctx.lineTo(-13, 12.5);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // Crazy eye on dart
+    // Peanut visor canopy + glowing eye with highlight
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.ellipse(1, 0, 7.5, 5.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(2, 0, 4.2, 0, Math.PI * 2);
+    ctx.arc(2.5, 0, 3.8, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#0f172a';
     ctx.beginPath();
-    ctx.arc(3.3, 0, 2, 0, Math.PI * 2);
+    ctx.arc(3.8, lookY * 0.5, 1.9, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(3.1, lookY * 0.5 - 0.8, 0.8, 0, Math.PI * 2);
+    ctx.fill();
+
     if (skin === 'crown') {
-      drawSkinAccessory(ctx, 'crown', accentColor, 0, -10);
+      drawSkinAccessory(ctx, 'crown', accentColor, 0, -10, timeSec, panic);
     }
   }
 
@@ -905,8 +1224,9 @@ export function renderGameFrame(
         1,
         r.color,
         0,
-        0.68,
+        0.74,
         r.skin,
+        timeSec,
       );
 
       // Nameplate
@@ -970,6 +1290,7 @@ export function renderGameFrame(
       player.vy,
       1,
       localSkin,
+      timeSec,
     );
   }
 
