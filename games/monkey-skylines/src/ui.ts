@@ -1,4 +1,5 @@
 import { getTerrainName, TOWN_HALL_POS } from './map';
+import { renderMayorPortrait } from './monkeylook';
 import {
   DOCK_TOOLS,
   MILESTONES,
@@ -853,7 +854,7 @@ export class CityUi {
     this.splashModal.className = 'msky-modal-backdrop';
     this.splashModal.innerHTML = `
       <div class="msky-modal">
-        <h1>🐒 SimMacaco: Prefeitura do Caos</h1>
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:6px;"><img alt="Prefeito Macaco" width="96" height="96" style="flex:none;filter:drop-shadow(0 4px 6px rgba(0,0,0,.4));" src="${renderMayorPortrait(192)}" /><h1 style="margin:0;">Símio City: Prefeitura do Caos</h1></div>
         <p>Você assumiu a <b>Prefeitura da Selva</b>! Comece ligando a energia e expandindo a Avenida das Bananas.</p>
         <ul>
           <li>📋 Siga o <b>Guia do Prefeito</b> à esquerda para ganhar Bananas bônus!</li>

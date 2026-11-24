@@ -116,7 +116,7 @@ function init(): void {
 
   hud = mountMonkeyHud({
     slug: 'monkey-sims',
-    title: 'Os Macacos: Vida na Árvore',
+    title: 'Os Símios: Vida na Árvore',
     room: net.room,
   });
 

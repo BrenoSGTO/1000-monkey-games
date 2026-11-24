@@ -12,6 +12,7 @@ import {
 } from './catalog';
 import { calculateHouseComfort } from './house';
 import { simsAudio } from './sfx';
+import { monkeyHeadIcon, renderMonkeyPortrait } from './monkeylook';
 import type { GameSimulation } from './simulation';
 import type {
   AccessoryId,
@@ -404,7 +405,7 @@ export class SimsUi {
       modal.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
           <div>
-            <h1 style="margin:0;font-size:24px;color:#fef08a;">🏡 Os Macacos: Vida na Árvore</h1>
+            <h1 style="margin:0;font-size:24px;color:#fef08a;">🏡 Os Símios: Vida na Árvore</h1>
             <div style="font-size:12.5px;color:#86efac;font-weight:600;">CAS Express — Crie seu macaco antes de invadir a república!</div>
           </div>
           <span style="background:#14532d;border:1.5px solid #4ade80;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:800;">Solo &amp; Co-op 6P</span>
@@ -412,25 +413,7 @@ export class SimsUi {
 
         <div class="msims-cas-grid">
           <div style="background:#0f172a;border:2px solid #334155;border-radius:16px;padding:14px;text-align:center;">
-            <svg viewBox="-60 -85 120 155" width="170" height="205">
-              <polygon points="0,-78 13,-56 0,-34 -13,-56" fill="#22c55e" stroke="#ecfccb" stroke-width="2" />
-              <circle cx="-24" cy="-6" r="10" fill="${palette.fur}" stroke="#0f172a" stroke-width="2.5"/>
-              <circle cx="24" cy="-6" r="10" fill="${palette.fur}" stroke="#0f172a" stroke-width="2.5"/>
-              <ellipse cx="0" cy="30" rx="22" ry="24" fill="${palette.fur}" stroke="#0f172a" stroke-width="2.5"/>
-              <ellipse cx="0" cy="32" rx="13" ry="16" fill="${palette.belly}" />
-              <circle cx="0" cy="-6" r="22" fill="${palette.fur}" stroke="#0f172a" stroke-width="2.5"/>
-              <ellipse cx="0" cy="-1" rx="16" ry="13" fill="${palette.belly}" />
-              <circle cx="-7" cy="-9" r="3.5" fill="#fff" />
-              <circle cx="7" cy="-9" r="3.5" fill="#fff" />
-              <circle cx="-7" cy="-9" r="1.8" fill="#0f172a" />
-              <circle cx="7" cy="-9" r="1.8" fill="#0f172a" />
-              <path d="M-7 2 Q0 9 7 2" fill="none" stroke="#451a03" stroke-width="2.5" stroke-linecap="round"/>
-              ${accessory === 'juliet' ? `<rect x="-18" y="-14" width="15" height="9" rx="3" fill="#06b6d4" stroke="#0f172a" stroke-width="2"/><rect x="3" y="-14" width="15" height="9" rx="3" fill="#06b6d4" stroke="#0f172a" stroke-width="2"/><line x1="-3" y1="-10" x2="3" y2="-10" stroke="#0f172a" stroke-width="2"/>` : ''}
-              ${accessory === 'crown' ? `<polygon points="-13,-24 -10,-39 -3,-29 0,-42 3,-29 10,-39 13,-24" fill="#facc15" stroke="#854d0e" stroke-width="2"/>` : ''}
-              ${accessory === 'cap' ? `<path d="M-20,-18 A20,16 0 0,1 20,-18 Z" fill="#ef4444" stroke="#0f172a" stroke-width="2"/><rect x="-2" y="-20" width="24" height="5" rx="2" fill="#1e293b"/>` : ''}
-              ${accessory === 'headset' ? `<path d="M-24,-6 A24,24 0 0,1 24,-6" fill="none" stroke="#a855f7" stroke-width="5"/><rect x="-28" y="-12" width="7" height="14" rx="3" fill="#ec4899"/><rect x="21" y="-12" width="7" height="14" rx="3" fill="#ec4899"/>` : ''}
-              ${accessory === 'bald' ? `<ellipse cx="-6" cy="-20" rx="6" ry="3" fill="#ffffff" opacity="0.85"/>` : ''}
-            </svg>
+            <img alt="Prévia do macaco" width="200" height="200" style="display:block;margin:0 auto;filter:drop-shadow(0 6px 8px rgba(0,0,0,.45));" src="${renderMonkeyPortrait(palette.fur, palette.belly, accessory)}" />
             <div style="font-weight:800;font-size:15px;color:#fef08a;">${escapeHtml(name)}</div>
             <div style="font-size:11.5px;color:#86efac;margin-top:3px;">${TRAITS[trait].emoji} ${TRAITS[trait].name}</div>
           </div>
@@ -892,7 +875,7 @@ export class SimsUi {
           <div class="msims-portrait ${mk.id === active.id ? 'active' : ''}" data-mkid="${mk.id}" title="Trocar para ${escapeAttr(mk.name)} (Tab)">
             <div style="display:flex;justify-content:center;align-items:center;gap:3px;">
               <span style="width:9px;height:9px;border-radius:999px;background:${dot};display:inline-block;"></span>
-              <span style="font-size:16px;">🐒</span>
+              <img alt="" width="30" height="30" style="display:block;" src="${monkeyHeadIcon(mk.appearance.furColor, mk.appearance.bellyColor, mk.appearance.accessory)}" />
             </div>
             <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(mk.name.split(' ')[0])}</div>
           </div>`;

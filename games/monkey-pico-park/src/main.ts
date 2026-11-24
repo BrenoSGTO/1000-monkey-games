@@ -116,7 +116,7 @@ const online = new OnlineCoordinator(SLUG, {
 
 hud = mountMonkeyHud({
   slug: SLUG,
-  title: 'Pico Macaco: A Chave da Banana',
+  title: 'Mico Park: A Chave da Banana',
   room: online.room,
 });
 

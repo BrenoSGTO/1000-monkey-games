@@ -14,6 +14,18 @@ import {
   type Vehicle,
 } from './types';
 import type { CitySimulation } from './simulation';
+import { HANDS, drawMonkey, makeFace } from './monkeyart';
+import {
+  capAccessory,
+  djPhonesAccessory,
+  drawCursorMonkey,
+  drawDriverHead,
+  drawMayor,
+  drawPlushGorilla,
+  drawStatue,
+  driverStyle,
+  shadesAccessory,
+} from './monkeylook';
 
 export interface CameraState {
   x: number;
@@ -517,6 +529,16 @@ export class CityRenderer {
         ctx.textAlign = 'center';
         ctx.fillText('SELVA', wx - 20, wy - 6);
 
+        // Prefeito macaco acenando na praça
+        ctx.save();
+        ctx.translate(wx + 22, wy + 7);
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(0, 1, 8, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        drawMayor(ctx, this.time, tile.damaged);
+        ctx.restore();
+
         // Label above Town Hall
         ctx.font = 'bold 10px sans-serif';
         ctx.fillStyle = '#fef08a';
@@ -627,27 +649,10 @@ export class CityRenderer {
         badgeAnchorY = wy - 42;
         this.drawDiamond(wx, wy - 1, '#86efac', '#16a34a', 1.5);
         this.drawIsoBox(wx, wy, 0.36, 10, '#cbd5e1', '#94a3b8', '#64748b');
-        const sy = wy - 20;
-        ctx.fillStyle = tile.damaged ? '#94a3b8' : '#facc15';
-        ctx.strokeStyle = '#a16207';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(wx - 9, sy, 4, 0, Math.PI * 2);
-        ctx.arc(wx + 9, sy, 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(wx, sy, 9, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.8;
-        ctx.beginPath();
-        ctx.arc(wx - 2, sy - 4, 4, Math.PI * 1.1, Math.PI * 1.65);
-        ctx.stroke();
-        ctx.fillStyle = '#451a03';
-        ctx.fillRect(wx - 4, sy - 1, 2, 2);
-        ctx.fillRect(wx + 2, sy - 1, 2, 2);
+        ctx.save();
+        ctx.translate(wx, wy - 10);
+        drawStatue(ctx, this.time + tile.variant, tile.damaged);
+        ctx.restore();
         break;
       }
 
@@ -735,6 +740,7 @@ export class CityRenderer {
     const ctx = this.ctx;
     const { wx, wy } = gridToWorld(v.gx, v.gy);
     const bounce = Math.sin(this.time * 14 + v.id) * 1;
+    const dir = v.dirX - v.dirY >= 0 ? 1 : -1;
 
     if (v.kind === 'trio_eletrico') {
       this.drawIsoBox(wx, wy - 2 + bounce, 0.55, 16, '#f472b6', '#db2777', '#9d174d');
@@ -742,11 +748,31 @@ export class CityRenderer {
       const lightCols = ['#facc15', '#22d3ee', '#4ade80'];
       ctx.fillStyle = lightCols[party];
       ctx.beginPath();
-      ctx.arc(wx, wy - 22 + bounce, 4.5, 0, Math.PI * 2);
+      ctx.arc(wx + 9, wy - 19 + bounce, 3.4, 0, Math.PI * 2);
       ctx.fill();
+      // DJ macaco dançando em cima do caminhão
+      ctx.save();
+      ctx.translate(wx, wy - 17 + bounce);
+      const hop = Math.max(0, Math.sin(this.time * 8 + v.id)) * 2;
+      ctx.translate(0, -hop);
+      drawMonkey(ctx, {
+        style: driverStyle(v.id + 2),
+        face: makeFace('cheer', this.time, v.id),
+        height: 17,
+        turn: 0.2,
+        tailPhase: this.time * 9,
+        tailAmp: 0.7,
+        earFlop: Math.sin(this.time * 8) * 0.5,
+        armL: HANDS.cheer(-1, this.time * 8),
+        armR: HANDS.cheer(1, this.time * 8),
+        tuft: false,
+        accessory: djPhonesAccessory,
+        outlinePx: 1.2,
+      });
+      ctx.restore();
       ctx.font = '11px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('🎵🎶', wx, wy - 28 + bounce);
+      ctx.fillText('🎵🎶', wx, wy - 40 + bounce);
       return;
     }
 
@@ -763,14 +789,24 @@ export class CityRenderer {
       ctx.ellipse(wx, wy - 3 + bounce, 8, 4.5, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = '#92400e';
-      ctx.beginPath();
-      ctx.arc(wx, wy - 7 + bounce, 3, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.save();
+      ctx.translate(wx, wy - 9 + bounce);
+      drawDriverHead(ctx, this.time, v.id, 4.6, dir, 'happy', v.id % 2 === 0 ? shadesAccessory : undefined);
+      ctx.restore();
     } else if (v.kind === 'monkey_bus') {
       this.drawIsoBox(wx, wy - 1 + bounce, 0.28, 9, '#fef08a', '#f59e0b', '#d97706');
+      for (let i = -1; i <= 1; i++) {
+        ctx.save();
+        ctx.translate(wx + i * 4.6, wy - 11 + bounce - Math.abs(i) * 0.6);
+        drawDriverHead(ctx, this.time, v.id * 3 + i, 3.1, dir, i === 0 ? 'cheer' : 'happy');
+        ctx.restore();
+      }
     } else {
       this.drawIsoBox(wx, wy - 1 + bounce, 0.3, 10, '#e9d5ff', '#a855f7', '#7e22ce');
+      ctx.save();
+      ctx.translate(wx, wy - 12 + bounce);
+      drawDriverHead(ctx, this.time, v.id, 3.6, dir, 'focus', capAccessory);
+      ctx.restore();
     }
   }
 
@@ -784,79 +820,10 @@ export class CityRenderer {
     ctx.ellipse(wx, wy + 4, 34 - stomp * 0.4, 17 - stomp * 0.2, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    const gy = wy - stomp;
-    ctx.fillStyle = '#7c3aed';
-    ctx.strokeStyle = '#2e1065';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.ellipse(wx, gy - 26, 26, 30, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = '#c4b5fd';
-    ctx.beginPath();
-    ctx.ellipse(wx, gy - 22, 16, 20, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#4c1d95';
-    ctx.lineWidth = 1.8;
-    ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    ctx.moveTo(wx, gy - 38);
-    ctx.lineTo(wx, gy - 6);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    const armSwing = Math.sin(this.time * 8) * 10;
-    ctx.fillStyle = '#7c3aed';
-    ctx.strokeStyle = '#2e1065';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.ellipse(wx - 28, gy - 30 + armSwing, 11, 8, -0.4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(wx + 28, gy - 30 - armSwing, 11, 8, 0.4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(wx - 20, gy - 58, 7, 0, Math.PI * 2);
-    ctx.arc(wx + 20, gy - 58, 7, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(wx, gy - 56, 19, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = '#ddd6fe';
-    ctx.beginPath();
-    ctx.ellipse(wx, gy - 50, 13, 8, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#fef08a';
-    ctx.strokeStyle = '#2e1065';
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    ctx.arc(wx - 7, gy - 60, 4.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(wx - 9, gy - 62);
-    ctx.lineTo(wx - 5, gy - 58);
-    ctx.moveTo(wx - 5, gy - 62);
-    ctx.lineTo(wx - 9, gy - 58);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(wx + 7, gy - 59, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#1e1b4b';
-    ctx.beginPath();
-    ctx.arc(wx + 8, gy - 59, 2.3, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.save();
+    ctx.translate(wx, wy);
+    drawPlushGorilla(ctx, this.time, stomp);
+    ctx.restore();
   }
 
   private drawAuraPreview(cx: number, cy: number, tool: ToolType): void {
@@ -1031,8 +998,15 @@ export class CityRenderer {
   private drawRemoteCursor(rc: RemoteCursor): void {
     const { wx, wy } = gridToWorld(rc.gx, rc.gy);
     this.drawDiamond(wx, wy, 'rgba(255,255,255,0.12)', rc.color, 2.4);
-    const text = `🐒 ${rc.name} ${TOOL_MAP[rc.tool].emoji}`;
-    this.drawCursorPill(wx, wy - 26, text, rc.color);
+    const text = `${rc.name} ${TOOL_MAP[rc.tool].emoji}`;
+    this.drawCursorPill(wx + 8, wy - 26, text, rc.color);
+    const ctx = this.ctx;
+    ctx.font = 'bold 11px sans-serif';
+    const tw = ctx.measureText(text).width + 14;
+    ctx.save();
+    ctx.translate(wx + 8 - tw * 0.5 - 6, wy - 28 + Math.sin(this.time * 5) * 1.2);
+    drawCursorMonkey(ctx, this.time, rc.color, 10);
+    ctx.restore();
   }
 
   private drawMapPing(ping: MapPing): void {

@@ -13,6 +13,8 @@ import {
 } from './house';
 import type { GameSimulation } from './simulation';
 import type { FurnitureKind, MonkeySim, PlacedFurniture } from './types';
+import { FIGURE_HEIGHT_UNITS, HANDS, drawMonkey, makeFace, type Face, type HandPos, type Mood } from './monkeyart';
+import { accessoryHidesTuft, buildAccessory, styleForAppearance } from './monkeylook';
 
 export interface CameraState {
   x: number;
@@ -132,6 +134,7 @@ export class HouseRenderer {
     dt: number,
   ): void {
     this.time += dt;
+    this.frameDt = Math.min(0.05, Math.max(0.001, dt));
 
     ctx.clearRect(0, 0, canvasW, canvasH);
 
@@ -791,142 +794,272 @@ export class HouseRenderer {
     }
   }
 
+  private monkeyAnim = new Map<
+    string,
+    { stretch: number; vel: number; pose: string; ear: number; earVel: number }
+  >();
+  private frameDt = 0.016;
+
   private drawSingleMonkey(
     ctx: CanvasRenderingContext2D,
     m: MonkeySim,
     isSelected: boolean,
     isHovered: boolean,
   ): void {
+    const t = this.time;
+    const dt = this.frameDt;
+    const pose = m.pose;
+    const seed = (m.animPhase * 1.7) % 6;
+
+    // ── estado de animação secundária (mola de squash/stretch + orelhas) ──
+    let a = this.monkeyAnim.get(m.id);
+    if (!a) {
+      a = { stretch: 0, vel: 0, pose, ear: 0, earVel: 0 };
+      this.monkeyAnim.set(m.id, a);
+    }
+    if (a.pose !== pose) {
+      a.vel += pose === 'idle' ? 2.6 : -4.2; // impulso ao trocar de ação
+      a.pose = pose;
+    }
+    a.vel += (-170 * a.stretch - 13 * a.vel) * dt;
+    a.stretch += a.vel * dt;
+    a.stretch = Math.max(-0.22, Math.min(0.22, a.stretch));
+    const moving = pose === 'walking' || pose === 'dancing';
+    const earTarget = moving ? Math.sin(m.animPhase * 2 - 0.7) * 0.7 : Math.sin(t * 1.3 + seed) * 0.12;
+    a.earVel += ((earTarget - a.ear) * 110 - a.earVel * 8) * dt;
+    a.ear += a.earVel * dt;
+
+    const walking = pose === 'walking';
+    const stepImpact = walking ? -0.05 * Math.pow(1 - Math.abs(Math.sin(m.animPhase)), 6) : 0;
+    const danceSquash = pose === 'dancing' ? Math.sin(m.animPhase * 2) * 0.05 : 0;
+    const stretch = a.stretch + stepImpact + danceSquash;
+    const breathe = Math.sin(t * 2.1 + seed);
+
+    // ── apresentação por pose ──
+    const needs = m.needs;
+    const minNeed = Math.min(needs.hunger, needs.energy, needs.hygiene, needs.bladder, needs.fun, needs.social);
+    let mood: Mood = 'neutral';
+    if (minNeed < 24) mood = 'angry';
+    else if (minNeed < 45) mood = 'sad';
+    else if (needs.fun > 55) mood = 'happy';
+
+    let armL: HandPos | undefined;
+    let armR: HandPos | undefined;
+    const ph = m.animPhase;
+    let lean = 0;
+    let headTilt = Math.sin(t * 0.8 + seed) * 0.03;
+    const over: Partial<Face> = {};
+    switch (pose) {
+      case 'sleeping':
+      case 'passed_out':
+        mood = pose === 'passed_out' ? 'dizzy' : 'sleeping';
+        headTilt = 0.18;
+        break;
+      case 'eating':
+        mood = 'eating';
+        armL = HANDS.mouth(-1, t * 13);
+        armR = HANDS.mouth(1, t * 13 + 1.5);
+        break;
+      case 'cooking':
+        mood = 'focus';
+        armL = HANDS.forward(-1, t * 9);
+        armR = HANDS.forward(1, t * 9);
+        break;
+      case 'showering':
+        mood = 'cheer';
+        armL = { x: -0.62 + Math.sin(t * 10) * 0.2, y: -3.0 };
+        armR = { x: 0.62 - Math.sin(t * 10) * 0.2, y: -3.0 };
+        break;
+      case 'toilet':
+        mood = 'embarrassed';
+        armL = HANDS.hip(-1);
+        armR = HANDS.hip(1);
+        break;
+      case 'gaming':
+        mood = 'focus';
+        armL = HANDS.forward(-1, t * 17);
+        armR = HANDS.forward(1, t * 15);
+        over.lookY = -0.2;
+        lean = 0.06;
+        break;
+      case 'dancing':
+        mood = 'cheer';
+        armL = HANDS.cheer(-1, ph * 2);
+        armR = HANDS.cheer(1, ph * 2);
+        lean = Math.sin(ph) * 0.14;
+        headTilt = Math.sin(ph) * 0.2;
+        break;
+      case 'talking':
+        mood = 'happy';
+        over.mouthOpen = 0.15 + Math.abs(Math.sin(t * 9 + seed)) * 0.5;
+        armR = { x: 1.3 + Math.sin(t * 6) * 0.2, y: -1.9 + Math.cos(t * 6) * 0.25 };
+        break;
+      case 'panicking':
+        mood = 'scared';
+        armL = HANDS.up(-1, t * 25);
+        armR = HANDS.up(1, t * 25 + 2);
+        lean = Math.sin(t * 22) * 0.06;
+        break;
+      default:
+        break;
+    }
+    if (m.embarrassedTimer > 0 && pose !== 'toilet' && pose !== 'panicking') mood = 'embarrassed';
+
+    // olhar acompanha a direção do movimento; parado, passeia o olhar
+    const cf = Math.cos(m.facing);
+    const sf = Math.sin(m.facing);
+    const idleGlance = !walking && pose === 'idle' ? Math.sin(t * 0.7 + seed * 2) * 0.55 : 0;
+    const lookX = walking ? cf : cf * 0.5 + idleGlance;
+    const lookY = walking ? sf * 0.5 : 0.1;
+    const turn = walking ? cf * 0.9 : cf * 0.35 + idleGlance * 0.4;
+    const face = makeFace(mood, t, seed, { x: lookX, y: lookY }, over);
+
+    const FEET = 14;
+    const H = 48;
+    const lying = pose === 'passed_out';
+
     ctx.save();
-    const bob =
-      m.pose === 'dancing'
-        ? Math.abs(Math.sin(m.animPhase)) * -7
-        : m.pose === 'walking'
-          ? Math.abs(Math.sin(m.animPhase)) * -4
-          : Math.sin(m.animPhase * 0.5) * 1.2;
 
-    const tilt = m.pose === 'dancing' ? Math.sin(m.animPhase) * 0.16 : 0;
-
-    // Selection ring on ground
+    // Anel de seleção
     if (isSelected || isHovered) {
       ctx.strokeStyle = isSelected ? '#4ade80' : '#facc15';
       ctx.lineWidth = isSelected ? 3 : 2;
       ctx.beginPath();
-      ctx.ellipse(m.x, m.y + 12, 22, 12, 0, 0, Math.PI * 2);
+      ctx.ellipse(m.x, m.y + FEET - 2, 24, 12, 0, 0, Math.PI * 2);
       ctx.stroke();
+      if (isSelected) {
+        ctx.strokeStyle = 'rgba(74,222,128,0.28)';
+        ctx.lineWidth = 7;
+        ctx.stroke();
+      }
     }
 
-    // Drop shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.34)';
+    // Sombra suave (encolhe quando o macaco pula)
+    const lift = walking || pose === 'dancing' ? Math.abs(Math.sin(m.animPhase)) : 0;
+    const shW = (lying ? 24 : 15) * (1 - lift * 0.14);
+    const sg = ctx.createRadialGradient(m.x, m.y + FEET - 2, 1, m.x, m.y + FEET - 2, shW);
+    sg.addColorStop(0, 'rgba(0,0,0,0.42)');
+    sg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = sg;
     ctx.beginPath();
-    ctx.ellipse(m.x, m.y + 12, 16, 8, 0, 0, Math.PI * 2);
+    ctx.ellipse(m.x, m.y + FEET - 2, shW, shW * 0.45, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.translate(m.x, m.y + bob);
-    if (m.pose === 'passed_out') {
+    // posiciona nos pés
+    ctx.translate(m.x, m.y + FEET);
+    if (lying) {
+      ctx.translate(0, -18);
       ctx.rotate(Math.PI / 2);
-    } else {
-      ctx.rotate(tilt);
+      ctx.translate(0, 18);
     }
 
-    // Tail
-    ctx.strokeStyle = m.appearance.furColor;
-    ctx.lineWidth = 5;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(-8, 6);
-    ctx.quadraticCurveTo(-24, 2 + Math.sin(this.time * 4 + m.animPhase) * 5, -20, -10);
-    ctx.stroke();
+    const appearance = m.appearance;
+    drawMonkey(ctx, {
+      style: styleForAppearance(appearance.furColor, appearance.bellyColor),
+      face,
+      height: H,
+      turn,
+      squashX: 1 - stretch * 0.7,
+      squashY: 1 + stretch,
+      breathe: pose === 'sleeping' ? Math.sin(t * 1.4) : breathe,
+      walk: m.animPhase,
+      walkAmp: walking ? 1 : pose === 'dancing' ? 0.7 : 0,
+      tailPhase: t * (moving ? 5 : 2.4) + seed,
+      tailAmp: pose === 'dancing' ? 0.9 : walking ? 0.55 : 0.3,
+      tailSide: cf >= 0 ? -1 : 1,
+      earFlop: a.ear,
+      headTilt,
+      lean,
+      armL,
+      armR,
+      tuft: !accessoryHidesTuft(appearance.accessory),
+      accessory: buildAccessory(appearance.accessory, turn, t),
+      outlinePx: 2.1,
+    });
 
-    // Body
-    ctx.fillStyle = m.appearance.furColor;
-    ctx.strokeStyle = '#1c1917';
-    ctx.lineWidth = 2.2;
-    ctx.beginPath();
-    ctx.ellipse(0, 4, 14, 15, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // Belly
-    ctx.fillStyle = m.appearance.bellyColor;
-    ctx.beginPath();
-    ctx.ellipse(0, 5, 8, 10, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Ears
-    ctx.fillStyle = m.appearance.furColor;
-    ctx.beginPath();
-    ctx.arc(-16, -15, 6.5, 0, Math.PI * 2);
-    ctx.arc(16, -15, 6.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // Head
-    ctx.beginPath();
-    ctx.arc(0, -15, 14.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // Face patch
-    ctx.fillStyle = m.appearance.bellyColor;
-    ctx.beginPath();
-    ctx.ellipse(0, -12, 10.5, 8.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Embarrassed blush
-    if (m.embarrassedTimer > 0) {
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.55)';
+    // banana na mão (comendo)
+    if (pose === 'eating') {
+      const u = H / FIGURE_HEIGHT_UNITS;
+      ctx.save();
+      ctx.scale(u, u);
+      ctx.translate(0, -1.86 + Math.sin(t * 13) * 0.03);
+      ctx.rotate(-0.25);
       ctx.beginPath();
-      ctx.arc(-7, -10, 3, 0, Math.PI * 2);
-      ctx.arc(7, -10, 3, 0, Math.PI * 2);
+      ctx.moveTo(-0.5, -0.12);
+      ctx.quadraticCurveTo(0, 0.42, 0.52, -0.2);
+      ctx.quadraticCurveTo(0.04, 0.12, -0.5, -0.12);
+      ctx.closePath();
+      ctx.fillStyle = '#fde047';
       ctx.fill();
-    }
-
-    // Eyes
-    if (m.pose === 'sleeping' || m.pose === 'passed_out') {
-      ctx.strokeStyle = '#1c1917';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(-7, -16);
-      ctx.lineTo(-2, -16);
-      ctx.moveTo(2, -16);
-      ctx.lineTo(7, -16);
+      ctx.strokeStyle = '#854d0e';
+      ctx.lineWidth = 0.07;
       ctx.stroke();
-    } else {
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = '#78350f';
       ctx.beginPath();
-      ctx.arc(-5, -16, 3.6, 0, Math.PI * 2);
-      ctx.arc(5, -16, 3.6, 0, Math.PI * 2);
+      ctx.arc(0.52, -0.2, 0.06, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#0f172a';
-      const lookX = Math.cos(m.facing) * 1.1;
-      ctx.beginPath();
-      ctx.arc(-5 + lookX, -16, 1.8, 0, Math.PI * 2);
-      ctx.arc(5 + lookX, -16, 1.8, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.restore();
     }
-
-    // Mouth
-    ctx.strokeStyle = '#451a03';
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    if (m.pose === 'panicking') {
-      ctx.fillStyle = '#7f1d1d';
-      ctx.arc(0, -8, 3.5, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (m.needs.fun > 55) {
-      ctx.arc(0, -10, 4.5, 0.15, Math.PI - 0.15);
-      ctx.stroke();
-    } else {
-      ctx.moveTo(-4, -8);
-      ctx.lineTo(4, -8);
-      ctx.stroke();
-    }
-
-    // Accessories
-    this.drawAccessory(ctx, m.appearance.accessory);
 
     ctx.restore();
+
+    // Zzz
+    if (pose === 'sleeping' || pose === 'passed_out') {
+      ctx.save();
+      ctx.textAlign = 'center';
+      for (let i = 0; i < 3; i++) {
+        const k = (t * 0.6 + i / 3) % 1;
+        ctx.globalAlpha = Math.sin(k * Math.PI) * 0.95;
+        ctx.fillStyle = '#e0f2fe';
+        ctx.strokeStyle = '#1e3a8a';
+        ctx.lineWidth = 2.5;
+        const zx = m.x + 16 + k * 14 + i * 3;
+        const zy = m.y - 22 - k * 26;
+        ctx.font = `900 ${9 + k * 8}px system-ui, sans-serif`;
+        ctx.strokeText('Z', zx, zy);
+        ctx.fillText('Z', zx, zy);
+      }
+      ctx.restore();
+    }
+
+    // Nuvem de fedor
+    if (m.stinkTimer > 0) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(132,204,22,0.8)';
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 3; i++) {
+        const sx = m.x - 14 + i * 14;
+        ctx.beginPath();
+        for (let k = 0; k <= 8; k++) {
+          const yy = m.y + 2 - k * 3.2;
+          const xx = sx + Math.sin(t * 5 + k * 0.9 + i) * 3;
+          if (k === 0) ctx.moveTo(xx, yy);
+          else ctx.lineTo(xx, yy);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // Bolhas de sabão no banho
+    if (pose === 'showering') {
+      ctx.save();
+      for (let i = 0; i < 6; i++) {
+        const k = (t * 0.8 + i * 0.17) % 1;
+        ctx.globalAlpha = Math.sin(k * Math.PI) * 0.9;
+        ctx.fillStyle = 'rgba(224,242,254,0.9)';
+        ctx.strokeStyle = 'rgba(14,116,144,0.8)';
+        ctx.lineWidth = 1;
+        const bx = m.x + Math.sin(i * 2.3) * 18;
+        const by = m.y + 8 - k * 40;
+        ctx.beginPath();
+        ctx.arc(bx, by, 2.5 + (i % 3), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
 
     // Floating Banana Plumbob above head
     this.drawPlumbob(ctx, m, isSelected);
@@ -937,10 +1070,10 @@ export class HouseRenderer {
     ctx.textAlign = 'center';
     const nameW = ctx.measureText(m.name).width + 12;
     ctx.fillStyle = isSelected ? 'rgba(20, 83, 45, 0.88)' : 'rgba(15, 23, 42, 0.78)';
-    roundRect(ctx, m.x - nameW / 2, m.y + 18, nameW, 17, 8);
+    roundRect(ctx, m.x - nameW / 2, m.y + 20, nameW, 17, 8);
     ctx.fill();
     ctx.fillStyle = isSelected ? '#bef264' : '#f8fafc';
-    ctx.fillText(m.name, m.x, m.y + 30);
+    ctx.fillText(m.name, m.x, m.y + 32);
     ctx.restore();
 
     // Action progress ring
@@ -966,77 +1099,6 @@ export class HouseRenderer {
       this.drawSpeechBubble(ctx, m.x, m.y - 72, m.speechText);
     } else if (m.thoughtTimer > 0 && m.thoughtIcon) {
       this.drawThoughtBubble(ctx, m.x + 24, m.y - 54, m.thoughtIcon);
-    }
-  }
-
-  private drawAccessory(ctx: CanvasRenderingContext2D, acc: MonkeySim['appearance']['accessory']): void {
-    switch (acc) {
-      case 'juliet': {
-        ctx.fillStyle = '#06b6d4';
-        ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 1.6;
-        roundRect(ctx, -12, -20, 10, 6, 2);
-        ctx.fill();
-        ctx.stroke();
-        roundRect(ctx, 2, -20, 10, 6, 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(-2, -17);
-        ctx.lineTo(2, -17);
-        ctx.stroke();
-        break;
-      }
-      case 'crown': {
-        ctx.fillStyle = '#facc15';
-        ctx.strokeStyle = '#854d0e';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(-9, -27);
-        ctx.lineTo(-7, -37);
-        ctx.lineTo(-2, -30);
-        ctx.lineTo(0, -39);
-        ctx.lineTo(2, -30);
-        ctx.lineTo(7, -37);
-        ctx.lineTo(9, -27);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        break;
-      }
-      case 'cap': {
-        ctx.fillStyle = '#ef4444';
-        ctx.strokeStyle = '#1e293b';
-        ctx.lineWidth = 1.6;
-        ctx.beginPath();
-        ctx.arc(0, -23, 13, Math.PI, 0);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = '#1e293b';
-        ctx.fillRect(-2, -24, 16, 4);
-        break;
-      }
-      case 'headset': {
-        ctx.strokeStyle = '#a855f7';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(0, -16, 16.5, Math.PI, 0);
-        ctx.stroke();
-        ctx.fillStyle = '#ec4899';
-        roundRect(ctx, -19, -20, 5, 10, 2);
-        ctx.fill();
-        roundRect(ctx, 14, -20, 5, 10, 2);
-        ctx.fill();
-        break;
-      }
-      case 'bald': {
-        // Shiny reflection glint on top of head!
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.ellipse(-4, -24, 4, 2, -0.4, 0, Math.PI * 2);
-        ctx.fill();
-        break;
-      }
     }
   }
 
