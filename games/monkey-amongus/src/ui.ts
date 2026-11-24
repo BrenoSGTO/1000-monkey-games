@@ -921,7 +921,24 @@ export class GameUI {
       <div class="ma-card" style="max-width:620px;height:290px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;background:#020617;border-color:#38bdf8;">
         ${
           !ej.tieOrSkip
-            ? `<div style="position:absolute;top:52px;left:${leftPct}%;transform:rotate(${rot}deg);font-size:44px;filter:drop-shadow(0 0 8px ${ej.ejectedColor});">🐒</div>`
+            ? `<div style="position:absolute;top:42px;left:${leftPct}%;transform:rotate(${rot}deg);width:54px;height:54px;filter:drop-shadow(0 0 10px ${ej.ejectedColor});">
+                <svg viewBox="0 0 60 60" width="54" height="54">
+                  <path d="M14 40 Q4 36 8 22" fill="none" stroke="#92400e" stroke-width="5" stroke-linecap="round"/>
+                  <rect x="8" y="20" width="9" height="20" rx="4" fill="${ej.ejectedColor}" stroke="#0f172a" stroke-width="2.5"/>
+                  <circle cx="15" cy="15" r="6" fill="#b45309" stroke="#0f172a" stroke-width="2.5"/>
+                  <circle cx="15" cy="15" r="3" fill="#fda4af"/>
+                  <circle cx="43" cy="15" r="6" fill="#b45309" stroke="#0f172a" stroke-width="2.5"/>
+                  <circle cx="43" cy="15" r="3" fill="#fda4af"/>
+                  <rect x="15" y="10" width="28" height="34" rx="13" fill="${ej.ejectedColor}" stroke="#0f172a" stroke-width="2.8"/>
+                  <rect x="20" y="16" width="22" height="14" rx="7" fill="#38bdf8" stroke="#0f172a" stroke-width="2.4"/>
+                  <ellipse cx="32" cy="23" rx="7" ry="5" fill="#fde68a"/>
+                  <circle cx="29" cy="22" r="2.2" fill="#fff" stroke="#0f172a" stroke-width="0.9"/>
+                  <circle cx="29" cy="22" r="1" fill="#0f172a"/>
+                  <circle cx="35" cy="22" r="2.2" fill="#fff" stroke="#0f172a" stroke-width="0.9"/>
+                  <circle cx="35" cy="22" r="1" fill="#0f172a"/>
+                  <ellipse cx="32" cy="25.5" rx="1.6" ry="2" fill="#7f1d1d"/>
+                </svg>
+              </div>`
             : ''
         }
         <div style="font-size:24px;font-weight:900;color:#f8fafc;z-index:2;margin-top:34px;">${headline}</div>

@@ -242,7 +242,7 @@ export class GameRenderer {
         hasLineOfSight(observerX, observerY, p.x, p.y, visionRadius);
 
       if (!visible) continue;
-      this.drawMonkey(ctx, p, local, state.timeSec);
+      this.drawMonkey(ctx, p, local, state.timeSec, Boolean(state.sabotage));
     }
 
     // 11. Particles
@@ -565,42 +565,90 @@ export class GameRenderer {
   private drawDeadBody(ctx: CanvasRenderingContext2D, body: DeadBody): void {
     ctx.save();
     ctx.translate(body.x, body.y);
+
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillStyle = 'rgba(0,0,0,0.48)';
     ctx.beginPath();
-    ctx.ellipse(0, 12, 22, 9, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 13, 24, 9.5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Peeled suit bottom
-    ctx.fillStyle = body.color.body;
+    // Fallen spacesuit lower half with gradient shading
+    const suitGrad = ctx.createLinearGradient(-18, -6, 18, 16);
+    suitGrad.addColorStop(0, body.color.body);
+    suitGrad.addColorStop(1, body.color.dark);
+    ctx.fillStyle = suitGrad;
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.ellipse(0, 5, 19, 13, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 6, 20, 13, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.stroke();
+
+    // Belt ring
+    ctx.strokeStyle = 'rgba(15,23,42,0.45)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(0, 5, 18, 10, 0, 0.2, Math.PI - 0.2);
     ctx.stroke();
 
     // Banana peel flaps
-    ctx.fillStyle = '#facc15';
+    const peelGrad = ctx.createLinearGradient(0, -4, 0, 14);
+    peelGrad.addColorStop(0, '#fef08a');
+    peelGrad.addColorStop(0.6, '#facc15');
+    peelGrad.addColorStop(1, '#ca8a04');
+    ctx.fillStyle = peelGrad;
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2.6;
     ctx.beginPath();
-    ctx.moveTo(-18, 4);
-    ctx.quadraticCurveTo(-8, -4, 0, 2);
-    ctx.quadraticCurveTo(8, -4, 18, 4);
-    ctx.quadraticCurveTo(8, 12, 0, 8);
-    ctx.quadraticCurveTo(-8, 12, -18, 4);
+    ctx.moveTo(-19, 4);
+    ctx.quadraticCurveTo(-9, -6, 0, 2);
+    ctx.quadraticCurveTo(9, -6, 19, 4);
+    ctx.quadraticCurveTo(9, 13, 0, 8);
+    ctx.quadraticCurveTo(-9, 13, -19, 4);
     ctx.fill();
     ctx.stroke();
 
-    // Cartoon bone
+    // Cartoon bone with highlight
     ctx.fillStyle = '#f8fafc';
-    ctx.fillRect(-4, -14, 8, 16);
-    ctx.strokeRect(-4, -14, 8, 16);
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2.6;
     ctx.beginPath();
-    ctx.arc(-4, -15, 4, 0, Math.PI * 2);
-    ctx.arc(4, -15, 4, 0, Math.PI * 2);
+    ctx.roundRect(-4.5, -15, 9, 17, 4);
     ctx.fill();
     ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(-4.5, -16, 4.2, 0, Math.PI * 2);
+    ctx.arc(4.5, -16, 4.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(-3.5, -13, 2, 11);
     ctx.restore();
+  }
+
+  private getFurPalette(colorId: string): {
+    fur: string;
+    furDark: string;
+    earInner: string;
+    mask: string;
+    maskShade: string;
+  } {
+    switch (colorId) {
+      case 'brown':
+      case 'orange':
+        return { fur: '#9a3412', furDark: '#5c1d0c', earInner: '#fda4af', mask: '#fef3c7', maskShade: '#fde68a' };
+      case 'purple':
+      case 'pink':
+        return { fur: '#854d0e', furDark: '#422006', earInner: '#f9a8d4', mask: '#fef3c7', maskShade: '#fed7aa' };
+      case 'cyan':
+      case 'blue':
+        return { fur: '#b45309', furDark: '#78350f', earInner: '#fda4af', mask: '#fef3c7', maskShade: '#fde68a' };
+      case 'yellow':
+      case 'lime':
+        return { fur: '#a16207', furDark: '#713f12', earInner: '#fbcfe8', mask: '#fffbeb', maskShade: '#fde68a' };
+      default:
+        return { fur: '#b45309', furDark: '#713f12', earInner: '#fda4af', mask: '#fef3c7', maskShade: '#fde68a' };
+    }
   }
 
   private drawMonkey(
@@ -608,15 +656,26 @@ export class GameRenderer {
     p: PlayerState,
     viewer: PlayerState,
     timeSec: number,
+    sabotageActive = false,
   ): void {
-    const isMoving = Math.hypot(p.vx, p.vy) > 10;
-    const bounce = isMoving ? Math.abs(Math.sin(p.walkPhase)) * 5 : 0;
-    const floatY = !p.alive ? Math.sin(timeSec * 3.5 + p.x * 0.02) * 5 : 0;
+    const speed = Math.hypot(p.vx, p.vy);
+    const isMoving = speed > 10;
+    const seed = hashMonkeySeed(p.id);
+    const breath = Math.sin(timeSec * 3.4 + seed) * 0.032;
+    const bounce = isMoving ? Math.abs(Math.sin(p.walkPhase)) * 5.2 : 0;
+    const squashX = isMoving
+      ? 1 + Math.cos(p.walkPhase * 2) * 0.055
+      : 1 - breath * 0.8;
+    const squashY = isMoving
+      ? 1 - Math.cos(p.walkPhase * 2) * 0.055
+      : 1 + breath;
+    const floatY = !p.alive ? Math.sin(timeSec * 3.2 + seed) * 5.5 : 0;
+    const fur = this.getFurPalette(p.color.id);
 
     ctx.save();
     ctx.translate(p.x, p.y - bounce + floatY);
-    if (!p.alive) ctx.globalAlpha = 0.48;
-    if (p.inVent) ctx.globalAlpha = 0.4;
+    if (!p.alive) ctx.globalAlpha = 0.54;
+    if (p.inVent) ctx.globalAlpha = 0.42;
 
     // Scanner laser ring
     if (p.scanning) {
@@ -632,92 +691,292 @@ export class GameRenderer {
       ctx.fill();
     }
 
-    // Shadow
+    // Ground shadow
     if (p.alive) {
-      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      const shadowScale = 1 - bounce * 0.025;
+      ctx.fillStyle = 'rgba(0,0,0,0.42)';
       ctx.beginPath();
-      ctx.ellipse(0, 20 + bounce, 16, 7, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, 21 + bounce, 17 * shadowScale, 7 * shadowScale, 0, 0, Math.PI * 2);
       ctx.fill();
     }
 
     ctx.save();
-    ctx.scale(p.facing, 1);
+    ctx.scale(p.facing * squashX, squashY);
 
-    // Tail
-    const wag = Math.sin(timeSec * 6 + p.walkPhase) * 4;
-    ctx.strokeStyle = '#92400e';
-    ctx.lineWidth = 5;
+    // 1. Curved Monkey Tail with secondary spring motion
+    const wag = Math.sin(timeSec * (isMoving ? 10 : 4.2) + seed) * 5 + (isMoving ? -3 : 0);
     ctx.lineCap = 'round';
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 8;
     ctx.beginPath();
-    ctx.moveTo(-14, 8);
-    ctx.quadraticCurveTo(-26, 2 + wag, -22, -10 + wag);
+    ctx.moveTo(-13, 10);
+    ctx.bezierCurveTo(-26, 8 + wag * 0.4, -30, -8 + wag, -21, -13 + wag * 0.7);
     ctx.stroke();
+    ctx.strokeStyle = fur.fur;
+    ctx.lineWidth = 4.5;
+    ctx.stroke();
+    // Tail tip highlight
+    ctx.fillStyle = fur.maskShade;
+    ctx.beginPath();
+    ctx.arc(-21, -13 + wag * 0.7, 2.3, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Backpack
+    // 2. Back Arm (subtle swing behind backpack/body)
+    const armSwing = isMoving ? Math.sin(p.walkPhase) * 6 : Math.sin(timeSec * 2.5 + seed) * 1.2;
     ctx.fillStyle = p.color.dark;
     ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2.6;
     ctx.beginPath();
-    ctx.roundRect(-21, -8, 10, 22, 5);
+    ctx.ellipse(10 + armSwing * 0.5, 4, 6.5, 4.5, 0.35, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // Monkey Ears
-    ctx.fillStyle = '#b45309';
+    // 3. Oxygen Backpack with gradient & metallic detail
+    const packGrad = ctx.createLinearGradient(-23, -10, -11, 14);
+    packGrad.addColorStop(0, p.color.body);
+    packGrad.addColorStop(1, p.color.dark);
+    ctx.fillStyle = packGrad;
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2.8;
     ctx.beginPath();
-    ctx.arc(-13, -14, 6.5, 0, Math.PI * 2);
-    ctx.arc(13, -14, 6.5, 0, Math.PI * 2);
+    ctx.roundRect(-23, -10, 11, 24, 5);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = '#fde68a';
-    ctx.beginPath();
-    ctx.arc(-13, -14, 3, 0, Math.PI * 2);
-    ctx.arc(13, -14, 3, 0, Math.PI * 2);
-    ctx.fill();
+    // Tank top cap
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillRect(-20, -13, 5, 3);
+    ctx.strokeRect(-20, -13, 5, 3);
 
-    // Legs (only if alive)
+    // 4. Back Ear (slightly behind head)
+    const earBob = isMoving ? Math.sin(p.walkPhase * 2) * 1.1 : 0;
+    this.drawMonkeyEar(ctx, 14, -14 - earBob, 7.2, fur.fur, fur.earInner);
+
+    // 5. Legs / Ghost Tail
     if (p.alive) {
-      const legOff = isMoving ? Math.sin(p.walkPhase) * 4 : 0;
-      ctx.fillStyle = p.color.dark;
+      const legOff = isMoving ? Math.sin(p.walkPhase) * 4.5 : 0;
+      const bootGrad = ctx.createLinearGradient(0, 10, 0, 22);
+      bootGrad.addColorStop(0, p.color.body);
+      bootGrad.addColorStop(1, p.color.dark);
+      ctx.fillStyle = bootGrad;
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2.8;
+      // Back leg
       ctx.beginPath();
-      ctx.roundRect(-12, 10 + legOff, 9, 11, 4);
-      ctx.roundRect(3, 10 - legOff, 9, 11, 4);
+      ctx.roundRect(2, 10 - legOff, 9.5, 11, 4.5);
+      ctx.fill();
+      ctx.stroke();
+      // Front leg
+      ctx.beginPath();
+      ctx.roundRect(-11.5, 10 + legOff, 9.5, 11, 4.5);
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      // Ghostly wispy tail bottom
+      const wisp = Math.sin(timeSec * 6 + seed) * 3;
+      ctx.fillStyle = p.color.dark;
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(-14, 10);
+      ctx.quadraticCurveTo(-8, 22 + wisp, -2, 15);
+      ctx.quadraticCurveTo(4, 23 - wisp, 10, 14);
+      ctx.quadraticCurveTo(15, 18, 15, 8);
+      ctx.closePath();
       ctx.fill();
       ctx.stroke();
     }
 
-    // Suit Body
+    // 6. Spacesuit Torso & Big Rounded Monkey Head Silhouette
+    const bodyGrad = ctx.createRadialGradient(-4, -14, 4, 0, -2, 26);
+    bodyGrad.addColorStop(0, '#ffffff');
+    bodyGrad.addColorStop(0.18, p.color.body);
+    bodyGrad.addColorStop(0.8, p.color.body);
+    bodyGrad.addColorStop(1, p.color.dark);
+    ctx.fillStyle = bodyGrad;
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    // Plump lower suit + slightly wider rounded helmet-head
+    ctx.moveTo(-14, 2);
+    ctx.bezierCurveTo(-16, -10, -17, -24, 0, -24);
+    ctx.bezierCurveTo(17, -24, 16, -10, 15, 2);
+    ctx.bezierCurveTo(15, 12, 11, 15, 0, 15);
+    ctx.bezierCurveTo(-11, 15, -14, 12, -14, 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Suit chest seam / belt accent
+    ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(-13, 6);
+    ctx.quadraticCurveTo(0, 9, 14, 6);
+    ctx.stroke();
+
+    // 7. Front Ear (with rosy pink inner ear)
+    this.drawMonkeyEar(ctx, -15, -14 - earBob, 7.6, fur.fur, fur.earInner);
+
+    // 8. Panoramic Space Helmet Visor + Monkey Heart/Peanut Face Inside
+    const vx = -4;
+    const vy = -17.5;
+    const vw = 23;
+    const vh = 17;
+    const visorGrad = ctx.createLinearGradient(vx, vy, vx + vw, vy + vh);
+    visorGrad.addColorStop(0, '#7dd3fc');
+    visorGrad.addColorStop(0.55, '#0284c7');
+    visorGrad.addColorStop(1, '#0c4a6e');
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(vx, vy, vw, vh, 8);
+    ctx.fillStyle = visorGrad;
+    ctx.fill();
+    ctx.clip();
+
+    // Heart/Peanut-shaped cream face mask inside the visor
+    const maskGrad = ctx.createLinearGradient(0, vy + 2, 0, vy + vh);
+    maskGrad.addColorStop(0, fur.mask);
+    maskGrad.addColorStop(1, fur.maskShade);
+    ctx.fillStyle = maskGrad;
+    ctx.strokeStyle = fur.furDark;
+    ctx.lineWidth = 1.2;
+    this.tracePeanutFacePath(ctx, 8.5, -8.5, 9.5, 7.5);
+    ctx.fill();
+    ctx.stroke();
+
+    // Blinking & Eye tracking
+    const blinkCycle = (timeSec * 0.9 + seed * 1.37) % 4.1;
+    const isBlinking = p.alive && blinkCycle > 3.94 && !sabotageActive;
+    const lookX = isMoving ? 1.1 : Math.sin(timeSec * 1.8 + seed) * 0.6;
+    const lookY = isMoving ? Math.sign(p.vy) * 0.7 : 0;
+    const isPanicked = sabotageActive && p.alive && p.role === 'crew';
+    const showImpSmirk = viewer.role === 'impostor' && p.role === 'impostor' && p.alive;
+
+    if (!p.alive) {
+      // Cute ghost eyes (wide glowing ovals)
+      ctx.fillStyle = '#e0f2fe';
+      ctx.beginPath();
+      ctx.arc(4.8, -9.5, 2.5, 0, Math.PI * 2);
+      ctx.arc(12.8, -9.5, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (isBlinking || p.scanning) {
+      // Happy curved closed eyes (blinking or scanning)
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.7;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(5.2, -8.8, 2.3, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(13.0, -8.8, 2.3, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
+    } else {
+      const eyeR = isPanicked ? 3.0 : 2.7;
+      for (const ex of [5.2, 13.0]) {
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        ctx.arc(ex, -9.5, eyeR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Pupil
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(ex + lookX * 0.9, -9.5 + lookY * 0.9, isPanicked ? 1.15 : 1.45, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Specular highlight
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(ex + lookX * 0.5 - 0.6, -10.3 + lookY * 0.5, 0.75, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Eyebrows & Mouth
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    if (showImpSmirk) {
+      // Mischievous angled eyebrows + confident grin
+      ctx.beginPath();
+      ctx.moveTo(2.8, -13.2);
+      ctx.lineTo(7.4, -12.0);
+      ctx.moveTo(15.2, -13.2);
+      ctx.lineTo(10.8, -12.0);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(9.2, -5.2, 2.8, 0.1, Math.PI * 0.85);
+      ctx.stroke();
+    } else if (isPanicked) {
+      // Worried eyebrows + open O mouth
+      ctx.beginPath();
+      ctx.moveTo(2.8, -12.0);
+      ctx.lineTo(7.0, -13.4);
+      ctx.moveTo(15.2, -12.0);
+      ctx.lineTo(11.0, -13.4);
+      ctx.stroke();
+      ctx.fillStyle = '#7f1d1d';
+      ctx.beginPath();
+      ctx.ellipse(9.1, -4.4, 2.1, 2.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Cute monkey nostrils + cheerful smile
+      ctx.fillStyle = fur.furDark;
+      ctx.beginPath();
+      ctx.arc(8.1, -6.5, 0.7, 0, Math.PI * 2);
+      ctx.arc(10.3, -6.5, 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(9.2, -5.2, 2.6, 0.2, Math.PI - 0.2);
+      ctx.stroke();
+    }
+
+    // Visor glass reflection streak
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.beginPath();
+    ctx.ellipse(5, -14.5, 6.5, 2.1, -0.15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Visor outer rim
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.roundRect(vx, vy, vw, vh, 8);
+    ctx.stroke();
+
+    // 9. Front Arm & Glove Hand
     ctx.fillStyle = p.color.body;
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.roundRect(-15, -20, 30, 34, 14);
+    ctx.ellipse(-6 - armSwing * 0.65, 5, 6.5, 4.4, -0.35, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-
-    // Glass Visor
-    ctx.fillStyle = '#38bdf8';
+    // Cute mitten thumb detail
+    ctx.fillStyle = p.color.dark;
     ctx.beginPath();
-    ctx.roundRect(-2, -13, 20, 13, 6);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.65)';
-    ctx.beginPath();
-    ctx.ellipse(6, -9, 6, 2.2, 0, 0, Math.PI * 2);
+    ctx.arc(-2 - armSwing * 0.65, 3.6, 2.1, 0, Math.PI * 2);
     ctx.fill();
 
-    // Googly eyes inside visor
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(5, -6, 2.6, 0, Math.PI * 2);
-    ctx.arc(13, -6, 2.6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#0f172a';
-    ctx.beginPath();
-    ctx.arc(5.8, -6, 1.3, 0, Math.PI * 2);
-    ctx.arc(13.8, -6, 1.3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Hat
+    // 10. Hat with slight secondary bounce
+    ctx.save();
+    ctx.translate(0, -3 + (isMoving ? Math.sin(p.walkPhase * 2 - 0.5) * 1.2 : 0));
     this.drawHat(ctx, p.hat);
+    ctx.restore();
+
+    // Ghost halo
+    if (!p.alive) {
+      ctx.strokeStyle = '#bae6fd';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.ellipse(0, -31, 10, 3.2, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
 
     ctx.restore();
 
@@ -727,70 +986,150 @@ export class GameRenderer {
     ctx.textAlign = 'center';
     ctx.lineWidth = 3;
     ctx.strokeStyle = '#020617';
-    ctx.strokeText(p.name, 0, -30);
+    ctx.strokeText(p.name, 0, -34);
     ctx.fillStyle = showRed ? '#f87171' : p.alive ? '#f8fafc' : '#94a3b8';
-    ctx.fillText(p.name, 0, -30);
+    ctx.fillText(p.name, 0, -34);
 
     if (p.scanning) {
       ctx.fillStyle = '#4ade80';
       ctx.font = '800 10px system-ui, sans-serif';
-      ctx.fillText('ESCANER OK!', 0, -44);
+      ctx.fillText('ESCANER OK!', 0, -48);
     }
 
     ctx.restore();
   }
 
+  private drawMonkeyEar(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    r: number,
+    furColor: string,
+    innerColor: string,
+  ): void {
+    ctx.fillStyle = furColor;
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = innerColor;
+    ctx.beginPath();
+    ctx.arc(x, y + 0.4, r * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  private tracePeanutFacePath(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    rx: number,
+    ry: number,
+  ): void {
+    // Heart-top eye lobes + rounded lower cheek muzzle
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - ry * 0.42);
+    ctx.bezierCurveTo(cx + rx * 0.45, cy - ry * 1.15, cx + rx * 1.08, cy - ry * 0.55, cx + rx * 0.85, cy + ry * 0.08);
+    ctx.bezierCurveTo(cx + rx * 1.05, cy + ry * 0.65, cx + rx * 0.5, cy + ry * 1.05, cx, cy + ry * 0.95);
+    ctx.bezierCurveTo(cx - rx * 0.5, cy + ry * 1.05, cx - rx * 1.05, cy + ry * 0.65, cx - rx * 0.85, cy + ry * 0.08);
+    ctx.bezierCurveTo(cx - rx * 1.08, cy - ry * 0.55, cx - rx * 0.45, cy - ry * 1.15, cx, cy - ry * 0.42);
+    ctx.closePath();
+  }
+
   private drawHat(ctx: CanvasRenderingContext2D, hat: HatId): void {
     ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2.4;
     switch (hat) {
       case 'banana': {
-        ctx.fillStyle = '#facc15';
+        const g = ctx.createLinearGradient(-10, -34, 12, -20);
+        g.addColorStop(0, '#fef08a');
+        g.addColorStop(0.65, '#facc15');
+        g.addColorStop(1, '#ca8a04');
+        ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.moveTo(-10, -20);
-        ctx.quadraticCurveTo(0, -36, 12, -20);
+        ctx.moveTo(-11, -20);
+        ctx.quadraticCurveTo(-2, -39, 13, -20);
+        ctx.quadraticCurveTo(0, -24, -11, -20);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+        ctx.fillStyle = '#78350f';
+        ctx.beginPath();
+        ctx.arc(0, -31, 2.2, 0, Math.PI * 2);
+        ctx.fill();
         break;
       }
       case 'crown': {
-        ctx.fillStyle = '#fbbf24';
+        const g = ctx.createLinearGradient(0, -36, 0, -19);
+        g.addColorStop(0, '#fef08a');
+        g.addColorStop(1, '#d97706');
+        ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.moveTo(-10, -19);
-        ctx.lineTo(-12, -31);
-        ctx.lineTo(-4, -24);
-        ctx.lineTo(0, -34);
-        ctx.lineTo(4, -24);
-        ctx.lineTo(12, -31);
-        ctx.lineTo(10, -19);
+        ctx.moveTo(-11, -19);
+        ctx.lineTo(-13, -32);
+        ctx.lineTo(-4, -25);
+        ctx.lineTo(0, -36);
+        ctx.lineTo(4, -25);
+        ctx.lineTo(13, -32);
+        ctx.lineTo(11, -19);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(0, -24, 2.2, 0, Math.PI * 2);
+        ctx.fill();
         break;
       }
       case 'cap': {
-        ctx.fillStyle = '#ef4444';
+        const g = ctx.createLinearGradient(-12, -32, 12, -18);
+        g.addColorStop(0, '#f87171');
+        g.addColorStop(1, '#b91c1c');
+        ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.arc(0, -18, 12, Math.PI, 0);
-        ctx.lineTo(18, -18);
+        ctx.arc(0, -19, 13, Math.PI, 0);
+        ctx.lineTo(19, -19);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.arc(-2, -25, 2.8, 0, Math.PI * 2);
+        ctx.fill();
         break;
       }
       case 'leaf': {
-        ctx.fillStyle = '#22c55e';
+        ctx.strokeStyle = '#14532d';
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.ellipse(2, -25, 11, 5, -0.35, 0, Math.PI * 2);
+        ctx.moveTo(-1, -20);
+        ctx.quadraticCurveTo(1, -26, 4, -28);
+        ctx.stroke();
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2.2;
+        ctx.fillStyle = '#4ade80';
+        ctx.beginPath();
+        ctx.ellipse(5, -27, 11, 5, -0.35, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
         break;
       }
       case 'visor_band': {
         ctx.fillStyle = '#dc2626';
-        ctx.fillRect(-15, -19, 30, 5);
-        ctx.strokeRect(-15, -19, 30, 5);
+        ctx.beginPath();
+        ctx.roundRect(-16, -21, 32, 6, 3);
+        ctx.fill();
+        ctx.stroke();
+        // Flowing ninja tails on the back
+        ctx.beginPath();
+        ctx.moveTo(-15, -18);
+        ctx.lineTo(-24, -22);
+        ctx.lineTo(-21, -14);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
         break;
       }
       case 'none':
@@ -888,22 +1227,50 @@ export class GameRenderer {
   }
 }
 
+function hashMonkeySeed(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) {
+    h = (h * 31 + id.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h % 100) * 0.17;
+}
+
 export function drawMonkeyAvatar(
   color: MonkeyColorSpec,
   hat: HatId,
   size = 34,
 ): string {
-  const hatEmoji =
+  const hatSvg =
     hat === 'banana'
-      ? '🍌'
+      ? `<path d="M13 13 C16 2, 28 2, 31 13 Q22 10 13 13 Z" fill="#facc15" stroke="#0f172a" stroke-width="2"/>`
       : hat === 'crown'
-        ? '👑'
+        ? `<polygon points="13,13 11,4 18,9 22,2 26,9 33,4 31,13" fill="#fbbf24" stroke="#0f172a" stroke-width="2"/>`
         : hat === 'cap'
-          ? '🧢'
+          ? `<path d="M12 14 A10 10 0 0 1 32 14 L38 14 Z" fill="#ef4444" stroke="#0f172a" stroke-width="2"/>`
           : hat === 'leaf'
-            ? '🌿'
+            ? `<ellipse cx="26" cy="9" rx="7" ry="3.5" transform="rotate(-20 26 9)" fill="#4ade80" stroke="#0f172a" stroke-width="1.8"/>`
             : hat === 'visor_band'
-              ? '🥷'
+              ? `<rect x="10" y="11" width="24" height="4.5" rx="2" fill="#dc2626" stroke="#0f172a" stroke-width="1.6"/>`
               : '';
-  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:999px;background:${color.body};border:2px solid #0f172a;font-size:${Math.floor(size * 0.5)}px;position:relative;flex-shrink:0;">🐒${hatEmoji ? `<span style="position:absolute;top:-7px;font-size:${Math.floor(size * 0.4)}px;">${hatEmoji}</span>` : ''}</span>`;
+
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;position:relative;flex-shrink:0;">
+    <svg viewBox="0 0 44 44" width="${size}" height="${size}" style="overflow:visible;">
+      <circle cx="9" cy="20" r="6" fill="#b45309" stroke="#0f172a" stroke-width="2.4"/>
+      <circle cx="9" cy="20" r="3.2" fill="#fda4af"/>
+      <circle cx="35" cy="20" r="6" fill="#b45309" stroke="#0f172a" stroke-width="2.4"/>
+      <circle cx="35" cy="20" r="3.2" fill="#fda4af"/>
+      <rect x="10" y="10" width="24" height="28" rx="12" fill="${color.body}" stroke="#0f172a" stroke-width="2.6"/>
+      <rect x="13" y="14" width="22" height="14" rx="7" fill="#0284c7" stroke="#0f172a" stroke-width="2.2"/>
+      <path d="M24 17 C27 14, 32 16, 31 20 C32 24, 27 27, 24 26 C21 27, 16 24, 17 20 C16 16, 21 14, 24 17 Z" fill="#fde68a"/>
+      <circle cx="21" cy="20" r="2.2" fill="#fff" stroke="#0f172a" stroke-width="0.9"/>
+      <circle cx="21.5" cy="20" r="1.1" fill="#0f172a"/>
+      <circle cx="20.8" cy="19.4" r="0.5" fill="#fff"/>
+      <circle cx="27" cy="20" r="2.2" fill="#fff" stroke="#0f172a" stroke-width="0.9"/>
+      <circle cx="27.5" cy="20" r="1.1" fill="#0f172a"/>
+      <circle cx="26.8" cy="19.4" r="0.5" fill="#fff"/>
+      <path d="M21.5 23.5 Q24 25.5 26.5 23.5" fill="none" stroke="#0f172a" stroke-width="1.3" stroke-linecap="round"/>
+      <ellipse cx="19" cy="16.5" rx="4" ry="1.3" fill="#fff" opacity="0.5"/>
+      ${hatSvg}
+    </svg>
+  </span>`;
 }
