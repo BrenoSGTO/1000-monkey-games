@@ -1,0 +1,26 @@
+{
+  "slug": "monkey-pvz",
+  "title": "Bananeiras vs Gorilas Zumbis",
+  "subtitle": "Defenda o quintal do macaco plantando bananeiras, cocos e mandiocas contra a gorilada zumbi!",
+  "inspiredBy": "Plants vs. Zombies",
+  "description": "Lane defense em grade 5x9 com 10 plantas, 9 tipos de Gorilas Zumbis (do cone ao Gorilão Chefe), aparadores de grama-macaco, 12 fases com desbloqueio progressivo, Esteira Maluca e Sobrevivência Infinita. Co-op P2P dividindo as linhas e as bananas ou Versus: um planta, o outro manda zumbis com cérebros-banana!",
+  "category": "estrategia",
+  "tags": ["lane-defense", "plantas", "gorilas", "zumbis", "coop", "versus", "estrategia", "caos"],
+  "emoji": "🌱",
+  "accentColor": "#84cc16",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop-versus",
+    "maxPlayers": 2,
+    "summary": "Co-op P2P (2 jogadores dividem as linhas e o banco de bananas) ou Versus: um planta, o outro manda gorilas zumbis gastando cérebros-banana."
+  },
+  "controls": [
+    "Clique (ou toque) numa semente da bandeja, ou aperte 1-9/0, e clique no gramado para plantar",
+    "Clique/toque nas bananas que caem do céu para coletar (no mouse, basta passar por cima)",
+    "Pá (tecla S): clique numa planta para arrancá-la; Espaço pausa; F acelera o jogo",
+    "Versus: escolha o zumbi na bandeja e clique na linha onde ele deve entrar; Esc cancela a seleção"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
