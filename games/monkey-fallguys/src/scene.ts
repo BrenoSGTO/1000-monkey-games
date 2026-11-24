@@ -576,6 +576,7 @@ export function drawWorldObjects(ctx: CanvasRenderingContext2D, w: World, time: 
     ctx.textAlign = 'center';
     ctx.fillText('PORTAS DA SORTE', g.x + 15, -40);
   }
+  drawHazards(ctx, w, time, x0, x1);
 }
 
 export function drawPlatforms(ctx: CanvasRenderingContext2D, w: World, time: number, x0: number, x1: number): void {
