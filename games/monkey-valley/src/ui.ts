@@ -58,7 +58,7 @@ const CSS = `
 #vl-tip{position:fixed;left:50%;bottom:66px;transform:translateX(-50%);background:rgba(43,26,18,.88);color:#fff2c0;padding:3px 10px;border-radius:8px;font-weight:700;font-size:13px;opacity:0;transition:opacity .3s}
 #vl-quest{position:fixed;top:10px;left:50%;transform:translateX(-50%);padding:5px 14px;font-size:13px;font-weight:700;max-width:min(520px,52vw);text-align:center}
 #vl-quest b{color:#c0502a}
-.vl .overlay{position:fixed;inset:0;background:rgba(20,10,0,.55);display:flex;align-items:center;justify-content:center;pointer-events:auto;z-index:30}
+.vl .overlay{position:fixed;inset:0;background:rgba(20,10,0,.55);display:flex;align-items:center;justify-content:center;pointer-events:auto;z-index:35}
 .vl .modal{max-width:96vw;max-height:92vh;overflow:auto;padding:14px 18px;position:relative;min-width:min(520px,94vw)}
 .vl .modal h2{margin:0 0 8px;font-size:22px;color:#6b3f1d}
 .vl .x{position:absolute;right:8px;top:6px;background:#d4553f;color:#fff;border:2px solid #8f2e1f;border-radius:8px;font-weight:900;width:30px;height:30px;cursor:pointer}
@@ -80,7 +80,7 @@ const CSS = `
 #vl-dlg .ch{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 #vl-dlg .nx{position:absolute;right:16px;bottom:8px;font-size:18px;animation:vlb .6s infinite alternate}
 @keyframes vlb{to{transform:translateY(4px)}}
-#vl-title{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:radial-gradient(ellipse at center,rgba(255,240,170,.15),rgba(20,40,10,.65));pointer-events:auto;z-index:35;text-align:center}
+#vl-title{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:radial-gradient(ellipse at center,rgba(255,240,170,.15),rgba(20,40,10,.65));pointer-events:auto;z-index:25;text-align:center}
 #vl-title h1{margin:0;font-size:min(72px,12vw);color:#ffe45a;text-shadow:0 5px 0 #b8541a,0 8px 0 #6b3f1d,0 0 30px rgba(255,220,80,.6);letter-spacing:2px;line-height:1}
 #vl-title h2{margin:0;font-size:min(30px,6vw);color:#fff7d0;text-shadow:0 3px 0 #6b3f1d,0 0 14px #000}
 #vl-title .sm{color:#fff;font-weight:700;text-shadow:0 2px 3px #000;max-width:560px;font-size:14px}
@@ -321,7 +321,7 @@ export function closeModal(): void {
     modalClose = null;
     cb?.();
   }
-  if (S.mode === 'modal' && !dlgEl && !titleEl) S.mode = 'play';
+  if (S.mode === 'modal' && !dlgEl) S.mode = titleEl ? 'title' : 'play';
 }
 
 function openModal(title: string, content: HTMLElement, onClose?: () => void, noX = false): HTMLElement {
@@ -791,7 +791,7 @@ export function closeDialogue(callEnd: boolean): void {
   dlgEl?.remove();
   dlgEl = null;
   dlg = null;
-  if (S.mode === 'modal' && !modalEl && !titleEl) S.mode = 'play';
+  if (S.mode === 'modal' && !modalEl) S.mode = titleEl ? 'title' : 'play';
   if (callEnd) onEnd?.();
 }
 
@@ -879,14 +879,23 @@ export function showCreator(): void {
   const go = el('button', 'btn big', '🌾 Começar a roça!');
   go.style.display = 'block';
   go.style.margin = '12px auto 0';
-  go.onclick = () => {
+  const submit = () => {
     sfx('coin');
+    hideTitle();
     closeModal();
     H.startNew(name.value.trim() || 'Zé Banana', fi, si);
   };
+  go.onclick = submit;
+  name.onkeydown = (e) => {
+    if (e.key === 'Enter') submit();
+  };
   d.appendChild(go);
   render();
-  openModal('Crie seu macaco', d);
+  if (titleEl) titleEl.style.display = 'none';
+  openModal('Crie seu macaco', d, () => {
+    if (titleEl) titleEl.style.display = 'flex';
+  });
+  requestAnimationFrame(() => name.focus());
 }
 
 export function uiReset(): void {
