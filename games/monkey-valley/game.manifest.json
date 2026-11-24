@@ -1,0 +1,28 @@
+{
+  "slug": "monkey-valley",
+  "title": "Bananal Valley: A Roça do Macaco",
+  "subtitle": "Herde a roça do Vovô, plante bananas, pesque, minere e conquiste a Vila Bananal!",
+  "inspiredBy": "Stardew Valley",
+  "description": "Farming sim aconchegante top-down! Você herdou a roça do Vovô Macaco em Vila Bananal: are a terra, plante banana, mandioca, açaí, caju e abóbora, regue, colha, crie galinhas e cabras-macaco, pesque no rio e no mar com minigame, desça na mina atrás de cobre, ferro e ouro, melhore suas ferramentas, venda na caixa de entrega e faça amizade com 6 macacos da vila (cada um com seus corações e diálogos zoeiros). Ciclo de dia e noite, 4 estações, chuva, neve e save automático. Jogue Solo ou Co-op P2P com 2 a 4 fazendeiros na mesma roça!",
+  "category": "simulacao",
+  "tags": ["fazenda", "farming", "relaxante", "pesca", "mina", "coop", "life-sim"],
+  "emoji": "🌾",
+  "accentColor": "#84cc16",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop",
+    "maxPlayers": 4,
+    "summary": "Co-op Online P2P para 2 a 4 fazendeiros na mesma roça: host autoritativo do mundo (plantações, relógio, animais), inventário próprio e dinheiro compartilhado."
+  },
+  "controls": [
+    "WASD / Setas: Andar • Shift: Correr",
+    "Espaço / J / Clique: Usar ferramenta ou item na frente (arar, regar, plantar, cortar, minerar, pescar)",
+    "E: Interagir (conversar, portas, caixa de entrega, animais, cama) • F: Presentear / Comer",
+    "1 a 9, 0, -, = ou Scroll / Q-R: Escolher item da barra • Tab / I: Mochila • Esc: Pausa e Salvar",
+    "Pesca: Espaço para fisgar e segure Espaço para subir a barra verde",
+    "Celular: joystick virtual e botões na tela"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
