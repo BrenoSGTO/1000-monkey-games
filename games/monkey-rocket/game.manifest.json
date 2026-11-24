@@ -1,0 +1,27 @@
+{
+  "slug": "monkey-rocket",
+  "title": "Rocket Macaco League",
+  "subtitle": "Futebol de Fusca",
+  "inspiredBy": "Rocket League",
+  "description": "Macacos pilotando Fusca, Kombi, Brasília e Uno com escada num futebol de carros 2D: turbo de guaraná, pulo duplo, flip, parede e teto, bola gigante de coco, gols com chuva de bananas, replay na hora e torcida de macacos. Solo vs Bot, 2P no mesmo teclado ou online P2P até 4.",
+  "category": "arcade",
+  "tags": ["futebol", "carros", "fisica", "box2d", "turbo", "co-op", "versus", "online", "2v2"],
+  "emoji": "🚗",
+  "accentColor": "#38bdf8",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop-versus",
+    "maxPlayers": 4,
+    "summary": "1v1 e 2v2: Solo vs Bot, 2P Local no mesmo teclado (versus ou co-op contra bots) e Online P2P até 4 jogadores com host autoritativo"
+  },
+  "controls": [
+    "A/D ou ←/→: andar (no ar: girar o carro)",
+    "W, ↑ ou Espaço: pular (de novo no ar: pulo duplo; com direção: flip)",
+    "Shift, S, ↓ ou X: turbo de guaraná",
+    "2P Local — P1: A/D + W + S/Shift esq. · P2: ←/→ + ↑ + ↓/Enter",
+    "Esc ou P: pausar · Celular: botões na tela"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
