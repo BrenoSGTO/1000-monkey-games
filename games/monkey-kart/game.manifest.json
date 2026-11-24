@@ -1,0 +1,26 @@
+{
+  "slug": "monkey-kart",
+  "title": "Mico Kart: Corrida da Casca",
+  "subtitle": "Kart racer pseudo-3D com 8 macacos pilotos, drift com mini-turbo, 6 itens e Grand Prix!",
+  "inspiredBy": "Mario Kart",
+  "description": "Pilote o seu kart em pseudo-3D estilo Mode-7 contra 7 macacos malucos em 4 pistas com atalhos (Selva Encharcada, Favela Ladeira, Praia do Coco e Estação Espacial Banana). Derrape para carregar o mini-turbo (faíscas azuis, laranjas e roxas), pegue caixas-banana e use a Casca de Banana, o Coco Teleguiado, o Enxame de Marimbondos, o Turbo de Guaraná, o Chinelo Voador e a Nuvem de Pum — os itens ficam mais fortes quanto pior você estiver! 3 voltas, Grand Prix com pontos, Solo vs CPUs em 3 dificuldades, 2P local em tela dividida e corrida online P2P para até 6 jogadores (host autoritativo, com interpolação e previsão).",
+  "category": "arcade",
+  "tags": ["corrida", "kart", "itens", "drift", "pseudo-3d", "multiplayer", "2p-local", "grand-prix"],
+  "emoji": "🏎️",
+  "accentColor": "#facc15",
+  "multiplayer": {
+    "supported": true,
+    "mode": "versus",
+    "maxPlayers": 6,
+    "summary": "Corrida online P2P para até 6 jogadores (host autoritativo + interpolação), com CPUs completando o grid de 8, Grand Prix sincronizado e modo 2P local em tela dividida."
+  },
+  "controls": [
+    "Solo / Online: W A S D ou setas = acelerar, ré e virar • Shift (ou X) = drift: segure e vire para carregar o mini-turbo • Espaço (ou Z) = usar item",
+    "2P Local (tela dividida): P1 = WASD + Q (drift) + E (item) • P2 = setas + . ou Shift direito (drift) + / ou Enter (item)",
+    "Controle (gamepad): A acelera, B ré, RB/LB drift, X/Y item • Celular: botões na tela",
+    "Largada: aperte acelerar só no \"2\" do 3-2-1 para largar queimando • R: reiniciar • P / Esc: pausar"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}

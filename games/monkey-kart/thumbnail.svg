@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0ea5e9" />
+      <stop offset="70%" stop-color="#bae6fd" />
+      <stop offset="100%" stop-color="#fef3c7" />
+    </linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6b7280" />
+      <stop offset="100%" stop-color="#374151" />
+    </linearGradient>
+    <linearGradient id="grass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4ade80" />
+      <stop offset="100%" stop-color="#15803d" />
+    </linearGradient>
+    <linearGradient id="title" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff7ae" />
+      <stop offset="50%" stop-color="#facc15" />
+      <stop offset="100%" stop-color="#f97316" />
+    </linearGradient>
+    <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#fffbe0" />
+      <stop offset="100%" stop-color="#fde047" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <rect width="640" height="360" fill="url(#sky)" />
+  <circle cx="500" cy="80" r="70" fill="url(#sun)" />
+  <ellipse cx="120" cy="70" rx="60" ry="18" fill="#fff" opacity="0.85" />
+  <ellipse cx="170" cy="62" rx="40" ry="14" fill="#fff" opacity="0.85" />
+  <ellipse cx="420" cy="100" rx="50" ry="14" fill="#fff" opacity="0.7" />
+  <path d="M0 175 Q80 120 170 165 T340 150 T520 160 T640 140 L640 190 L0 190 Z" fill="#2f8f5a" />
+  <path d="M0 190 Q100 150 200 185 T420 175 T640 170 L640 200 L0 200 Z" fill="#1f6b3d" />
+
+  <!-- ground / mode7 style road -->
+  <rect y="190" width="640" height="170" fill="url(#grass)" />
+  <polygon points="300,190 340,190 640,360 0,360" fill="url(#road)" />
+  <polygon points="300,190 308,190 120,360 0,360" fill="#ef4444" opacity="0.0" />
+  <g stroke="#f8fafc" stroke-width="3" opacity="0.9">
+    <polyline points="320,194 320,206" />
+    <polyline points="320,214 320,236" />
+    <polyline points="320,250 320,290" />
+    <polyline points="320,310 320,360" stroke-width="8" />
+  </g>
+  <!-- kerbs -->
+  <polygon points="292,190 300,190 0,360 -60,360" fill="#ef4444" />
+  <polygon points="340,190 348,190 700,360 640,360" fill="#f8fafc" />
+  <g fill="#111827" opacity="0.7">
+    <polygon points="296,190 300,190 150,275 120,275" />
+  </g>
+
+  <!-- item boxes -->
+  <g>
+    <rect x="256" y="228" width="30" height="30" rx="6" fill="#fde047" stroke="#78350f" stroke-width="3" />
+    <text x="271" y="251" font-family="system-ui,sans-serif" font-weight="900" font-size="22" text-anchor="middle" fill="#7c2d12">?</text>
+    <rect x="352" y="236" width="26" height="26" rx="5" fill="#fde047" stroke="#78350f" stroke-width="3" />
+    <text x="365" y="257" font-family="system-ui,sans-serif" font-weight="900" font-size="19" text-anchor="middle" fill="#7c2d12">?</text>
+  </g>
+
+  <!-- banana peel on road -->
+  <g transform="translate(398 300)">
+    <ellipse cx="0" cy="12" rx="28" ry="7" fill="#000" opacity="0.25" />
+    <path d="M-4 8 Q-30 -6 -26 -20 Q-14 -8 -2 2Z" fill="#facc15" stroke="#a16207" stroke-width="2" />
+    <path d="M4 8 Q30 -6 26 -20 Q14 -8 2 2Z" fill="#facc15" stroke="#a16207" stroke-width="2" />
+    <path d="M0 8 Q0 -14 0 -26 Q-6 -10 -2 4Z" fill="#fde047" stroke="#a16207" stroke-width="2" />
+  </g>
+
+  <!-- kart 1 (hero, from behind) -->
+  <g transform="translate(300 300)">
+    <ellipse cx="0" cy="26" rx="70" ry="14" fill="#000" opacity="0.32" />
+    <!-- wheels -->
+    <rect x="-66" y="-2" width="24" height="36" rx="6" fill="#1f2937" />
+    <rect x="42" y="-2" width="24" height="36" rx="6" fill="#1f2937" />
+    <!-- body -->
+    <path d="M-58 -2 L58 -2 L48 -28 L-48 -28 Z" fill="#facc15" stroke="#a16207" stroke-width="3" />
+    <rect x="-52" y="-4" width="104" height="16" rx="6" fill="#ca8a04" />
+    <rect x="-40" y="-36" width="80" height="16" rx="4" fill="#fde047" stroke="#a16207" stroke-width="3" />
+    <!-- exhaust flames -->
+    <path d="M-30 12 Q-34 30 -22 40 Q-20 26 -14 14Z" fill="#fb923c" />
+    <path d="M30 12 Q34 30 22 40 Q20 26 14 14Z" fill="#fb923c" />
+    <path d="M-26 14 Q-27 26 -22 32 Q-20 24 -18 15Z" fill="#fde047" />
+    <path d="M26 14 Q27 26 22 32 Q20 24 18 15Z" fill="#fde047" />
+    <!-- monkey -->
+    <circle cx="-26" cy="-72" r="13" fill="#8b5a2b" stroke="#5e3a1a" stroke-width="3" />
+    <circle cx="26" cy="-72" r="13" fill="#8b5a2b" stroke="#5e3a1a" stroke-width="3" />
+    <circle cx="-26" cy="-72" r="7" fill="#e9a98a" />
+    <circle cx="26" cy="-72" r="7" fill="#e9a98a" />
+    <ellipse cx="0" cy="-58" rx="30" ry="32" fill="#a0692f" stroke="#5e3a1a" stroke-width="3" />
+    <path d="M-32 -82 Q0 -112 32 -82 Z" fill="#facc15" stroke="#a16207" stroke-width="3" />
+    <ellipse cx="0" cy="-62" rx="22" ry="20" fill="#f1c27d" />
+    <circle cx="-9" cy="-70" r="7" fill="#fff" stroke="#2a140c" stroke-width="2" />
+    <circle cx="9" cy="-70" r="7" fill="#fff" stroke="#2a140c" stroke-width="2" />
+    <circle cx="-5" cy="-69" r="3" fill="#111" />
+    <circle cx="5" cy="-69" r="3" fill="#111" />
+    <ellipse cx="0" cy="-50" rx="9" ry="8" fill="#5a0f1a" stroke="#3a1a10" stroke-width="2" />
+    <rect x="-5" y="-55" width="10" height="3" fill="#fff" />
+    <rect x="-26" y="-34" width="52" height="22" rx="10" fill="#8b5a2b" stroke="#5e3a1a" stroke-width="3" />
+  </g>
+
+  <!-- kart 2 (pink, far right) -->
+  <g transform="translate(470 235) scale(0.55)">
+    <ellipse cx="0" cy="26" rx="70" ry="14" fill="#000" opacity="0.3" />
+    <rect x="-66" y="-2" width="24" height="36" rx="6" fill="#1f2937" />
+    <rect x="42" y="-2" width="24" height="36" rx="6" fill="#1f2937" />
+    <path d="M-58 -2 L58 -2 L48 -28 L-48 -28 Z" fill="#f472b6" stroke="#be185d" stroke-width="4" />
+    <circle cx="0" cy="-58" r="30" fill="#d7b98e" stroke="#a98355" stroke-width="4" />
+    <circle cx="-9" cy="-62" r="7" fill="#fff" />
+    <circle cx="9" cy="-62" r="7" fill="#fff" />
+    <circle cx="-6" cy="-61" r="3" fill="#111" />
+    <circle cx="6" cy="-61" r="3" fill="#111" />
+    <path d="M22 -86 L44 -98 L44 -74Z M22 -86 L0 -98 L0 -74Z" fill="#ec4899" />
+    <line x1="48" y1="-10" x2="48" y2="-80" stroke="#e5e7eb" stroke-width="3" />
+    <path d="M48 -80 L74 -70 L48 -60Z" fill="#fde047" />
+  </g>
+
+  <!-- kart 3 (gorilla, far left) -->
+  <g transform="translate(150 240) scale(0.62)">
+    <ellipse cx="0" cy="26" rx="76" ry="14" fill="#000" opacity="0.3" />
+    <rect x="-72" y="-2" width="26" height="36" rx="6" fill="#1f2937" />
+    <rect x="46" y="-2" width="26" height="36" rx="6" fill="#1f2937" />
+    <path d="M-64 -2 L64 -2 L54 -28 L-54 -28 Z" fill="#64748b" stroke="#1e293b" stroke-width="4" />
+    <circle cx="0" cy="-58" r="32" fill="#2c313d" stroke="#14171f" stroke-width="4" />
+    <ellipse cx="0" cy="-86" rx="20" ry="14" fill="#14171f" />
+    <ellipse cx="0" cy="-54" rx="21" ry="19" fill="#4b5563" />
+    <circle cx="-9" cy="-62" r="6" fill="#fff" />
+    <circle cx="9" cy="-62" r="6" fill="#fff" />
+    <circle cx="-6" cy="-61" r="3" fill="#111" />
+    <circle cx="6" cy="-61" r="3" fill="#111" />
+    <path d="M-34 -78 Q0 -90 34 -78 L34 -72 L-34 -72Z" fill="#ef4444" />
+  </g>
+
+  <!-- speed streaks -->
+  <g stroke="#fff" stroke-width="3" opacity="0.5" stroke-linecap="round">
+    <line x1="20" y1="260" x2="80" y2="300" />
+    <line x1="560" y1="250" x2="620" y2="290" />
+    <line x1="30" y1="320" x2="70" y2="345" />
+    <line x1="590" y1="320" x2="620" y2="340" />
+  </g>
+
+  <!-- title -->
+  <g font-family="system-ui,'Segoe UI',sans-serif" font-weight="1000" text-anchor="middle">
+    <text x="322" y="68" font-size="60" fill="#7c2d12" transform="rotate(-3 322 68)">MICO KART</text>
+    <text x="320" y="64" font-size="60" fill="url(#title)" stroke="#7c2d12" stroke-width="2" paint-order="stroke" transform="rotate(-3 320 64)">MICO KART</text>
+    <text x="320" y="94" font-size="20" fill="#7c2d12" stroke="#fff7ae" stroke-width="3" paint-order="stroke">🍌 Corrida da Casca 🍌</text>
+  </g>
+</svg>
