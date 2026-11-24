@@ -1,0 +1,27 @@
+{
+  "slug": "monkey-smash",
+  "title": "Super Smash Macacos: Briga na Bananeira",
+  "subtitle": "Platform fighter com % de dano, knockback e KO na blast zone — até 4 macacos!",
+  "inspiredBy": "Super Smash Bros. & Brawlhalla",
+  "description": "6 lutadores macacos 100% originais (Mestre Prego, Gorila Marombeiro, Mico Hacker, Vovó Orangotango, Ninja de Chinelo e Bugio Sertanejo), cada um com moveset próprio: ataques leves e fortes direcionais, aéreos, especiais, defesa, esquiva, agarrar e arremessar. Quanto mais % de dano, mais longe você voa! 4 arenas com plataformas passáveis e perigos dinâmicos (gêiseres de lava, elevador, canhões de circo), itens caindo do céu (Banana-Bomba, Martelo de Coco, Cacho de Bananas) e bots com 3 dificuldades. Solo, 2P Local ou Online P2P até 4 jogadores.",
+  "category": "acao",
+  "tags": ["luta", "platform-fighter", "smash", "versus", "pvp", "bots", "multiplayer", "party"],
+  "emoji": "🥊",
+  "accentColor": "#f59e0b",
+  "multiplayer": {
+    "supported": true,
+    "mode": "versus",
+    "maxPlayers": 4,
+    "summary": "Solo vs Bots (fácil/médio/difícil), 2P Local no mesmo teclado e Online P2P de até 4 jogadores (host autoritativo com predição e interpolação) — modos Estoque e Tempo."
+  },
+  "controls": [
+    "A / D (ou Setas): Mover | W / Espaço: Pular e pulo duplo | S: descer plataforma / queda rápida",
+    "F ou J: Ataque leve (+ direção: cima, baixo, frente | no ar: aéreos)",
+    "G ou K: Ataque forte / smash | H ou L: Golpe especial (+ direção muda o especial)",
+    "T, I ou Shift: Defesa (+ ←/→ rola, + ↓ esquiva) | R ou O: Agarrar e arremessar",
+    "2P Local: P1 = WASD + F G H T R | P2 = Setas + , . / ; ' | Esc: pausa"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}

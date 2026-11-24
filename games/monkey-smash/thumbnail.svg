@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7dd3fc" />
+      <stop offset="60%" stop-color="#fdba74" />
+      <stop offset="100%" stop-color="#f472b6" />
+    </linearGradient>
+    <radialGradient id="burst" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="40%" stop-color="#fde047" />
+      <stop offset="100%" stop-color="#fde047" stop-opacity="0" />
+    </radialGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="0" flood-color="#1a1209" />
+    </filter>
+  </defs>
+  <rect width="640" height="360" fill="url(#sky)" />
+  <g opacity="0.55" fill="#ffffff">
+    <ellipse cx="90" cy="70" rx="60" ry="22" /><ellipse cx="130" cy="62" rx="40" ry="18" />
+    <ellipse cx="520" cy="50" rx="55" ry="20" /><ellipse cx="560" cy="58" rx="36" ry="15" />
+  </g>
+  <!-- giant banana tree trunk + platform -->
+  <path d="M250 270 L390 270 L372 360 L268 360 Z" fill="#7c4a1d" />
+  <rect x="120" y="250" width="400" height="34" rx="17" fill="#92541f" stroke="#1a1209" stroke-width="4" />
+  <rect x="116" y="242" width="408" height="16" rx="8" fill="#22c55e" stroke="#1a1209" stroke-width="3" />
+  <rect x="150" y="160" width="90" height="12" rx="6" fill="#fde047" stroke="#1a1209" stroke-width="3" />
+  <rect x="400" y="160" width="90" height="12" rx="6" fill="#fde047" stroke="#1a1209" stroke-width="3" />
+  <!-- impact burst -->
+  <circle cx="320" cy="168" r="90" fill="url(#burst)" />
+  <polygon points="320,100 336,150 388,138 352,176 392,210 338,200 320,250 302,200 248,210 288,176 252,138 304,150" fill="#fb7185" stroke="#1a1209" stroke-width="4" stroke-linejoin="round" />
+  <!-- left monkey (capoeirista) kicking -->
+  <g transform="translate(200 196) rotate(-8)" filter="url(#sh)">
+    <path d="M-34 30 L-8 6 L14 8 L8 34 Z" fill="#f8fafc" stroke="#1a1209" stroke-width="3" />
+    <path d="M8 14 L66 -8 L74 6 L16 34 Z" fill="#f8fafc" stroke="#1a1209" stroke-width="3" />
+    <circle cx="76" cy="-2" r="8" fill="#5c3a1a" stroke="#1a1209" stroke-width="3" />
+    <rect x="-18" y="-34" width="36" height="46" rx="16" fill="#8b5a2b" stroke="#1a1209" stroke-width="3" />
+    <rect x="-18" y="2" width="36" height="9" fill="#dc2626" />
+    <circle cx="0" cy="-52" r="24" fill="#8b5a2b" stroke="#1a1209" stroke-width="3" />
+    <circle cx="-24" cy="-56" r="9" fill="#8b5a2b" stroke="#1a1209" stroke-width="3" />
+    <circle cx="24" cy="-56" r="9" fill="#8b5a2b" stroke="#1a1209" stroke-width="3" />
+    <ellipse cx="6" cy="-46" rx="16" ry="13" fill="#e7c7a0" />
+    <circle cx="2" cy="-56" r="5" fill="#fff" stroke="#1a1209" stroke-width="2" /><circle cx="14" cy="-56" r="5" fill="#fff" stroke="#1a1209" stroke-width="2" />
+    <circle cx="4" cy="-55" r="2.4" fill="#1a1209" /><circle cx="16" cy="-55" r="2.4" fill="#1a1209" />
+    <path d="M-4 -64 L8 -60 M22 -64 L12 -60" stroke="#1a1209" stroke-width="3" stroke-linecap="round" />
+    <path d="M2 -38 Q10 -34 18 -40" stroke="#1a1209" stroke-width="3" fill="none" stroke-linecap="round" />
+    <rect x="-24" y="-70" width="48" height="7" fill="#dc2626" />
+    <path d="M-38 -28 L-14 -12 L-10 -26 Z" fill="#8b5a2b" stroke="#1a1209" stroke-width="3" />
+  </g>
+  <!-- right monkey (gorila marombeiro) flying -->
+  <g transform="translate(450 150) rotate(26)" filter="url(#sh)">
+    <path d="M-30 30 L-14 54 L-2 46 L-12 22 Z" fill="#111827" stroke="#1a1209" stroke-width="3" />
+    <path d="M10 28 L36 50 L46 40 L22 20 Z" fill="#111827" stroke="#1a1209" stroke-width="3" />
+    <rect x="-34" y="-30" width="68" height="64" rx="24" fill="#facc15" stroke="#1a1209" stroke-width="4" />
+    <text x="0" y="14" font-size="26" text-anchor="middle">🍌</text>
+    <circle cx="-44" cy="-4" r="18" fill="#3f3f46" stroke="#1a1209" stroke-width="3" />
+    <circle cx="44" cy="-18" r="18" fill="#3f3f46" stroke="#1a1209" stroke-width="3" />
+    <circle cx="0" cy="-52" r="25" fill="#3f3f46" stroke="#1a1209" stroke-width="4" />
+    <ellipse cx="0" cy="-70" rx="16" ry="9" fill="#27272a" />
+    <ellipse cx="2" cy="-44" rx="17" ry="14" fill="#a1a1aa" />
+    <path d="M-12 -62 L-2 -56 M16 -62 L6 -56" stroke="#1a1209" stroke-width="4" stroke-linecap="round" />
+    <path d="M-10 -54 l8 8 M-2 -54 l-8 8 M8 -54 l8 8 M16 -54 l-8 8" stroke="#1a1209" stroke-width="3" stroke-linecap="round" />
+    <ellipse cx="4" cy="-34" rx="9" ry="8" fill="#450a0a" stroke="#1a1209" stroke-width="2" />
+    <rect x="-26" y="-68" width="52" height="7" fill="#dc2626" />
+  </g>
+  <!-- percent badges -->
+  <g font-family="system-ui, sans-serif" font-weight="900" stroke="#1a1209" stroke-width="6" stroke-linejoin="round" paint-order="stroke">
+    <text x="40" y="326" font-size="44" fill="#ffffff">12%</text>
+    <text x="520" y="326" font-size="44" fill="#ef4444">187%</text>
+  </g>
+  <!-- title -->
+  <g font-family="system-ui, sans-serif" font-weight="900" text-anchor="middle" stroke="#1a1209" stroke-width="9" stroke-linejoin="round" paint-order="stroke">
+    <text x="320" y="62" font-size="46" fill="#fde047" transform="rotate(-2 320 62)">SUPER SMASH</text>
+    <text x="320" y="106" font-size="44" fill="#ffffff" transform="rotate(-2 320 106)">MACACOS!</text>
+  </g>
+  <text x="320" y="346" font-family="system-ui, sans-serif" font-weight="800" font-size="18" fill="#1a1209" text-anchor="middle">🍌 Briga na Bananeira 🍌</text>
+  <g font-size="26">
+    <text x="290" y="320">⭐</text><text x="330" y="318">💥</text>
+  </g>
+</svg>
