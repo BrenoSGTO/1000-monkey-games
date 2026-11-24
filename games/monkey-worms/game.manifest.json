@@ -1,0 +1,29 @@
+{
+  "slug": "monkey-worms",
+  "title": "Macacos em Guerra",
+  "subtitle": "Artilharia de Banana",
+  "inspiredBy": "Worms",
+  "description": "Times de 4 macacos de capacete em ilhas flutuantes de terreno 100% destrutível! Mire com ângulo e força, lute contra o vento e use Bazuca de Coco, Granada de Banana, Ovelha-Capivara Explosiva, Chinelo Teleguiado, Ataque Aéreo de Pombos, Cipó-Ninja, Maçarico, Macaco Kamikaze, Mina de Casca e a lendária Banana Sagrada. A água mata e a Morte Súbita faz o mar subir!",
+  "category": "estrategia",
+  "tags": ["artilharia", "turnos", "terreno-destrutivel", "versus", "hotseat", "bot", "p2p"],
+  "emoji": "🥥",
+  "accentColor": "#ef4444",
+  "multiplayer": {
+    "supported": true,
+    "mode": "versus",
+    "maxPlayers": 4,
+    "summary": "Solo vs Bot IA, Hotseat local de 2 a 4 jogadores e Online P2P de 2 a 4 jogadores em turnos (host valida e transmite o estado)"
+  },
+  "controls": [
+    "A/D ou ←/→: andar • Enter: pular • Backspace: mortal para trás",
+    "W/S ou ↑/↓ (ou mouse): ajustar a mira",
+    "Segurar ESPAÇO: carregar força • soltar: disparar",
+    "1-9, 0 ou Tab: escolher arma • Q/E: tempo do pavio",
+    "Clique no mapa: marcar alvo (Chinelo Teleguiado e Pombos)",
+    "Cipó-Ninja: ←/→ balança, ↑/↓ encurta/alonga, Espaço/Enter solta",
+    "Roda do mouse: zoom • Botão direito: arrastar câmera • M: visão geral"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
