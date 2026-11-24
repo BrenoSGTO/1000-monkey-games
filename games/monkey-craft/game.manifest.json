@@ -1,0 +1,28 @@
+{
+  "slug": "monkey-craft",
+  "title": "Macacraft: Cava, Constrói e Banana",
+  "subtitle": "Sandbox 2D de minerar, construir e sobreviver à noite na selva — com Co-op P2P!",
+  "inspiredBy": "Minecraft & Terraria",
+  "description": "Cave um mundo procedural com selva, praia, deserto e cavernas profundas! Colete madeira de bananeira, monte bancada e fornalha, funda cobre, ouro e a brilhante Bananita, forje picaretas e espadas, construa sua base e sobreviva às noites contra a Capivara Zumbi e o Pombo Explosivo. Vida, fome de banana, ciclo dia/noite, iluminação por tiles, água que flui, save automático e Co-op P2P de 2 a 4 macacos no mesmo mundo!",
+  "category": "simulacao",
+  "tags": ["sandbox", "mineração", "construção", "crafting", "sobrevivência", "coop", "procedural"],
+  "emoji": "⛏️",
+  "accentColor": "#4ade80",
+  "multiplayer": {
+    "supported": true,
+    "mode": "coop",
+    "maxPlayers": 4,
+    "summary": "Co-op P2P de 2 a 4 macacos no mesmo mundo: o host é dono do mundo, criaturas e água; todos cavam e constroem juntos com blocos sincronizados. Solo completo com save automático."
+  },
+  "controls": [
+    "A / D (ou Setas): andar • W / Espaço: pular e nadar • S: descer escada",
+    "Mouse esquerdo (segurar): minerar blocos e atacar criaturas",
+    "Mouse direito: colocar bloco, comer banana, abrir bancada/fornalha",
+    "1-9 ou roda do mouse: barra de itens • E: mochila e receitas (crafting)",
+    "Q: grito de macaco com balãozinho • + / -: zoom • Esc: pausa",
+    "Celular: botões na tela (⛏️/🧱 alterna minerar e colocar)"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
