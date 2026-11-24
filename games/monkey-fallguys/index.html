@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Fall Macacos: Tombo Royale — Click Macacos</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #38bdf8;
+        font-family: 'Trebuchet MS', 'Comic Sans MS', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        color: #1e293b;
+        touch-action: none;
+      }
+      #app {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+      canvas#game-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #ui {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .fg-panel {
+        pointer-events: auto;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 18px 22px;
+        max-width: min(94vw, 640px);
+        max-height: 94vh;
+        overflow: auto;
+        border-radius: 28px;
+        background: rgba(30, 20, 60, 0.78);
+        border: 4px solid #facc15;
+        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+        text-align: center;
+        color: #fff;
+        backdrop-filter: blur(4px);
+      }
+      .fg-logo {
+        font-size: clamp(38px, 9vw, 74px);
+        font-weight: 900;
+        line-height: 0.95;
+        letter-spacing: 1px;
+        text-shadow: 0 5px 0 #3b2410, 0 0 24px rgba(250, 204, 21, 0.5);
+        animation: fg-wob 2.4s ease-in-out infinite;
+      }
+      .fg-logo.small {
+        font-size: clamp(30px, 7vw, 48px);
+      }
+      .fg-logo .a {
+        color: #f472b6;
+      }
+      .fg-logo .b {
+        color: #fde047;
+      }
+      @keyframes fg-wob {
+        0%,
+        100% {
+          transform: rotate(-2deg) scale(1);
+        }
+        50% {
+          transform: rotate(2deg) scale(1.04);
+        }
+      }
+      .fg-sub {
+        font-weight: 900;
+        font-size: clamp(16px, 3.2vw, 24px);
+        color: #bbf7d0;
+        letter-spacing: 3px;
+        margin-top: -6px;
+      }
+      .fg-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .fg-btn {
+        font: inherit;
+        font-weight: 900;
+        font-size: 17px;
+        padding: 12px 20px;
+        border-radius: 999px;
+        border: 3px solid #3b2410;
+        background: linear-gradient(#fde047, #f59e0b);
+        color: #3b2410;
+        cursor: pointer;
+        box-shadow: 0 5px 0 #3b2410;
+        transition: transform 0.08s;
+      }
+      .fg-btn:hover {
+        transform: translateY(-2px) scale(1.03);
+      }
+      .fg-btn:active {
+        transform: translateY(3px);
+        box-shadow: 0 2px 0 #3b2410;
+      }
+      .fg-btn.big {
+        font-size: clamp(24px, 5vw, 34px);
+        padding: 14px 44px;
+        background: linear-gradient(#86efac, #22c55e);
+        animation: fg-pulse 1.4s ease-in-out infinite;
+      }
+      .fg-btn.green {
+        background: linear-gradient(#7dd3fc, #0ea5e9);
+      }
+      .fg-btn.small {
+        font-size: 13px;
+        padding: 7px 14px;
+        box-shadow: 0 3px 0 #3b2410;
+      }
+      @keyframes fg-pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.06);
+        }
+      }
+      .fg-sel {
+        font-size: 14px;
+        font-weight: 800;
+        color: #e9d5ff;
+      }
+      .fg-sel select {
+        font: inherit;
+        font-weight: 800;
+        padding: 5px 8px;
+        border-radius: 10px;
+        border: 2px solid #facc15;
+        background: #1e1b4b;
+        color: #fff;
+      }
+      .fg-how {
+        font-size: 13.5px;
+        line-height: 1.45;
+        color: #e9d5ff;
+        background: rgba(0, 0, 0, 0.25);
+        border-radius: 16px;
+        padding: 10px 14px;
+      }
+      .fg-how.center {
+        font-size: 17px;
+      }
+      .fg-how .keys {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        justify-content: center;
+        margin-top: 8px;
+        font-size: 12.5px;
+        color: #fde68a;
+      }
+      kbd {
+        display: inline-block;
+        min-width: 22px;
+        padding: 1px 5px;
+        margin: 0 1px;
+        border-radius: 6px;
+        background: #fef3c7;
+        color: #3b2410;
+        border: 2px solid #3b2410;
+        font: inherit;
+        font-weight: 900;
+        font-size: 11.5px;
+      }
+      .fg-best {
+        font-weight: 900;
+        color: #fde047;
+      }
+      .fg-players {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+      }
+      .fg-players li {
+        background: rgba(250, 204, 21, 0.18);
+        border: 2px solid #facc15;
+        border-radius: 999px;
+        padding: 6px 14px;
+        font-weight: 800;
+      }
+      .fg-players li.dim,
+      .fg-wait {
+        color: #c4b5fd;
+        font-weight: 800;
+      }
+      .fg-champ {
+        font-size: clamp(24px, 6vw, 40px);
+        font-weight: 900;
+        color: #fde047;
+        text-shadow: 0 4px 0 #3b2410;
+      }
+      .fg-touch {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: none;
+        justify-content: space-between;
+        align-items: flex-end;
+        padding: 0 14px calc(14px + env(safe-area-inset-bottom));
+        pointer-events: none;
+        z-index: 50;
+      }
+      .fg-pad {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+        pointer-events: none;
+      }
+      .fg-pad button {
+        pointer-events: auto;
+        touch-action: none;
+        width: 66px;
+        height: 66px;
+        border-radius: 50%;
+        border: 3px solid #3b2410;
+        background: rgba(253, 224, 71, 0.82);
+        color: #3b2410;
+        font-size: 24px;
+        font-weight: 900;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        box-shadow: 0 4px 0 #3b2410;
+      }
+      .fg-pad button small {
+        font-size: 8px;
+        margin-top: 2px;
+      }
+      .fg-pad button.big {
+        width: 84px;
+        height: 84px;
+        background: rgba(134, 239, 172, 0.85);
+      }
+      .fg-pad button.on {
+        transform: translateY(3px);
+        filter: brightness(1.2);
+      }
+      @media (max-height: 520px) {
+        .fg-panel {
+          gap: 8px;
+          padding: 10px 16px;
+        }
+        .fg-how {
+          font-size: 11.5px;
+          padding: 6px 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+      <div id="ui"></div>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
