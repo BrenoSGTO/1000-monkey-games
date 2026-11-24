@@ -1,0 +1,27 @@
+{
+  "slug": "monkey-fallguys",
+  "title": "Fall Macacos: Tombo Royale",
+  "subtitle": "Battle royale party de obstáculos: tropece, mergulhe, agarre e seja o último macaco de pé!",
+  "inspiredBy": "Fall Guys",
+  "description": "Até 24 macacos gorduchinhos e molengas despencam na selva e vão sendo eliminados rodada após rodada: Corrida da Selva com martelos de banana, rolos giratórios e portas falsas, Chão que Some de gelatina de açaí, Gangorra da Bananada com cocos caindo, Pega-Rabo de Macaco, Futebol de Coco em times e a Grande Final: Coroa da Banana! Solo contra bots, 2 jogadores no mesmo teclado ou Online P2P para até 8 humanos + bots (host autoritativo).",
+  "category": "arcade",
+  "tags": ["party", "battle-royale", "multiplayer", "local-coop", "versus", "bots", "obstáculos", "física"],
+  "emoji": "👑",
+  "accentColor": "#f472b6",
+  "multiplayer": {
+    "supported": true,
+    "mode": "versus",
+    "maxPlayers": 8,
+    "summary": "Online P2P para até 8 macacos humanos + bots (host autoritativo com snapshots e interpolação), 2 jogadores no mesmo teclado ou Solo contra até 23 bots de IA!"
+  },
+  "controls": [
+    "A/D (ou Setas): mover | W/Espaço (ou ↑): pular",
+    "S/Shift (ou ↓): mergulhar (derruba os outros!) | E (ou Enter): agarrar e roubar rabo/coroa",
+    "2 Jogadores: P1 = WASD + E, P2 = Setas + Enter",
+    "Tab: trocar câmera ao assistir | R: reiniciar instantaneamente",
+    "Celular: botões na tela (◀ ▶ PULAR MERGULHO AGARRAR)"
+  ],
+  "thumbnail": "thumbnail.svg",
+  "status": "playable",
+  "version": "1.0.0"
+}
