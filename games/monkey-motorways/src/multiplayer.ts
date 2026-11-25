@@ -1,5 +1,6 @@
 import { mountMonkeyHud, PeerRoom, type MonkeyHudHandle } from '@monkey-slop/sdk';
 import { MONKEY_COLORS } from './constants';
+import { MONKEY_MOTORWAYS_CONTROLS } from './controls';
 import { gameAudio } from './audio';
 import type { TrafficSimulation } from './simulation';
 import type {
@@ -15,6 +16,7 @@ export interface MultiplayerBridgeCallbacks {
   onRemoteStartGame: (mapId: MapId) => void;
   onSyncReceived: () => void;
   onUpgradeConsensusCheck?: () => void;
+  onControlsOpenChange?: (open: boolean) => void;
 }
 
 interface PendingOp {
@@ -112,6 +114,12 @@ export class MultiplayerBridge {
       slug: 'monkey-motorways',
       title: 'Mini Macacoways',
       room: this.room,
+      controls: {
+        ...MONKEY_MOTORWAYS_CONTROLS,
+        onOpenChange: (open) => {
+          this.cb.onControlsOpenChange?.(open);
+        },
+      },
     });
   }
 

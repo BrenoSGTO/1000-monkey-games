@@ -739,7 +739,9 @@ export class GameUI {
       <h1>🛣️ Mini Macacoways</h1>
       <p class="mmw-sub">
         Ligue as casinhas aos mercados da mesma cor & fruta antes que os pedidos transbordem!
-        Arraste com o <strong>botão esquerdo</strong> para pré-visualizar a rota e solte para construir. Use <strong>Ctrl+Z</strong> para desfazer!
+      </p>
+      <p class="mmw-sub" style="font-size:12px;color:#fde047;margin-top:-6px;">
+        🎮 Controles: <strong>F1</strong> ou botão no topo esquerdo
       </p>
       ${
         rec.bestScore > 0
