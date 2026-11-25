@@ -5,6 +5,7 @@ import {
   type PeerEnvelope,
   type PlayerProfile,
 } from '@monkey-slop/sdk';
+import { POLYBRIDGE_CONTROLS } from './controls';
 import type { BridgeNetMessage, RemoteCursor, ToolId } from './types';
 
 export interface NetHandlers {
@@ -12,6 +13,7 @@ export interface NetHandlers {
   onRemoteMessage: (msg: BridgeNetMessage, senderId: string, senderName: string) => void;
   onPlayerJoinedAsHost: () => void;
   onPlayersUpdated?: (players: PlayerProfile[]) => void;
+  onControlsOpenChange?: (open: boolean) => void;
 }
 
 export class BridgeNetClient {
@@ -54,6 +56,10 @@ export class BridgeNetClient {
       slug: 'monkey-polybridge',
       title: 'Ponte de Cipó & Gambiarra',
       room: this.room,
+      controls: {
+        ...POLYBRIDGE_CONTROLS,
+        onOpenChange: handlers.onControlsOpenChange,
+      },
     });
   }
 

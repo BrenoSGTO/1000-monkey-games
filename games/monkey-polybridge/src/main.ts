@@ -150,6 +150,7 @@ class PolyBridgeGame {
   private totalElapsed = 0;
   private idCounter = 1;
   private lastReactionAt = 0;
+  private pausedByGuide = false;
 
   constructor() {
     this.loadSaveData();
@@ -166,6 +167,9 @@ class PolyBridgeGame {
       },
       onPlayersUpdated: (players) => {
         this.syncDuelRosterFromPlayers(players);
+      },
+      onControlsOpenChange: (open) => {
+        this.pausedByGuide = open;
       },
     });
 
@@ -1908,24 +1912,26 @@ class PolyBridgeGame {
       this.shakeAmount = Math.max(0, this.shakeAmount - rawDt * 24);
     }
 
-    if (this.mode === 'sim') {
-      if (this.autoSlowMoTimer > 0) {
-        this.autoSlowMoTimer = Math.max(0, this.autoSlowMoTimer - rawDt);
+    if (!this.pausedByGuide) {
+      if (this.mode === 'sim') {
+        if (this.autoSlowMoTimer > 0) {
+          this.autoSlowMoTimer = Math.max(0, this.autoSlowMoTimer - rawDt);
+        }
+        const timeScale =
+          this.autoSlowMoTimer > 0 ? 0.28 : this.slowMo ? 0.35 : 1.0;
+        const FIXED_DT = 1 / 60;
+        this.simAccumulator += rawDt * timeScale;
+        let steps = 0;
+        while (this.simAccumulator >= FIXED_DT && steps < 4) {
+          this.world.stepSimulation(FIXED_DT);
+          this.simAccumulator -= FIXED_DT;
+          steps++;
+        }
+        // Keep live stress HUD responsive during sim
+        this.updateHud();
+      } else {
+        this.world.stepAmbient(rawDt);
       }
-      const timeScale =
-        this.autoSlowMoTimer > 0 ? 0.28 : this.slowMo ? 0.35 : 1.0;
-      const FIXED_DT = 1 / 60;
-      this.simAccumulator += rawDt * timeScale;
-      let steps = 0;
-      while (this.simAccumulator >= FIXED_DT && steps < 4) {
-        this.world.stepSimulation(FIXED_DT);
-        this.simAccumulator -= FIXED_DT;
-        steps++;
-      }
-      // Keep live stress HUD responsive during sim
-      this.updateHud();
-    } else {
-      this.world.stepAmbient(rawDt);
     }
 
     const triPlan =
