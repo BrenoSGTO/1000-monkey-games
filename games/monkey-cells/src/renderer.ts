@@ -1913,11 +1913,7 @@ function drawScreenHud(
     }
 
     // Arena Controls Footer
-    const controlsText =
-      state.mode === 'arena_local'
-        ? 'P1: WASD Mover/Pular • F Atacar (S+F Pogo / Parry!) • G Dash • Q Curar   |   P2: Setas Mover/Pular • K Atacar (↓+K Pogo / Parry!) • L Dash • M Curar • Enter/↓+L Baú'
-        : 'A/D Mover • W/Espaço Pulo • J/Clique Atacar (S+J Pogo / Parry!) • Shift Dash • Q Curar • E Trocar Arma';
-    drawControlsFooter(ctx, cw, ch, controlsText);
+    drawControlsFooter(ctx, cw, ch, '🎮 Controles: F1');
     ctx.restore();
     return;
   }
@@ -2115,13 +2111,8 @@ function drawScreenHud(
     ctx.fillText(`${Math.ceil(boss.hp)} / ${boss.maxHp} HP`, cw / 2, by + 14);
   }
 
-  // Compact Controls Footer (always visible!)
-  drawControlsFooter(
-    ctx,
-    cw,
-    ch,
-    'A/D Mover • W/Espaço Pulo/Wall • S+J (Ar) Pogo • Shift/K Dash • J/Clique Atacar (Parry Projétil!) • Segurar Q/F Curar • E Baú/Portal',
-  );
+  // Compact Controls Footer
+  drawControlsFooter(ctx, cw, ch, '🎮 Controles: F1');
 
   ctx.restore();
 }

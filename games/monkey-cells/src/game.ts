@@ -117,6 +117,7 @@ export class HollowChimpGame {
   private floatingTexts: FloatingText[] = [];
 
   private keys = new Set<string>();
+  private pausedByGuide = false;
   private hitstopTimer = 0;
 
   // Run stats & upgrades
@@ -953,13 +954,20 @@ export class HollowChimpGame {
     this.titleOverlay.style.display = 'flex';
   }
 
+  public setPausedByGuide(paused: boolean): void {
+    this.pausedByGuide = paused;
+    this.keys.clear();
+  }
+
   private loop = (now: number): void => {
     const dt = Math.min(0.033, Math.max(0.001, (now - this.lastFrame) / 1000));
     this.lastFrame = now;
     this.globalTime += dt;
 
     if (this.phase === 'playing') {
-      this.update(dt);
+      if (!this.pausedByGuide || this.isCoopActive()) {
+        this.update(dt);
+      }
     } else if (this.phase === 'draft') {
       // Still sync player_state so Host knows we are in draft!
       this.syncNetwork(dt);
@@ -3650,11 +3658,8 @@ export class HollowChimpGame {
           Roguelite Monkey Slop inspirado em <b>Dead Cells & Hollow Knight</b>.<br/>
           Dê <b>Pogo-Jump</b>, dê <b>Parry</b> em projéteis, derrote o <b>RH Babuíno</b> e o <b>Gorilão CEO</b>!
         </p>
-        <div style="text-align:left;background:#1e293b;border-radius:12px;padding:12px 16px;font-size:12.5px;color:#e2e8f0;line-height:1.65;margin-bottom:16px;">
-          <div>🏃 <b>A / D</b>: Correr &nbsp;|&nbsp; 🦘 <b>W / Espaço</b>: Pulo, Pulo Duplo e <b>Wall-Jump</b></div>
-          <div>💨 <b>Shift / K</b>: Dash (iframe) &nbsp;|&nbsp; 🍌 <b>Segurar Q / F</b>: Curar com Potássio</div>
-          <div>⚔️ <b>J / Z / Clique</b>: Atacar & <b>PARRY</b> em projéteis! &nbsp;|&nbsp; 🔥 <b>S + J no ar</b>: <b>POGO-JUMP!</b></div>
-          <div>📦 <b>E</b>: Trocar Arma no Baú / Entrar no Portal &nbsp;|&nbsp; 🔌 <b>6 Armas & 12 Relíquias!</b></div>
+        <div style="background:#1e293b;border:1px solid rgba(250,204,21,0.35);border-radius:12px;padding:10px 14px;font-size:13px;color:#fef08a;margin-bottom:16px;">
+          🎮 <b>Controles:</b> aperte <b>F1</b> ou clique em <b>🎮 Controles</b> no topo a qualquer hora
         </div>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <button id="mc-play-btn" style="background:#facc15;color:#0f172a;border:none;border-radius:14px;padding:13px 24px;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 5px 0 #ca8a04;width:100%;">
@@ -3689,14 +3694,13 @@ export class HollowChimpGame {
         <h2 style="margin:0 0 6px;font-size:25px;font-weight:900;color:#fef08a;">ARENA BANANADA (MELHOR DE 3)</h2>
         <p style="margin:0 0 16px;font-size:13px;color:#cbd5e1;">X1 de Pogo-Jump, Parry e Chinelada — escolha o modo:</p>
 
-        <div style="text-align:left;background:#1e293b;border-radius:12px;padding:10px 14px;font-size:12px;color:#e2e8f0;line-height:1.6;margin-bottom:16px;">
-          <div>🟡 <b>P1 (2P Local):</b> <b>WASD</b> Mover/Pular • <b>F</b> Atacar (S+F Pogo) • <b>G</b> Dash • <b>Q</b> Curar • <b>E</b> Baú</div>
-          <div>🟢 <b>P2 (2P Local):</b> <b>Setas</b> Mover/Pular • <b>K</b> Atacar (↓+K Pogo) • <b>L</b> Dash • <b>M</b> Curar • <b>Enter</b> Baú</div>
+        <div style="background:#1e293b;border:1px solid rgba(192,132,252,0.35);border-radius:12px;padding:9px 14px;font-size:12.5px;color:#e2e8f0;margin-bottom:16px;">
+          🎮 <b>Controles (1P e 2P Local):</b> aperte <b>F1</b> para ver a cartilha ilustrada
         </div>
 
         <div style="display:flex;flex-direction:column;gap:10px;">
           <button id="mc-arena-local" style="background:#4ade80;color:#0f172a;border:none;border-radius:12px;padding:12px;font-size:16px;font-weight:900;cursor:pointer;box-shadow:0 4px 0 #15803d;">
-            🎮 2P Local (Mesmo Teclado: WASD+F/G vs Setas+K/L)
+            🎮 2P Local (Mesmo Teclado)
           </button>
           <button id="mc-arena-bot" style="background:#38bdf8;color:#0f172a;border:none;border-radius:12px;padding:12px;font-size:15px;font-weight:900;cursor:pointer;box-shadow:0 4px 0 #0284c7;">
             🤖 X1 Solo vs Bot Macaco
