@@ -591,7 +591,7 @@ export class GameUi {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
           <div>
             <h1>🎯 Macacos Pistola</h1>
-            <p class="ma-sub">Puxe o estilingue de cipó, clique no ar para ativar poderes absurdos e derrube os Porcos Faria Limers!</p>
+            <p class="ma-sub">Puxe o estilingue de cipó, clique no ar para ativar poderes absurdos e derrube os Porcos Faria Limers! <span style="color:#fde047;font-weight:700;">🎮 Controles: F1</span></p>
           </div>
           <div style="text-align:right;">
             <div class="ma-pill" id="ma-menu-stars">🍌 0 / ${HANDCRAFTED_LEVELS.length * 3} Bananas de Ouro</div>
