@@ -1,6 +1,7 @@
 import { monkeyAudio } from './audio';
 import { PeerRoom } from './peer-room';
 import type { PlayerProfile } from './types';
+import { mountControlsGuide, type ControlsGuideConfig, type ControlsGuideHandle } from './controls-guide';
 
 export interface MonkeyHudOptions<TMessage = unknown> {
   slug: string;
@@ -9,11 +10,15 @@ export interface MonkeyHudOptions<TMessage = unknown> {
   room?: PeerRoom<TMessage>;
   /** Custom hint shown in the compact HUD pill */
   hint?: string;
+  /** Cartilha de controles ilustrada: adiciona o botão "🎮 Controles" (e atalho F1). `slug`/`title` são herdados do HUD. */
+  controls?: Omit<ControlsGuideConfig, 'slug' | 'title'> & Partial<Pick<ControlsGuideConfig, 'slug' | 'title'>>;
 }
 
 export interface MonkeyHudHandle {
   toast: (message: string, tone?: 'banana' | 'chaos' | 'info') => void;
   setPlayers: (players: PlayerProfile[]) => void;
+  /** Presente quando `controls` foi passado. */
+  controls?: ControlsGuideHandle;
   destroy: () => void;
 }
 
@@ -158,6 +163,17 @@ export function mountMonkeyHud<TMessage = unknown>(
   };
   bar.appendChild(muteBtn);
 
+  let controls: ControlsGuideHandle | undefined;
+  if (options.controls) {
+    controls = mountControlsGuide({ slug: options.slug, title: options.title, ...options.controls });
+    const controlsBtn = document.createElement('button');
+    controlsBtn.className = 'msdk-btn';
+    controlsBtn.textContent = '🎮 Controles';
+    controlsBtn.title = 'Ver os controles do jogo (F1)';
+    controlsBtn.onclick = () => controls?.toggle();
+    bar.appendChild(controlsBtn);
+  }
+
   let panel: HTMLDivElement | null = null;
   let playersWrap: HTMLDivElement | null = null;
   let statusLine: HTMLDivElement | null = null;
@@ -290,7 +306,9 @@ export function mountMonkeyHud<TMessage = unknown>(
   return {
     toast,
     setPlayers,
+    controls,
     destroy: () => {
+      controls?.destroy();
       bar.remove();
       panel?.remove();
       toastWrap.remove();
