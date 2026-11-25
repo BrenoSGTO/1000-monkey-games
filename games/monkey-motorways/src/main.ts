@@ -40,6 +40,7 @@ let motorwayAnchor: GridCoord | null = null;
 let lastMapId: MapId = 'rio-de-bananeiro';
 let scoreReportedForRun = false;
 let localMenuOpen = false;
+let pausedByControls = false;
 let photoMode = false;
 let replayActive = false;
 let replayProgress = 0;
@@ -113,6 +114,23 @@ const net = new MultiplayerBridge(sim, {
   },
   onUpgradeConsensusCheck: () => {
     checkUpgradeConsensus();
+  },
+  onControlsOpenChange: (open) => {
+    if (open) {
+      dragMode = 'none';
+      previewCells = [];
+      roadPreview = null;
+      motorwayAnchor = null;
+      if (sim.phase === 'playing' && !localMenuOpen && !net.isOnline() && sim.speed !== 0) {
+        pausedByControls = true;
+        sim.setSpeed(0);
+      }
+    } else if (pausedByControls) {
+      pausedByControls = false;
+      if (sim.phase === 'playing' && !localMenuOpen && !net.isOnline()) {
+        sim.setSpeed(sim.prePauseSpeed);
+      }
+    }
   },
 });
 
