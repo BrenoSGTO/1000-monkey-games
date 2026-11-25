@@ -1,11 +1,20 @@
 {
   "slug": "monkey-kart",
   "title": "Mico Kart: Corrida da Casca",
-  "subtitle": "Kart racer pseudo-3D com 8 macacos pilotos, drift com mini-turbo, 6 itens e Grand Prix!",
+  "subtitle": "Kart racer em 3D de verdade com 8 macacos pilotos, drift com mini-turbo, 6 itens e Grand Prix!",
   "inspiredBy": "Mario Kart",
-  "description": "Pilote o seu kart em pseudo-3D estilo Mode-7 contra 7 macacos malucos em 4 pistas com atalhos (Selva Encharcada, Favela Ladeira, Praia do Coco e Estação Espacial Banana). Derrape para carregar o mini-turbo (faíscas azuis, laranjas e roxas), pegue caixas-banana e use a Casca de Banana, o Coco Teleguiado, o Enxame de Marimbondos, o Turbo de Guaraná, o Chinelo Voador e a Nuvem de Pum — os itens ficam mais fortes quanto pior você estiver! 3 voltas, Grand Prix com pontos, Solo vs CPUs em 3 dificuldades, 2P local em tela dividida e corrida online P2P para até 6 jogadores (host autoritativo, com interpolação e previsão).",
+  "description": "Pilote o seu kart em 3D de verdade (WebGL2 com sombras, relevo, água e cenário modelado) contra 7 macacos malucos em 4 pistas com atalhos (Selva Encharcada, Favela Ladeira, Praia do Coco e Estação Espacial Banana). Derrape para carregar o mini-turbo (faíscas azuis, laranjas e roxas), pegue caixas-banana e use a Casca de Banana, o Coco Teleguiado, o Enxame de Marimbondos, o Turbo de Guaraná, o Chinelo Voador e a Nuvem de Pum — os itens ficam mais fortes quanto pior você estiver! 3 voltas, Grand Prix com pontos, Solo vs CPUs em 3 dificuldades, 2P local em tela dividida e corrida online P2P para até 6 jogadores (host autoritativo, com interpolação e previsão).",
   "category": "arcade",
-  "tags": ["corrida", "kart", "itens", "drift", "pseudo-3d", "multiplayer", "2p-local", "grand-prix"],
+  "tags": [
+    "corrida",
+    "kart",
+    "itens",
+    "drift",
+    "3d",
+    "multiplayer",
+    "2p-local",
+    "grand-prix"
+  ],
   "emoji": "🏎️",
   "accentColor": "#facc15",
   "multiplayer": {
@@ -22,5 +31,5 @@
   ],
   "thumbnail": "thumbnail.svg",
   "status": "playable",
-  "version": "1.0.0"
+  "version": "2.0.0"
 }

@@ -15,12 +15,17 @@ export function faceUrl(driver: number, expr = EXPR_NORMAL): string {
   }
   return u;
 }
+/** Optional 3D renderer for kart thumbnails (set by the renderer when WebGL2 is available). */
+let kartPortrait: ((driver: number) => HTMLCanvasElement | null) | null = null;
+export function setKartPortraitRenderer(fn: (driver: number) => HTMLCanvasElement | null): void {
+  kartPortrait = fn;
+}
 export function kartUrl(driver: number): string {
   const k = `k${driver}`;
   let u = urlCache.get(k);
   if (!u) {
     // 3/4 front view
-    u = getKartSprite(driver, 9, EXPR_NORMAL).toDataURL();
+    u = (kartPortrait?.(driver) ?? getKartSprite(driver, 9, EXPR_NORMAL)).toDataURL();
     urlCache.set(k, u);
   }
   return u;

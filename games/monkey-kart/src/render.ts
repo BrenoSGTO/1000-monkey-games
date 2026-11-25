@@ -2,7 +2,10 @@ import { DRIVERS } from './drivers';
 import type { Fx } from './fx';
 import { type Kart } from './kart';
 import { ANGLES, SPR_PPU, SPR_S, getKartSprite } from './kartsprite';
+import { project } from './gl/math';
 import { Ground } from './mode7';
+import { Scene3D, renderKartPortrait } from './render3d';
+import { setKartPortraitRenderer } from './ui';
 import { portraitCanvas } from './monkeyart';
 import { bananaPeel, chineloSprite, cocoSprite, hazardBillboard, itemBoxFace, sceneryBillboard } from './objsprites';
 import { THEME_STYLES, paintBackdrop, paintTrackTexture } from './trackart';
@@ -39,6 +42,10 @@ export class ViewState {
   placePop = 0;
   initialized = false;
   rouletteIcon = 0;
+  fov = 1.1;
+  eyeY = 34;
+  lookY = 16;
+  dist = 96;
   note(text: string, color = '#fde047', size = 30, t = 2): void {
     this.banner = { text, color, t, size };
   }
@@ -66,9 +73,23 @@ export class Renderer {
   time = 0;
   dpr = 1;
   nameTags = true;
+  /** Real 3D renderer (WebGL2). Null = classic pseudo-3D fallback. */
+  s3d: Scene3D | null = null;
+  glCanvas: HTMLCanvasElement | null = null;
+  glDpr = 1;
 
   constructor(public canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
+    if (new URLSearchParams(window.location.search).get('classic') === null) {
+      const gc = document.createElement('canvas');
+      gc.id = 'gl-canvas';
+      canvas.parentElement?.insertBefore(gc, canvas);
+      this.s3d = Scene3D.create(gc);
+      if (this.s3d) {
+        this.glCanvas = gc;
+        setKartPortraitRenderer((d) => renderKartPortrait(d));
+      } else gc.remove();
+    }
   }
 
   resize(): void {
@@ -79,13 +100,29 @@ export class Renderer {
     this.canvas.height = Math.round(h * this.dpr);
     this.canvas.style.width = `${w}px`;
     this.canvas.style.height = `${h}px`;
+    if (this.glCanvas) {
+      this.glDpr = Math.min(window.devicePixelRatio || 1, 2);
+      // keep the pixel budget sane on huge screens
+      const budget = 2560 * 1440;
+      if (w * h * this.glDpr * this.glDpr > budget) this.glDpr = Math.sqrt(budget / (w * h));
+      this.glCanvas.width = Math.round(w * this.glDpr);
+      this.glCanvas.height = Math.round(h * this.glDpr);
+      this.glCanvas.style.width = `${w}px`;
+      this.glCanvas.style.height = `${h}px`;
+    }
   }
 
   setTrack(track: Track): void {
     this.track = track;
-    const tex = paintTrackTexture(track);
-    this.ground = new Ground(tex, THEME_STYLES[track.def.theme].fog);
-    this.backdrop = paintBackdrop(track.def.theme);
+    if (this.s3d) {
+      this.s3d.setTrack(track);
+      this.ground = null;
+      this.backdrop = null;
+    } else {
+      const tex = paintTrackTexture(track);
+      this.ground = new Ground(tex, THEME_STYLES[track.def.theme].fog);
+      this.backdrop = paintBackdrop(track.def.theme);
+    }
     // minimap
     let minX = Infinity;
     let minY = Infinity;
@@ -148,6 +185,16 @@ export class Renderer {
     this.nameTags = world.phase !== 'grid';
     const ctx = this.ctx;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    if (this.s3d && this.track) {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      this.s3d.beginFrame();
+      for (const v of views) this.renderView3d(world, v, fx, dt);
+      if (views.length > 1) {
+        ctx.fillStyle = '#0b1020';
+        ctx.fillRect(views[0].x + views[0].w - 2, 0, 4, window.innerHeight);
+      }
+      return;
+    }
     ctx.fillStyle = '#050814';
     ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
     if (!this.ground || !this.track) return;
@@ -158,6 +205,64 @@ export class Renderer {
       ctx.fillRect(views[0].x + views[0].w - 2, 0, 4, window.innerHeight);
     }
     void uiOverlay;
+  }
+
+  private renderView3d(world: World, v: ViewSpec, fx: Fx, dt: number): void {
+    const s3d = this.s3d!;
+    const st = this.states[v.slot];
+    const k = v.kart;
+    const gd = this.glDpr;
+    const VP = s3d.renderView(world, k, st, fx, v.x * gd, v.y * gd, v.w * gd, v.h * gd, dt, this.glCanvas!.height);
+    const ctx = this.ctx;
+    const W = v.w;
+    const H = v.h;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(v.x, v.y, W, H);
+    ctx.clip();
+    ctx.translate(v.x, v.y);
+    const f = s3d.focal;
+    const toScreen = (x: number, y: number, z: number) => {
+      const p = project(VP, x, y, z);
+      if (p.w <= 1) return null;
+      return { x: (p.x * 0.5 + 0.5) * W, y: (0.5 - p.y * 0.5) * H, s: (f * H) / (2 * p.w), w: p.w };
+    };
+    // floating texts
+    for (const pt of fx.list) {
+      if (pt.kind !== 'text') continue;
+      const p = toScreen(pt.x, pt.z, pt.y);
+      if (!p || p.w > 2200) continue;
+      const t = pt.life / pt.max;
+      const fs = clamp(pt.size * p.s * 1.3, 12, 40);
+      ctx.font = `900 ${fs}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.globalAlpha = clamp(t * 2.2, 0, 1);
+      ctx.lineWidth = Math.max(3, fs * 0.16);
+      ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+      ctx.strokeText(pt.text, p.x, p.y);
+      ctx.fillStyle = pt.color;
+      ctx.fillText(pt.text, p.x, p.y);
+      ctx.globalAlpha = 1;
+    }
+    // name tags
+    if (this.nameTags) {
+      for (const o of world.karts) {
+        if (o === k || o.fallT > 0) continue;
+        const p = toScreen(o.x, 64, o.y);
+        if (!p || p.w > 700) continue;
+        const fs = clamp(14 * p.s * 1.3, 10, 18);
+        ctx.font = `800 ${fs}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+        ctx.strokeText(o.name, p.x, p.y);
+        ctx.fillStyle = DRIVERS[o.driver].color;
+        ctx.fillText(o.name, p.x, p.y);
+      }
+    }
+    this.drawOverlays(ctx, st, k, W, H, dt);
+    this.drawHud(ctx, world, v, st, W, H, dt);
+    ctx.restore();
   }
 
   private renderView(world: World, v: ViewSpec, fx: Fx, dt: number): void {

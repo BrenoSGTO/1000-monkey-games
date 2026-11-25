@@ -44,13 +44,16 @@ function pathPoly(ctx: Ctx, pts: { x: number; y: number }[]): void {
 }
 
 /** Draws something on a temporary layer, speckles it with source-atop and merges. */
+let RES = 1;
+
 function layer(main: Ctx, draw: (c: Ctx) => void, speckle: (c: Ctx) => void): void {
-  const l = makeCanvas(TEX, TEX);
+  const l = makeCanvas(TEX * RES, TEX * RES);
   const c = l.getContext('2d')!;
+  c.scale(RES, RES);
   draw(c);
   c.globalCompositeOperation = 'source-atop';
   speckle(c);
-  main.drawImage(l, 0, 0);
+  main.drawImage(l, 0, 0, TEX, TEX);
 }
 
 function speckles(c: Ctx, rnd: () => number, count: number, colors: string[], size: number, alpha = 1): void {
@@ -63,11 +66,14 @@ function speckles(c: Ctx, rnd: () => number, count: number, colors: string[], si
   c.globalAlpha = 1;
 }
 
-export function paintTrackTexture(track: Track): HTMLCanvasElement {
+/** Paints the top-down track texture. `res` multiplies the pixel resolution (logical size stays TEX). */
+export function paintTrackTexture(track: Track, res = 1): HTMLCanvasElement {
   const def = track.def;
   const st = THEME_STYLES[def.theme];
-  const cv = makeCanvas(TEX, TEX);
+  RES = res;
+  const cv = makeCanvas(TEX * res, TEX * res);
   const ctx = cv.getContext('2d')!;
+  ctx.scale(res, res);
   const rnd = mulberry32(def.seed * 7 + 1);
   const s = 1 / TEX_SCALE;
   const hw = def.halfW * s;

@@ -239,7 +239,20 @@ export interface Track {
   hazards: HazardSpec[];
   puddles: Puddle[];
   scenery: Scenery[];
+  /** solid props standing on drivable ground (circle colliders), bucketed by SOLID_CELL */
+  solids: Map<number, { x: number; y: number; r: number }[]>;
   minRadius: number;
+}
+
+export const SOLID_CELL = 256;
+/** Collision radius (before prop scale) of props karts can hit. */
+const SOLID_R: Record<string, number> = {
+  tree: 14, palm: 9, rock: 34, stump: 22, house: 48, house2: 44, tower: 28, lamp: 4, shack: 40, castle: 30,
+  antenna: 12, panel: 4, crystal: 16, asteroid: 40, dish: 10, umbrella: 2, buoy: 9,
+};
+
+export function solidKey(cx: number, cy: number): number {
+  return cy * 4096 + cx;
 }
 
 type V2 = [number, number];
@@ -474,6 +487,7 @@ export function buildTrack(def: TrackDef): Track {
     hazards: [],
     puddles: [],
     scenery: [],
+    solids: new Map(),
     minRadius,
   };
 
@@ -537,6 +551,14 @@ export function buildTrack(def: TrackDef): Track {
     // keep a minimal clearance from road cells around
     if (surfAtRaw(surf, x + 40, y) === SURF_ROAD || surfAtRaw(surf, x - 40, y) === SURF_ROAD || surfAtRaw(surf, x, y + 40) === SURF_ROAD || surfAtRaw(surf, x, y - 40) === SURF_ROAD) continue;
     track.scenery.push({ x, y, kind, scale: sc, flip: rnd() < 0.5 });
+  }
+  for (const sc of track.scenery) {
+    const r = (SOLID_R[sc.kind] ?? 0) * sc.scale;
+    if (r <= 0 || surfAtRaw(surf, sc.x, sc.y) === SURF_VOID) continue;
+    const key = solidKey(Math.floor(sc.x / SOLID_CELL), Math.floor(sc.y / SOLID_CELL));
+    let list = track.solids.get(key);
+    if (!list) track.solids.set(key, (list = []));
+    list.push({ x: sc.x, y: sc.y, r });
   }
 
   cache.set(def.id, track);
