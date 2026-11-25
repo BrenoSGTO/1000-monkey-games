@@ -1,6 +1,7 @@
 import { mountMonkeyHud, PeerRoom, type PlayerProfile } from '@monkey-slop/sdk';
 import { Vec2 } from 'planck-js';
 import { gameAudio } from './audio';
+import { MONKEY_ANGRYBIRDS_CONTROLS } from './controls';
 import {
   LAUNCH_VEL_SCALE,
   MIN_PULL_DISTANCE,
@@ -97,6 +98,7 @@ class AngryMonkeysGame {
   private accumulator = 0;
   private lastFrameMs = performance.now();
   private elapsedSec = 0;
+  private controlsPaused = false;
 
   constructor() {
     const canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
@@ -135,6 +137,21 @@ class AngryMonkeysGame {
       slug: 'monkey-angrybirds',
       title: 'Macacos Pistola',
       room: this.room,
+      controls: {
+        ...MONKEY_ANGRYBIRDS_CONTROLS,
+        onOpenChange: (open) => {
+          this.controlsPaused = open;
+          if (open) {
+            this.isPanning = false;
+            if (this.isDraggingSling) {
+              this.isDraggingSling = false;
+              this.localPullX = SLING_POS.x;
+              this.localPullY = SLING_POS.y;
+            }
+            this.canvas.classList.remove('dragging');
+          }
+        },
+      },
     });
 
     this.ui = new GameUi(app, {
@@ -580,7 +597,7 @@ class AngryMonkeysGame {
 
   private bindInputs(): void {
     this.canvas.addEventListener('pointerdown', (e) => {
-      if (this.ui.isMenuOpen() || this.phase === 'ended' || this.phase === 'waiting-sync') return;
+      if (this.controlsPaused || this.ui.isMenuOpen() || this.phase === 'ended' || this.phase === 'waiting-sync') return;
       this.canvas.setPointerCapture(e.pointerId);
 
       // Mid-air power click!
@@ -801,15 +818,19 @@ class AngryMonkeysGame {
   private loop(nowMs: number): void {
     const rawDt = Math.min(0.05, Math.max(0.001, (nowMs - this.lastFrameMs) / 1000));
     this.lastFrameMs = nowMs;
-    this.elapsedSec += rawDt;
 
-    this.accumulator += rawDt;
-    while (this.accumulator >= FIXED_DT) {
-      this.stepSimulation(FIXED_DT);
-      this.accumulator -= FIXED_DT;
+    if (!this.controlsPaused) {
+      this.elapsedSec += rawDt;
+
+      this.accumulator += rawDt;
+      while (this.accumulator >= FIXED_DT) {
+        this.stepSimulation(FIXED_DT);
+        this.accumulator -= FIXED_DT;
+      }
+
+      this.updateCamera(rawDt);
     }
 
-    this.updateCamera(rawDt);
     this.renderFrame();
 
     requestAnimationFrame((t) => this.loop(t));
