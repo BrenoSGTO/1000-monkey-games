@@ -471,7 +471,7 @@ export class SimsUi {
 
         <div style="margin-top:16px;padding-top:12px;border-top:1px solid #334155;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
           <div style="font-size:11.5px;color:#94a3b8;">
-            💡 Use <b>🐒 Co-op Online</b> no canto superior esquerdo para jogar com até 6 amigos na mesma casa!
+            💡 Use <b>🐒 Co-op Online</b> no canto superior esquerdo para jogar com até 6 amigos • 🎮 Controles: <b>F1</b>
           </div>
           <button id="cas-start" class="msims-btn active" style="font-size:15px;padding:10px 22px;border-radius:12px;">
             🍌 ENTRAR NA CASA NA ÁRVORE!

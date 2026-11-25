@@ -1,5 +1,6 @@
 import { mountMonkeyHud, type MonkeyHudHandle } from '@monkey-slop/sdk';
 import { FURNITURE_CATALOG } from './catalog';
+import { MONKEY_SIMS_CONTROLS } from './controls';
 import {
   GRID_H,
   GRID_W,
@@ -114,10 +115,28 @@ function init(): void {
     (players) => hud?.setPlayers(players),
   );
 
+let speedBeforeControls: SimSpeed | null = null;
+
   hud = mountMonkeyHud({
     slug: 'monkey-sims',
     title: 'Os Símios: Vida na Árvore',
     room: net.room,
+    controls: {
+      ...MONKEY_SIMS_CONTROLS,
+      onOpenChange: (open) => {
+        if (open) {
+          keysPressed.clear();
+          if (hasStarted && sim.speed !== 0) {
+            speedBeforeControls = sim.speed;
+            setSpeed(0);
+          }
+        } else if (hasStarted && speedBeforeControls !== null) {
+          const restore = speedBeforeControls;
+          speedBeforeControls = null;
+          setSpeed(restore);
+        }
+      },
+    },
   });
 
   ui = new SimsUi(uiRoot, {
