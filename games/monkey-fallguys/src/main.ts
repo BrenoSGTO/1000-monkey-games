@@ -7,7 +7,7 @@ import {
   type PlayerProfile,
 } from '@monkey-slop/sdk';
 import { fgAudio, type FgSound } from './audio';
-import { Controls } from './controls';
+import { Controls, CONTROLS_GUIDE } from './controls';
 import { Match, type HumanSlot } from './match';
 import { applySnap, buildSnap, type InputMsg, type Snap } from './net';
 import { Renderer, type View } from './render';
@@ -40,6 +40,7 @@ let rosterBoost = 0;
 let onlineConnected = false;
 let reported = false;
 let lastSolo: 'solo' | 'local2p' = 'solo';
+let guideOpen = false;
 
 // ───────────────────────── networking ─────────────────────────
 const room = new PeerRoom<unknown>(SLUG, {
@@ -103,7 +104,18 @@ const room = new PeerRoom<unknown>(SLUG, {
   },
 });
 
-const hud = mountMonkeyHud({ slug: SLUG, title: 'Fall Macacos: Tombo Royale', room });
+const hud = mountMonkeyHud({
+  slug: SLUG,
+  title: 'Fall Macacos: Tombo Royale',
+  room,
+  controls: {
+    ...CONTROLS_GUIDE,
+    onOpenChange: (open) => {
+      guideOpen = open;
+      if (open) controls.resetAll();
+    },
+  },
+});
 
 // ───────────────────────── UI ─────────────────────────
 const ui = new Ui(uiRoot, {
@@ -349,6 +361,12 @@ function frame(now: number): void {
 
   if (screen !== 'game' || !match) {
     renderer.renderTitle(dt, time);
+    requestAnimationFrame(frame);
+    return;
+  }
+
+  if (guideOpen && (mode === 'solo' || mode === 'local2p')) {
+    renderer.render(currentView(), 0);
     requestAnimationFrame(frame);
     return;
   }

@@ -1,4 +1,90 @@
+import type { MonkeyHudOptions } from '@monkey-slop/sdk';
 import type { Input } from './types';
+
+export const CONTROLS_GUIDE: NonNullable<MonkeyHudOptions['controls']> = {
+  goal: 'Sobreviva às rodadas malucas na selva sem cair no abismo e conquiste a Coroa da Banana!',
+  sections: [
+    {
+      title: 'Jogador 1 (ou Solo)',
+      icon: '🐒',
+      color: '#facc15',
+      bindings: [
+        {
+          inputs: ['A', 'D'],
+          action: 'Mover',
+          detail: 'No modo Solo/Online, ← e → também movem',
+        },
+        {
+          inputs: ['W', 'Space'],
+          action: 'Pular',
+          detail: 'No modo Solo/Online, ↑ também pula',
+        },
+        {
+          inputs: ['S', 'Shift'],
+          action: 'Mergulhar',
+          detail: 'Dá impulso pra frente, derruba rivais e chuta cocos',
+        },
+        {
+          inputs: ['E', 'F'],
+          action: 'Agarrar',
+          detail: 'Segure encostado para segurar rivais, roubar rabo ou pegar a coroa',
+        },
+      ],
+    },
+    {
+      title: 'Jogador 2 (2P Local)',
+      icon: '🐵',
+      color: '#38bdf8',
+      bindings: [
+        { inputs: ['ArrowLeft', 'ArrowRight'], action: 'Mover' },
+        { inputs: ['ArrowUp'], action: 'Pular' },
+        { inputs: ['ArrowDown'], action: 'Mergulhar' },
+        {
+          inputs: ['Enter', '/'],
+          action: 'Agarrar',
+          detail: 'Shift direito também agarra',
+        },
+      ],
+    },
+    {
+      title: 'Toque (Celular)',
+      icon: '📱',
+      color: '#4ade80',
+      bindings: [
+        { inputs: [{ ui: '◀' }, { ui: '▶' }], action: 'Mover' },
+        { inputs: [{ ui: '🦘 PULAR' }], action: 'Pular' },
+        { inputs: [{ ui: '🤸 MERGULHO' }], action: 'Mergulhar' },
+        {
+          inputs: [{ ui: '✋ AGARRAR' }],
+          action: 'Agarrar',
+          detail: 'Segure o botão para manter agarrado',
+        },
+      ],
+    },
+    {
+      title: 'Câmera & Partida',
+      icon: '🎬',
+      color: '#f472b6',
+      bindings: [
+        {
+          inputs: ['Tab'],
+          action: 'Trocar câmera',
+          detail: 'Alterna entre os macacos vivos ao assistir',
+        },
+        {
+          inputs: ['R'],
+          action: 'Reiniciar partida',
+          detail: 'Reinicia no Solo/2P Local (ou volta ao lobby após o fim no Online)',
+        },
+      ],
+    },
+  ],
+  tips: [
+    'No modo Solo ou Online, você pode usar tanto WASD/Espaço quanto as Setas/Enter!',
+    'O mergulho (S / Shift / ↓) dá um empurrão extra para alcançar plataformas ou chutar o coco.',
+    'Abrir a cartilha (F1) pausa automaticamente partidas Solo e 2P Local.',
+  ],
+};
 
 const P1 = {
   left: ['KeyA'],
@@ -82,6 +168,14 @@ export class Controls {
       e.jump = false;
       e.dive = false;
     }
+  }
+
+  resetAll(): void {
+    this.keys.clear();
+    this.touch.l = false;
+    this.touch.r = false;
+    this.touch.g = false;
+    this.clearEdges();
   }
 
   initTouch(root: HTMLElement): void {
