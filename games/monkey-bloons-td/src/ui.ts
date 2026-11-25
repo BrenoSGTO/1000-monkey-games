@@ -337,11 +337,12 @@ export class TdUiController {
         <h1>🎈 Macaco Estoura-Bexiga TD 🐒</h1>
         <p>
           As bexigas folgadas e o <strong>Dirigível do Imposto de Renda</strong> estão invadindo!
-          Agora com <strong>Fazenda de Bananeira</strong>, <strong>Mago do Cipó/Raio</strong>, habilidade ativa <strong>[Q] Chuva de Bananas</strong> e <strong>3 Mapas</strong>!
+          Escolha seu mapa, monte a defesa da macacada e segure o ataque em <strong>Solo</strong>, <strong>Co-op</strong>, <strong>Versus</strong> ou <strong>2P Local</strong>.
           ${best > 0 ? `<br/><strong>🏆 Seu Recorde: ${best} pts</strong>` : ''}
         </p>
         <div class="td-map-picks" style="grid-template-columns:repeat(3, 1fr);">${mapCards}</div>
-        <div class="td-map-picks" style="grid-template-columns:repeat(3, 1fr);margin-bottom:14px;">${modeCards}</div>
+        <div class="td-map-picks" style="grid-template-columns:repeat(3, 1fr);margin-bottom:12px;">${modeCards}</div>
+        <div style="font-size:12px;color:#94a3b8;margin-bottom:12px;">🎮 Controles: <strong>F1</strong> (ou botão no topo)</div>
         <button type="button" class="td-btn primary" id="td-play-now" style="font-size:16px;padding:12px 28px;">
           🍌 MACACAR AGORA!
         </button>

@@ -106,6 +106,7 @@ export class MonkeyBloonsGame {
   private rafId = 0;
   private lastTimestamp = 0;
   private elapsedTime = 0;
+  private paused = false;
   private uiDirty = true;
   private uiRefreshTimer = 0;
 
@@ -1440,7 +1441,12 @@ export class MonkeyBloonsGame {
     }
   }
 
+  public setPaused(paused: boolean): void {
+    this.paused = paused;
+  }
+
   private update(rawDt: number): void {
+    if (this.paused && !this.net.isOnline()) return;
     const dt = rawDt * this.speed;
     this.elapsedTime += dt;
 

@@ -28,6 +28,9 @@ function bootstrap(): void {
     onNewPeerConnected: () => {
       game?.sendSnapshotToRoom();
     },
+    onControlsOpenChange: (open) => {
+      game?.setPaused(open);
+    },
   });
 
   game = new MonkeyBloonsGame(ui.canvas, net, (snap) => {
