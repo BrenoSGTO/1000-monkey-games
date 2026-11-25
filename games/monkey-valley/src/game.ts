@@ -12,6 +12,7 @@ import { loadSave, writeSave, clearSave, playerToSave, applyPlayerSave, loadGues
 import * as ui from './ui';
 import { hash2 } from './util';
 import { ambient } from './render';
+import { createValleyControls } from './controls';
 
 export const SLUG = 'monkey-valley';
 
@@ -23,6 +24,7 @@ let canvasEl: HTMLCanvasElement;
 const keys = new Set<string>();
 let actHeld = false;
 let mouseHeld = false;
+let controlsOpen = false;
 let stepT = 0;
 let clockT = 0;
 let questT = 0;
@@ -123,6 +125,15 @@ function beginPlay(): void {
   S.remotes.clear();
 }
 
+function maybeOpenControlsFirstVisit(): void {
+  try {
+    if (localStorage.getItem(`monkey-slop:controls-seen:${SLUG}`) === '1') return;
+  } catch {
+    return;
+  }
+  hud?.controls?.open();
+}
+
 export function startNew(name: string, fi: number, si: number): void {
   const joining = S.online && !S.auth;
   S.me = newPlayer(name, fi, si);
@@ -133,6 +144,7 @@ export function startNew(name: string, fi: number, si: number): void {
     S.me.y = SPAWN[1] * 16 + 12;
     guestKit();
     beginPlay();
+    maybeOpenControlsFirstVisit();
     return;
   }
   clearSave();
@@ -149,7 +161,10 @@ export function startNew(name: string, fi: number, si: number): void {
       'Pegue a enxada, planta uns pés de mandioca e rega com carinho. Conheça o povo da vila — todos são meio malucos, mas de bom coração.',
       'E se ficar curioso, desça na minha <b>mina</b> lá no nordeste. Dizem que tem um tesouro no fundo. (Eu nunca cheguei. Tinha medo de gosma.)<br><br>Com amor, <b>Vovô Zeca</b> 🐒',
     ],
-    () => toast('Dica: aperte ? no menu de pausa (Esc) para ver os controles. Boa roça! 🌾'),
+    () => {
+      toast('Dica: aperte F1 ou clique em 🎮 Controles a qualquer hora. Boa roça! 🌾');
+      maybeOpenControlsFirstVisit();
+    },
   );
 }
 
@@ -190,6 +205,7 @@ export function continueGame(): void {
   S.me.map = 'world';
   beginPlay();
   toast(`Bem-vindo de volta, ${S.me.name}! 🌾`, 'banana');
+  maybeOpenControlsFirstVisit();
 }
 
 export function saveGame(silent = false): void {
@@ -239,6 +255,7 @@ function onSnapshot(): void {
     guestKit();
     beginPlay();
     toast('🌾 Você entrou na roça! O host manda no relógio e nas plantas.', 'banana');
+    maybeOpenControlsFirstVisit();
   }
 }
 
@@ -1185,6 +1202,10 @@ const handlers: ui.Handlers = {
     S.me.sel = (S.me.sel + d + HOTBAR) % HOTBAR;
     sfx('ui');
   },
+  openControls: () => {
+    ui.closeModal();
+    hud?.controls?.open();
+  },
 };
 
 // ---------------------------------------------------------------- Quests e clima
@@ -1249,8 +1270,8 @@ export function update(dt: number): void {
     if (r.info.mv) r.anim += dt;
   }
 
-  const paused = !S.online && S.mode === 'modal';
-  if (S.mode === 'play' || S.mode === 'fish') {
+  const paused = !S.online && (S.mode === 'modal' || controlsOpen);
+  if (!controlsOpen && (S.mode === 'play' || S.mode === 'fish')) {
     movePlayer(dt);
     if (actHeld || mouseHeld || ui.touch.act) {
       if (!S.fish) useAction();
@@ -1261,7 +1282,7 @@ export function update(dt: number): void {
     }
     updateFishing(dt);
   }
-  updateMine(dt);
+  if (!paused) updateMine(dt);
 
   if (!paused) {
     if (S.auth) {
@@ -1334,7 +1355,19 @@ export function initGame(canvas: HTMLCanvasElement, root: HTMLElement): void {
     onPlayers: (players) => hud?.setPlayers(players),
     onFx: () => {},
   });
-  hud = mountMonkeyHud({ slug: SLUG, title: 'Bananal Valley: A Roça do Macaco', room: net.room });
+  hud = mountMonkeyHud({
+    slug: SLUG,
+    title: 'Bananal Valley: A Roça do Macaco',
+    room: net.room,
+    controls: createValleyControls((open) => {
+      controlsOpen = open;
+      if (open) {
+        keys.clear();
+        actHeld = false;
+        mouseHeld = false;
+      }
+    }),
+  });
   S.toast = (t, tone) => hud?.toast(t, tone);
   ui.initUI(root, handlers);
   S.world.minutes = 600;

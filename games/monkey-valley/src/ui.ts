@@ -23,6 +23,7 @@ export interface Handlers {
   continueGame: () => void;
   select: (slot: number) => void;
   cycle: (d: number) => void;
+  openControls?: () => void;
 }
 
 let root: HTMLElement;
@@ -634,7 +635,8 @@ export function openPause(): void {
     H.toggleMusic();
     openPause();
   });
-  mk('❓ Controles e dicas', 'brown', () => openHelp());
+  mk('🎮 Controles (F1)', 'brown', () => H.openControls?.());
+  mk('❓ Dicas da roça', 'brown', () => openHelp());
   mk('🏠 Menu inicial', 'brown', () => {
     closeModal();
     H.toTitle();
@@ -651,20 +653,15 @@ export function openPause(): void {
 export function openHelp(): void {
   const d = el('div');
   d.innerHTML = `<div class="ds" style="font-size:14px;line-height:1.6;color:#3b2412">
-  <b>Mover:</b> WASD / Setas (Shift corre)<br>
-  <b>Usar ferramenta/item:</b> Espaço, J ou clique — age no tile à sua frente<br>
-  <b>Interagir:</b> E (falar, portas, caixa de entrega, animais, cama, cocho)<br>
-  <b>Presentear:</b> converse (E) e escolha "Presentear" com o item na mão<br>
-  <b>Barra:</b> 1-9, 0, -, = • Scroll ou Q/R troca • Tab/I mochila • Esc pausa<br>
-  <b>Comer:</b> segure um alimento e pressione F (ou use o item)<br><br>
+  🎮 <b>Controles:</b> aperte <b>F1</b> ou clique em <b>🎮 Controles</b> no topo.<br><br>
   🌱 Are (1), plante sementes, regue (2). O Regador enche na água (lago/rio)!<br>
   🌧️ Chuva rega sozinha. Plantas fora de estação morrem na virada.<br>
-  🎣 Pesca: Vara (5) de frente para a água. Espaço quando aparecer o "!" e segure Espaço para subir a barra verde.<br>
+  🎣 Pesca: Vara (5) de frente para a água. Espaço/clique quando aparecer o "!" e segure para subir a barra verde.<br>
   ⛏️ Mina: nordeste da vila. Quebre pedras atrás da escada, cuidado com as gosmas!<br>
   🐔 Compre bichos na Fazendinha, ponha capim no cocho e colete (E) todo dia.<br>
   🌙 Durma na porta da sua casa (E) antes das 02:00!<br>
   🐒 Co-op: botão "Co-op Online" no topo — host manda no mundo, dinheiro é de todos.</div>`;
-  openModal('Controles e dicas', d);
+  openModal('Dicas da roça', d);
 }
 
 export function openSummary(lines: string[], title: string, onClose: () => void): void {
@@ -827,9 +824,10 @@ export function showTitle(hasSave: boolean): void {
     };
     t.appendChild(c);
   }
-  const hp = el('button', 'btn brown', '❓ Como jogar');
+  const hp = el('button', 'btn brown', '❓ Dicas da roça');
   hp.onclick = () => openHelp();
   t.appendChild(hp);
+  t.appendChild(el('div', 'sm', '🎮 Controles: <b>F1</b> ou botão <b>🎮 Controles</b> no topo'));
   root.appendChild(t);
   titleEl = t;
   S.mode = 'title';
