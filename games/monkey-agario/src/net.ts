@@ -1,4 +1,5 @@
 import { mountMonkeyHud, type MonkeyHudHandle, PeerRoom, type PlayerProfile } from '@monkey-slop/sdk';
+import { AGARIO_CONTROLS } from './controls';
 import { massToRadius } from './skins';
 import type {
   CactusVirus,
@@ -52,6 +53,7 @@ export interface NetCallbacks {
   onModeChanged: (mode: GameMode) => void;
   onSnapshot: (snap: SnapshotPayload) => void;
   onConnectedChange: () => void;
+  onControlsOpenChange?: (open: boolean) => void;
 }
 
 export class AgarioNetwork {
@@ -91,6 +93,10 @@ export class AgarioNetwork {
       slug: 'monkey-agario',
       title: 'Agar.Mico: Macaco Come Macaco',
       room: this.room,
+      controls: {
+        ...AGARIO_CONTROLS,
+        onOpenChange: (open) => this.callbacks.onControlsOpenChange?.(open),
+      },
     });
   }
 

@@ -24,6 +24,7 @@ let wantSpawnPending = false;
 let splitQueued = false;
 let ejectQueued = false;
 let lastKnownMass = 0;
+let controlsOpen = false;
 
 // Input tracking (mouse, keyboard, mobile touch)
 let mouseClientX = window.innerWidth / 2;
@@ -97,6 +98,17 @@ const net = new AgarioNetwork({
       }
     }
     ui.setNetworkStatus(net.isOnline(), net.isEffectiveHost(), players.length);
+  },
+  onControlsOpenChange: (open) => {
+    controlsOpen = open;
+    if (open) {
+      keysDown.clear();
+      joyTouchId = null;
+      joyActive = false;
+      joyDirX = 0;
+      joyDirY = 0;
+      joyKnob.style.transform = 'translate(0px, 0px)';
+    }
   },
 });
 
@@ -348,14 +360,17 @@ function frame(now: number): void {
   const myId = net.getLocalId();
 
   if (net.isEffectiveHost()) {
-    // Host (or Solo) runs authoritative simulation
-    if (localPlaying || wantSpawnPending) {
-      sim.setHumanInput(myId, buildLocalInput());
-    }
+    const paused = controlsOpen && !net.isOnline();
+    if (!paused) {
+      // Host (or Solo) runs authoritative simulation
+      if (localPlaying || wantSpawnPending) {
+        sim.setHumanInput(myId, buildLocalInput());
+      }
 
-    const { events, deaths } = sim.step(dt);
-    handleEvents(events);
-    handleDeaths(deaths);
+      const { events, deaths } = sim.step(dt);
+      handleEvents(events);
+      handleDeaths(deaths);
+    }
 
     // Check pellet eat audio feedback for local player
     let currMass = 0;
@@ -386,7 +401,7 @@ function frame(now: number): void {
         arenaSize: sim.arenaSize,
         mode: sim.mode,
       },
-      dt,
+      paused ? 0 : dt,
     );
 
     const myStats = sim.stats.get(myId);
