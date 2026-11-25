@@ -1,4 +1,5 @@
 import { mountMonkeyHud, PeerRoom } from '@monkey-slop/sdk';
+import { monkeySmashControls } from './controls';
 import { Game } from './game';
 import type { NetMsg } from './net';
 
@@ -22,6 +23,10 @@ const hud = mountMonkeyHud({
   slug: 'monkey-smash',
   title: 'Super Smash Macacos: Briga na Bananeira',
   room,
+  controls: {
+    ...monkeySmashControls,
+    onOpenChange: (open) => game?.setControlsOpen(open),
+  },
 });
 
 game = new Game(canvas, room);
