@@ -1,5 +1,6 @@
 import { mountMonkeyHud, type PlayerProfile } from '@monkey-slop/sdk';
 import { clickerAudio } from './audio';
+import { createControlsConfig } from './controls';
 import {
   ACHIEVEMENTS,
   BUILDINGS,
@@ -94,6 +95,7 @@ let selectedRaceGoal = 25000;
 let activeTab: ShopTab = 'buildings';
 let bulkAmount = 1;
 let isPlaying = false;
+let isControlsOpen = false;
 let shopNeedsRebuild = true;
 let lastScoreReported = 0;
 
@@ -203,6 +205,9 @@ const hud = mountMonkeyHud({
   slug: 'monkey-clicker',
   title: 'Banana Clicker: Império do Macaco',
   room: net.room,
+  controls: createControlsConfig((open) => {
+    isControlsOpen = open;
+  }),
 });
 
 function updateMenuStatus(): void {
@@ -966,7 +971,7 @@ canvas.addEventListener('pointermove', (e) => {
 });
 
 canvas.addEventListener('pointerdown', (e) => {
-  if (!isPlaying) return;
+  if (!isPlaying || isControlsOpen) return;
   const rect = canvas.getBoundingClientRect();
   const lx = e.clientX - rect.left;
   const ly = e.clientY - rect.top;
@@ -986,7 +991,7 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 
 window.addEventListener('keydown', (e) => {
-  if (!isPlaying) return;
+  if (!isPlaying || isControlsOpen) return;
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
   if (e.code === 'Space') {
     e.preventDefault();
@@ -1086,7 +1091,7 @@ function tick(now: number): void {
   renderer.step(dt);
   net.stepVisuals(dt);
 
-  if (isPlaying) {
+  if (isPlaying && !isControlsOpen) {
     const isAuthoritative = state.mode !== 'coop' || net.isHost();
     const metrics = computeMetrics(state);
 
