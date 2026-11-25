@@ -1,6 +1,7 @@
 // Camada P2P (PeerRoom + HUD do SDK) para Co-op e Versus.
 import { mountMonkeyHud, PeerRoom, type MonkeyHudHandle } from '@monkey-slop/sdk';
 import type { PeerEnvelope, PlayerProfile } from '@monkey-slop/sdk';
+import { PVZ_CONTROLS } from './controls';
 
 export const SLUG = 'monkey-pvz';
 
@@ -31,6 +32,7 @@ export interface NetCallbacks {
   onStatus: (s: NetStatus, detail?: string) => void;
   onPlayers: (players: PlayerProfile[]) => void;
   onMessage: (type: string, payload: unknown, senderId: string) => void;
+  onControlsOpenChange?: (open: boolean) => void;
 }
 
 export class PvzNet {
@@ -56,6 +58,10 @@ export class PvzNet {
       slug: SLUG,
       title: 'Bananeiras vs Gorilas Zumbis',
       room: this.room,
+      controls: {
+        ...PVZ_CONTROLS,
+        onOpenChange: (open) => cb.onControlsOpenChange?.(open),
+      },
     });
   }
 
