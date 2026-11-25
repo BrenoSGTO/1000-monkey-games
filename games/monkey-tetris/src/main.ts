@@ -1,5 +1,6 @@
 import { getGameScore, mountMonkeyHud, reportGameScore } from '@monkey-slop/sdk';
 import { tetrisAudio } from './audio';
+import { MONKEY_TETRIS_CONTROLS } from './controls';
 import { BotController, TetrisEngine, createEmptyInput } from './engine';
 import { TetrisNet } from './net';
 import { TetrisRenderer } from './renderer';
@@ -26,7 +27,6 @@ const menuOverlay = document.getElementById('menu-overlay') as HTMLDivElement;
 const resultsOverlay = document.getElementById('results-overlay') as HTMLDivElement;
 const modesWrap = document.getElementById('mt-modes') as HTMLDivElement;
 const optionsRow = document.getElementById('mt-options-row') as HTMLDivElement;
-const controlsBox = document.getElementById('mt-controls-box') as HTMLDivElement;
 const statusLineEl = document.getElementById('mt-status-line') as HTMLDivElement;
 const bestBadgeEl = document.getElementById('mt-best-badge') as HTMLDivElement;
 const startBtn = document.getElementById('mt-start-btn') as HTMLButtonElement;
@@ -53,6 +53,7 @@ let selectedStartLevel = 1;
 let selectedBotDiff: BotDifficulty = 'chimp';
 let inGame = false;
 let paused = false;
+let pausedByGuide = false;
 let countdownTimer = 0;
 let lastCountdownInt = -1;
 let matchEnded = false;
@@ -145,6 +146,24 @@ hudHandle = mountMonkeyHud({
   slug: SLUG,
   title: 'Macactris: Empilha Banana',
   room: net.room,
+  controls: {
+    ...MONKEY_TETRIS_CONTROLS,
+    onOpenChange: (open) => {
+      if (open) {
+        keysDown.clear();
+        pendingPresses.clear();
+        touchHeld.clear();
+        touchPressed.clear();
+        if (inGame && !matchEnded && selectedMode !== 'online_versus' && !paused) {
+          paused = true;
+          pausedByGuide = true;
+        }
+      } else if (pausedByGuide) {
+        paused = false;
+        pausedByGuide = false;
+      }
+    },
+  },
 });
 
 function refreshBestBadge(): void {
@@ -161,22 +180,6 @@ function syncModeButtons(): void {
   modesWrap.querySelectorAll<HTMLButtonElement>('.mt-mode-btn').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.mode === selectedMode);
   });
-
-  if (selectedMode === 'local_2p') {
-    controlsBox.innerHTML = `
-      <div><strong>J1 (Esquerda):</strong> <span class="mt-kbd">A/D</span> mover • <span class="mt-kbd">S</span> descer • <span class="mt-kbd">Espaço</span> queda</div>
-      <div><strong>J1 Giro/Hold:</strong> <span class="mt-kbd">W</span> horário • <span class="mt-kbd">Q</span> anti-horário • <span class="mt-kbd">C/E</span> hold</div>
-      <div><strong>J2 (Direita):</strong> <span class="mt-kbd">◀/▶</span> mover • <span class="mt-kbd">▼</span> descer • <span class="mt-kbd">Enter</span> queda</div>
-      <div><strong>J2 Giro/Hold:</strong> <span class="mt-kbd">▲</span> horário • <span class="mt-kbd">./R-Ctrl</span> anti-horário • <span class="mt-kbd">R-Shift/M</span> hold</div>
-    `;
-  } else {
-    controlsBox.innerHTML = `
-      <div><span class="mt-kbd">A/D</span> ou <span class="mt-kbd">◀/▶</span> Mover • <span class="mt-kbd">S/▼</span> Descer</div>
-      <div><span class="mt-kbd">Espaço</span> Queda Instantânea • <span class="mt-kbd">C/Shift</span> Hold</div>
-      <div><span class="mt-kbd">W/▲/X</span> Girar Horário • <span class="mt-kbd">Z</span> Girar Anti-horário</div>
-      <div><span class="mt-kbd">B</span> Buzina Macaca • <span class="mt-kbd">P</span> Pausa • <span class="mt-kbd">R</span> Reiniciar</div>
-    `;
-  }
   refreshStartButton();
 }
 
@@ -307,6 +310,7 @@ touchBar.querySelectorAll<HTMLButtonElement>('.mt-tbtn').forEach((btn) => {
 function openMenu(): void {
   inGame = false;
   paused = false;
+  pausedByGuide = false;
   tetrisAudio.setMatchActive(false);
   menuOverlay.classList.remove('hidden');
   resultsOverlay.classList.add('hidden');
@@ -409,6 +413,7 @@ function createCallbacksForBoard(): ConstructorParameters<typeof TetrisEngine>[0
 function launchMatch(seed: number): void {
   inGame = true;
   paused = false;
+  pausedByGuide = false;
   matchEnded = false;
   countdownTimer = 2.4;
   lastCountdownInt = 4;
