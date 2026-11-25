@@ -2,6 +2,7 @@
 import { mountMonkeyHud, PeerRoom, reportGameScore, type PlayerProfile } from '@monkey-slop/sdk';
 import type { Expr } from './art';
 import { gameAudio } from './audio';
+import { CONTROLS_GUIDE } from './controls';
 import {
   BOT_NAMES,
   CARS,
@@ -82,6 +83,7 @@ export class Game {
   private inputAcc = 0;
   private lastSent = { m: -1, j: -1 };
   private paused = false;
+  private pausedByControls = false;
   private clock = 0;
 
   constructor(private canvas: HTMLCanvasElement) {
@@ -94,7 +96,15 @@ export class Game {
         if (status === 'error') this.hud.toast(detail ?? 'Erro de conexão', 'chaos');
       },
     });
-    this.hud = mountMonkeyHud({ slug: SLUG, title: TITLE, room: this.room });
+    this.hud = mountMonkeyHud({
+      slug: SLUG,
+      title: TITLE,
+      room: this.room,
+      controls: {
+        ...CONTROLS_GUIDE,
+        onOpenChange: (open) => this.onControlsOpenChange(open),
+      },
+    });
 
     this.ui = new GameUi(
       document.body,
@@ -102,6 +112,7 @@ export class Game {
         onSolo: (s) => this.startSolo(s),
         onLocal: (s) => this.startLocal(s),
         onOnlineStart: (s) => this.startOnlineHost(s),
+        onHelp: () => this.hud.controls?.open(),
         onResume: () => this.togglePause(),
         onRestart: () => this.restart(),
         onMenu: () => this.toMenu(true),
@@ -255,6 +266,7 @@ export class Game {
     this.role = role;
     this.ended = false;
     this.paused = false;
+    this.pausedByControls = false;
     this.frames = [];
     this.clip = [];
     this.expr.clear();
@@ -325,6 +337,7 @@ export class Game {
     this.match = null;
     this.netView = null;
     this.paused = false;
+    this.pausedByControls = false;
     this.input.enabled = false;
     this.input.releaseAll();
     this.input.dual = false;
@@ -360,6 +373,25 @@ export class Game {
 
   private skipReplay(): void {
     if (this.match && this.role === 'local' && this.view.phase === PH_REPLAY) this.match.skipReplay();
+  }
+
+  private onControlsOpenChange(open: boolean): void {
+    this.input.releaseAll();
+    if (open) {
+      if (this.role === 'local' && !this.paused && this.ui.current === 'none') {
+        this.pausedByControls = true;
+        this.paused = true;
+        if (this.match) this.match.paused = true;
+        this.input.enabled = false;
+      }
+    } else if (this.pausedByControls) {
+      this.pausedByControls = false;
+      if (this.role === 'local' && this.ui.current === 'none') {
+        this.paused = false;
+        if (this.match) this.match.paused = false;
+        this.input.enabled = true;
+      }
+    }
   }
 
   // ------------------------------------------------------------ rede
