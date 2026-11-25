@@ -1,4 +1,5 @@
 import { mountMonkeyHud, monkeyAudio, PeerRoom } from '@monkey-slop/sdk';
+import { createSkateControlsConfig } from './controls';
 import { MonkeySkateGame, type HudDomRefs } from './game';
 import type { GameMode, NetMessage, TrackId } from './types';
 
@@ -25,6 +26,9 @@ const hud = mountMonkeyHud({
   slug: 'monkey-skate',
   title: 'Tony Chimp: Skate Ragdoll',
   room,
+  controls: createSkateControlsConfig((open) => {
+    game?.setGuideOpen(open);
+  }),
 });
 
 const dom: HudDomRefs = {

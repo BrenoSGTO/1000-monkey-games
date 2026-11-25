@@ -121,6 +121,7 @@ export class MonkeySkateGame {
   private track: TrackData = TRACKS.praca;
   private mode: GameMode = 'free';
   private paused = true;
+  private guidePausedFromActive = false;
   private sessionRemaining = SESSION_90_DURATION;
   private countdownTimer = 0;
   private matchId = '';
@@ -316,6 +317,25 @@ export class MonkeySkateGame {
     this.dom.turnModal.classList.add('hidden');
     this.dom.summaryModal.classList.add('hidden');
     this.dom.menuModal.classList.remove('hidden');
+  }
+
+  public setGuideOpen(open: boolean): void {
+    if (open) {
+      if (!this.paused) {
+        this.guidePausedFromActive = true;
+        this.paused = true;
+        this.keys.clear();
+      }
+    } else if (this.guidePausedFromActive) {
+      this.guidePausedFromActive = false;
+      const anyModalOpen =
+        !this.dom.menuModal.classList.contains('hidden') ||
+        !this.dom.turnModal.classList.contains('hidden') ||
+        !this.dom.summaryModal.classList.contains('hidden');
+      if (!anyModalOpen) {
+        this.paused = false;
+      }
+    }
   }
 
   public handlePeerMessage(senderId: string, senderName: string, msg: NetMessage): void {
