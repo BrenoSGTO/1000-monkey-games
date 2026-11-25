@@ -370,7 +370,7 @@ export class GameUI {
 
     this.lobbyPanel.innerHTML = `
       <div style="font-size:16px;font-weight:900;color:#facc15;margin-bottom:4px;">🚀 NAVE BANANA-1 · LOBBY</div>
-      <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Ande com WASD pelo Refeitório ou ajuste seu macaco!</div>
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Ajuste seu macaco e explore o Refeitório! · 🎮 Controles: <b>F1</b></div>
 
       <div style="margin-bottom:10px;">
         <div style="font-size:11px;font-weight:800;color:#cbd5e1;margin-bottom:4px;">Seu Apelido & Traje</div>

@@ -80,6 +80,7 @@ export class MonkeyAmongUsGame {
   private lastWorldSyncAt = 0;
   private lastAlarmAt = 0;
   private scoredThisMatch = false;
+  private controlsOpen = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -89,6 +90,13 @@ export class MonkeyAmongUsGame {
       onPlayersChange: () => this.rebuildLobbyPlayers(),
       onConnectedChange: () => this.rebuildLobbyPlayers(),
       onMessage: (senderId, senderName, msg) => this.handleNetMessage(senderId, senderName, msg),
+      onControlsOpenChange: (open) => {
+        this.controlsOpen = open;
+        if (open) {
+          this.keys.clear();
+          this.pointerTarget = null;
+        }
+      },
     });
 
     this.tasksModal = new TaskModalController({
@@ -1354,6 +1362,8 @@ export class MonkeyAmongUsGame {
   }
 
   private update(dt: number, nowMs: number): void {
+    if (this.controlsOpen && !this.net.isOnline()) return;
+
     this.timeSec += dt;
     if (this.shakeTimer > 0) this.shakeTimer = Math.max(0, this.shakeTimer - dt);
 
