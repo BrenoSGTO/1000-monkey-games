@@ -215,6 +215,7 @@ export class MonkeySurvivorsGame {
 
   // Input
   private keys = new Set<string>();
+  private pausedByGuide = false;
   private joystick = {
     active: false,
     pointerId: -1,
@@ -269,6 +270,26 @@ export class MonkeySurvivorsGame {
 
   private isAuthority(): boolean {
     return !this.isMultiplayer() || this.room.localPlayer.isHost;
+  }
+
+  setControlsGuideOpen(open: boolean): void {
+    if (open) {
+      this.keys.clear();
+      this.joystick.active = false;
+      this.joystick.dx = 0;
+      this.joystick.dy = 0;
+      if (!this.isMultiplayer() && this.screen === 'playing') {
+        this.pausedByGuide = true;
+        this.screen = 'paused';
+        this.renderUi();
+      }
+    } else if (this.pausedByGuide) {
+      this.pausedByGuide = false;
+      if (this.screen === 'paused') {
+        this.screen = 'playing';
+        this.renderUi();
+      }
+    }
   }
 
   onPlayersChange(players: ReturnType<PeerRoom<NetMessage>['getPlayers']>): void {
@@ -2972,7 +2993,7 @@ export class MonkeySurvivorsGame {
           </div>
           ${bodyHtml}
           <div style="text-align:center;font-size:11px;color:#64748b;margin-top:12px;">
-            Controles: WASD / Setas ou Joystick Touch • Co-op: use o botão "Co-op Online" no topo esquerdo
+            🎮 Controles: F1 (ou botão no topo) • Co-op: botão "Co-op Online" no topo esquerdo
           </div>
         </div>
       </div>
