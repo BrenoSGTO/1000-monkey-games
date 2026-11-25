@@ -8,6 +8,7 @@ import {
   type PlayerProfile,
 } from '@monkey-slop/sdk';
 import { flappyAudio } from './audio';
+import { createFlappyControlsConfig } from './controls';
 import {
   createMonkeyEntity,
   stepMonkey,
@@ -114,6 +115,7 @@ let localHornTimer = 0;
 let netSyncAccum = 0;
 let roundWinnerBanner: string | null = null;
 let roundWinnerDeclared = false;
+let isControlsOpen = false;
 
 const sessionScores = new Map<string, SessionScoreEntry>();
 
@@ -235,7 +237,9 @@ const hud = mountMonkeyHud({
   slug: SLUG,
   title: 'Flappy Mico: Voo da Vergonha',
   room,
-  hint: 'Espaço/Clique para voar • B para buzinar',
+  controls: createFlappyControlsConfig((open) => {
+    isControlsOpen = open;
+  }),
 });
 
 function syncRosterToSession(players: PlayerProfile[]): void {
@@ -603,6 +607,31 @@ let lastTime = performance.now();
 function loop(now: number): void {
   const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) / 1000));
   lastTime = now;
+
+  if (isControlsOpen && (phase === 'playing' || phase === 'countdown')) {
+    renderGameFrame(ctx, canvas.width, canvas.height, {
+      logicalWidth,
+      timeSec,
+      worldX,
+      biome: currentBiome,
+      biomeBannerText,
+      biomeBannerTimer,
+      shakeAmount,
+      turboFlash,
+      monkeys,
+      ghosts: gameMode === 'online' ? Array.from(ghosts.values()) : [],
+      columns: world.columns,
+      flyers: world.flyers,
+      coins: world.coins,
+      powerUps: world.powerUps,
+      particles,
+      floatingTexts,
+      is2PLocal: gameMode === 'local2p',
+    });
+    requestAnimationFrame(loop);
+    return;
+  }
+
   timeSec += dt;
 
   if (shakeAmount > 0) shakeAmount = Math.max(0, shakeAmount - dt * 28);
@@ -993,13 +1022,7 @@ function renderOverlay(): void {
         </button>
 
         <div class="fm-controls-hint">
-          ${
-            gameMode === 'local2p'
-              ? '<b>2P Local:</b> Jogador 1 (<b>W / Espaço</b> ou toque à esquerda) vs Jogador 2 (<b>Seta ↑ / K / Enter</b> ou toque à direita)!'
-              : gameMode === 'online'
-                ? '<b>Corrida P2P:</b> Abra "🐒 Co-op Online" no topo esquerdo para convidar amigos! Todos voam no mesmo seed com fantasmas visíveis. Tecla <b>B</b> buzina!'
-                : '<b>Controles:</b> <b>Espaço / W / Seta ↑ / Clique / Toque</b> para bater a hélice de banana! Colete 🧲 Ímã, 🥥 Escudo e 🔥 Turbo!'
-          }
+          🎮 Controles: <b>F1</b> (ou botão no topo) • Colete 🧲 Ímã, 🥥 Escudo e 🔥 Turbo!
         </div>
       </div>
     `;
