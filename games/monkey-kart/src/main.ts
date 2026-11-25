@@ -1,5 +1,6 @@
 import { PeerRoom, mountMonkeyHud, reportGameScore, type PeerEnvelope, type PlayerProfile } from '@monkey-slop/sdk';
 import { kartAudio } from './audio';
+import { MONKEY_KART_CONTROLS } from './controls';
 import { DRIVERS } from './drivers';
 import { Fx } from './fx';
 import { InputManager } from './input';
@@ -93,7 +94,26 @@ const room = new PeerRoom<unknown>(SLUG, {
     if (screen === 'setup' && setup.mode === 'online') renderSetup();
   },
 });
-const hud = mountMonkeyHud({ slug: SLUG, title: 'Mico Kart: Corrida da Casca', room });
+let pausedByGuide = false;
+const hud = mountMonkeyHud({
+  slug: SLUG,
+  title: 'Mico Kart: Corrida da Casca',
+  room,
+  controls: {
+    ...MONKEY_KART_CONTROLS,
+    onOpenChange(open) {
+      if (open) {
+        if (screen === 'race' && uiRoot.innerHTML === '') {
+          pausedByGuide = true;
+          setPaused(true);
+        }
+      } else if (pausedByGuide) {
+        pausedByGuide = false;
+        if (screen === 'race') setPaused(false);
+      }
+    },
+  },
+});
 
 const isHost = () => room.localPlayer.isHost && !!room.roomCode;
 const isGuestNet = () => netRace && !room.localPlayer.isHost;

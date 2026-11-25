@@ -59,7 +59,7 @@ export function titleHtml(): string {
       <button class="mk-btn green" data-act="mode" data-v="online">🌐 Online P2P (até 6 macacos)</button>
       <button class="mk-btn ghost" data-act="help">❓ Como jogar</button>
     </div>
-    <div class="mk-small">8 pilotos • 4 pistas com atalhos • drift com mini-turbo • 6 itens • Grand Prix com pontos</div>
+    <div class="mk-small">8 pilotos • 4 pistas com atalhos • drift com mini-turbo • 6 itens • 🎮 Controles: F1</div>
   </div>`;
 }
 
@@ -69,9 +69,7 @@ export function helpHtml(): string {
   <div class="mk-screen">
     <div class="mk-h">Como jogar</div>
     <div class="mk-panel mk-help">
-      <div><b>Solo / Online:</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ou setas • <b>Drift</b>: segure <kbd>Shift</kbd> (ou <kbd>X</kbd>) e vire • <b>Item</b>: <kbd>Espaço</kbd> (ou <kbd>Z</kbd>) • <kbd>R</kbd> reinicia • <kbd>P</kbd>/<kbd>Esc</kbd> pausa</div>
-      <div><b>2P:</b> P1 <kbd>WASD</kbd> + <kbd>Q</kbd> drift + <kbd>E</kbd> item • P2 setas + <kbd>.</kbd> / <kbd>Shift dir.</kbd> drift + <kbd>/</kbd> / <kbd>Enter</kbd> item</div>
-      <div><b>Controle:</b> A acelera, B ré, RB drift, X item. <b>Celular:</b> botões na tela.</div>
+      <div><b>🎮 Controles:</b> aperte <kbd>F1</kbd> a qualquer hora ou clique em <b>🎮 Controles</b> no canto superior esquerdo para abrir a cartilha ilustrada.</div>
       <div style="margin-top:8px"><b>Drift:</b> aperte drift e vire. Faíscas <span style="color:#38bdf8">azuis</span> → <span style="color:#fb923c">laranjas</span> → <span style="color:#d946ef">roxas</span>. Solte pra ganhar o mini-turbo!</div>
       <div><b>Largada:</b> aperte acelerar só no "2" do 3-2-1 pra largar queimando. Cedo demais afoga o motor!</div>
       <div><b>Atalhos:</b> caminhos de terra/ponte em laranja no mapa. Só vale a pena com turbo (Guaraná, mini-turbo ou pad) — sem ele a grama segura você.</div>
