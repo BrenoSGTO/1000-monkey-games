@@ -84,7 +84,7 @@ export function titleHtml(best: number, online: string, isGuest: boolean): strin
       <button class="btn dark" data-act="almanac">📖 Almanaque</button>
     </div>
     <div class="hint">${online}${isGuest ? '' : ''}</div>
-    <div class="hint">Clique/toque na semente e depois no gramado. Pegue as bananas que caem do céu!</div>
+    <div class="hint">🎮 Controles: F1 ou botão no topo</div>
     ${best > 0 ? `<div class="best">🏆 Recorde: ${best}</div>` : ''}
   </div></div>`;
 }

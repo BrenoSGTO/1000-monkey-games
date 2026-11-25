@@ -124,6 +124,7 @@ const fx = new Fx();
 let tAnim = 0;
 let pointer = { x: -999, y: -999, mouse: false };
 let toastT = 0;
+let pausedByGuide = false;
 
 // ---------- rede ----------
 const net = new PvzNet({
@@ -135,6 +136,19 @@ const net = new PvzNet({
     handlePlayersChange();
   },
   onMessage: (type, payload, sender) => onNetMessage(type, payload, sender),
+  onControlsOpenChange: (open) => {
+    const g = game;
+    if (!g || screen !== 'play' || g.online || g.over) return;
+    if (open) {
+      if (!g.paused) {
+        g.paused = true;
+        pausedByGuide = true;
+      }
+    } else if (pausedByGuide) {
+      pausedByGuide = false;
+      g.paused = false;
+    }
+  },
 });
 
 function handlePlayersChange(): void {
