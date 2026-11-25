@@ -8,6 +8,7 @@ import {
   type PlayerProfile,
 } from '@monkey-slop/sdk';
 import { surfersAudio } from './audio';
+import { SURFERS_CONTROLS } from './controls';
 import { SurfersEngine, type RunSummary } from './game';
 import {
   GAME_SLUG,
@@ -133,10 +134,18 @@ const room = new PeerRoom<SurferNetMessage>(GAME_SLUG, {
   },
 });
 
+let controlsOpen = false;
+
 const hud = mountMonkeyHud<SurferNetMessage>({
   slug: GAME_SLUG,
   title: 'Cipó Surfers: Fuga do Zelador',
   room,
+  controls: {
+    ...SURFERS_CONTROLS,
+    onOpenChange: (open) => {
+      controlsOpen = open;
+    },
+  },
 });
 
 const engine = new SurfersEngine(save, {
@@ -252,6 +261,7 @@ resize();
 
 // Keyboard Controls
 window.addEventListener('keydown', (e) => {
+  if (controlsOpen) return;
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
   const code = e.code;
 
@@ -307,7 +317,7 @@ let ptrSwiped = false;
 let lastTapTime = 0;
 
 canvas.addEventListener('pointerdown', (e) => {
-  if (screen !== 'playing') return;
+  if (controlsOpen || screen !== 'playing') return;
   ptrActive = true;
   ptrSwiped = false;
   ptrStartX = e.clientX;
@@ -325,7 +335,7 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 
 canvas.addEventListener('pointermove', (e) => {
-  if (!ptrActive || ptrSwiped || screen !== 'playing') return;
+  if (controlsOpen || !ptrActive || ptrSwiped || screen !== 'playing') return;
   const dx = e.clientX - ptrStartX;
   const dy = e.clientY - ptrStartY;
   const threshold = 24;
@@ -504,8 +514,7 @@ function renderOverlay(): void {
           </div>
 
           <div class="ms-controls-hint">
-            <b>Controles:</b> ⬅️➡️ / A D (Faixas) • ⬆️ / W (Pular) • ⬇️ / S (Rolar / Aterrissar) • <b>Espaço / 2x Toque</b> (Prancha Escudo)<br/>
-            No celular: deslize para qualquer direção! • <b>B:</b> Buzina / Provocação
+            🎮 Controles: aperte <b>F1</b> ou clique em <b>🎮 Controles</b> no topo
           </div>
         </div>
       </div>
@@ -771,57 +780,59 @@ function loop(now: number): void {
   const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) / 1000));
   lastTime = now;
 
-  if (screen === 'countdown') {
-    countdownTimer -= dt;
-    if (countdownTimer <= 0) {
-      countdownVal -= 1;
-      if (countdownVal > 0) {
-        monkeyAudio.play('click');
-        countdownTimer = 0.85;
-        renderOverlay();
-      } else if (countdownVal === 0) {
-        monkeyAudio.play('fanfare', 0.2);
-        engine.resetWorld(pendingSeed, true);
-        surfersAudio.startMusic();
-        screen = 'playing';
-        renderOverlay();
+  if (!controlsOpen) {
+    if (screen === 'countdown') {
+      countdownTimer -= dt;
+      if (countdownTimer <= 0) {
+        countdownVal -= 1;
+        if (countdownVal > 0) {
+          monkeyAudio.play('click');
+          countdownTimer = 0.85;
+          renderOverlay();
+        } else if (countdownVal === 0) {
+          monkeyAudio.play('fanfare', 0.2);
+          engine.resetWorld(pendingSeed, true);
+          surfersAudio.startMusic();
+          screen = 'playing';
+          renderOverlay();
+        }
       }
     }
-  }
 
-  // Update ghost taunt timers
-  for (const g of remoteSurfers.values()) {
-    if (g.tauntTimer && g.tauntTimer > 0) {
-      g.tauntTimer = Math.max(0, g.tauntTimer - dt);
+    // Update ghost taunt timers
+    for (const g of remoteSurfers.values()) {
+      if (g.tauntTimer && g.tauntTimer > 0) {
+        g.tauntTimer = Math.max(0, g.tauntTimer - dt);
+      }
     }
-  }
 
-  // Idle camera drift on Title screen so background feels alive
-  if (screen === 'title') {
-    engine.advancePreview(dt);
-  }
+    // Idle camera drift on Title screen so background feels alive
+    if (screen === 'title') {
+      engine.advancePreview(dt);
+    }
 
-  engine.step(dt, viewW, viewH);
+    engine.step(dt, viewW, viewH);
 
-  // Broadcast P2P state ~15Hz while playing
-  if (screen === 'playing' && room.roomCode && now - lastNetSend > 66) {
-    lastNetSend = now;
-    room.send('state', {
-      kind: 'state',
-      distance: engine.distance,
-      laneX: engine.playerLaneX,
-      y: engine.playerY,
-      rolling: engine.rolling,
-      jetpack: engine.powerups.jetpack > 0,
-      board: engine.boardTimer > 0,
-      alive: engine.alive,
-      skin: save.equippedSkin,
-      score: Math.floor(engine.score),
-    });
-  }
+    // Broadcast P2P state ~15Hz while playing
+    if (screen === 'playing' && room.roomCode && now - lastNetSend > 66) {
+      lastNetSend = now;
+      room.send('state', {
+        kind: 'state',
+        distance: engine.distance,
+        laneX: engine.playerLaneX,
+        y: engine.playerY,
+        rolling: engine.rolling,
+        jetpack: engine.powerups.jetpack > 0,
+        board: engine.boardTimer > 0,
+        alive: engine.alive,
+        skin: save.equippedSkin,
+        score: Math.floor(engine.score),
+      });
+    }
 
-  if (screen === 'playing') {
-    updateLiveHud();
+    if (screen === 'playing') {
+      updateLiveHud();
+    }
   }
 
   engine.render(ctx, viewW, viewH, Array.from(remoteSurfers.values()));
