@@ -8,6 +8,7 @@ import {
   type PlayerProfile,
 } from '@monkey-slop/sdk';
 import { crushAudio } from './audio';
+import { createControlsConfig } from './controls';
 import {
   ALL_FRUITS,
   applyGravityAndRefill,
@@ -106,6 +107,7 @@ class BananaCrushGame {
   private initialJelly = 0;
 
   private busy = false;
+  private paused = false;
   private ended = false;
   private sessionToken = 0;
   private selected: { r: number; c: number } | null = null;
@@ -183,6 +185,9 @@ class BananaCrushGame {
       slug: SLUG,
       title: 'Banana Crush: Saga da Selva',
       room: this.room,
+      controls: createControlsConfig((open) => {
+        this.paused = open;
+      }),
     });
 
     window.addEventListener('keydown', (e) => {
@@ -449,7 +454,7 @@ class BananaCrushGame {
         • <strong>5 em linha:</strong> Banana Arco-Íris (limpa toda uma cor!)<br/>
         • <strong>Combo de Especiais:</strong> Troque 2 especiais entre si para efeitos insanos!<br/><br/>
         🏆 <strong>Recorde no Portal:</strong> ${bestRec.bestScore.toLocaleString('pt-BR')} pts<br/>
-        🎮 <strong>Controles:</strong> Arraste (swipe) ou clique em 2 frutas vizinhas.
+        🎮 <strong>Controles:</strong> <strong>F1</strong> ou botão <strong>🎮 Controles</strong> no topo.
       </div>
     `;
 
@@ -790,7 +795,7 @@ class BananaCrushGame {
     };
 
     const canAct = (): boolean => {
-      if (this.busy || this.ended) return false;
+      if (this.busy || this.paused || this.ended) return false;
       if (this.mode === 'coop-p2p' && this.coopTurnPlayerId !== this.room.localPlayer.id) {
         return false;
       }
@@ -1654,7 +1659,9 @@ class BananaCrushGame {
     this.time += dt;
 
     if (this.screen === 'playing') {
-      this.updateSimulation(dt);
+      if (!this.paused) {
+        this.updateSimulation(dt);
+      }
       this.renderCanvases();
     }
 
