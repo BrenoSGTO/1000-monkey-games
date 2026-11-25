@@ -1,5 +1,6 @@
 import { getGameScore, reportGameScore, mountMonkeyHud } from '@monkey-slop/sdk';
 import { kitchenAudio } from './audio';
+import { OVERCOOKED_CONTROLS } from './controls';
 import { KITCHENS, KITCHEN_ORDER } from './kitchens';
 import { OvercookedNet } from './net';
 import { RECIPES } from './recipes';
@@ -135,6 +136,16 @@ hudHandle = mountMonkeyHud({
   slug: SLUG,
   title: 'Sopa de Macacão',
   room: net.room,
+  controls: {
+    ...OVERCOOKED_CONTROLS,
+    onOpenChange: (open) => {
+      if (open && inGame && !paused && !reportedResult) {
+        if (selectedMode !== 'online' || !net.isConnected()) {
+          setPaused(true);
+        }
+      }
+    },
+  },
 });
 
 // Preview kitchen background while on menu — updates dynamically when choosing a kitchen!
@@ -226,22 +237,9 @@ function syncModeButtons(): void {
     btn.classList.toggle('active', mode === selectedMode);
   });
 
-  if (selectedMode === 'local2p') {
-    controlsBoxEl.innerHTML = `
-      <div><strong style="color:#facc15;">Chef 1:</strong> <span class="mo-kbd">WASD</span> mover • <span class="mo-kbd">E</span> pegar • <span class="mo-kbd">F</span> picar/lavar • <span class="mo-kbd">Q</span> jogar • <span class="mo-kbd">L-Shift</span> dash</div>
-      <div><strong style="color:#4ade80;">Chef 2:</strong> <span class="mo-kbd">Setas</span> mover • <span class="mo-kbd">Enter</span>/<span class="mo-kbd">,</span> pegar • <span class="mo-kbd">.</span>/<span class="mo-kbd">M</span> picar/lavar • <span class="mo-kbd">/</span>/<span class="mo-kbd">N</span> jogar • <span class="mo-kbd">R-Shift</span> dash</div>
-      <div><span class="mo-kbd">1-4</span> Gritos rápidos • <span class="mo-kbd">Esc</span>/<span class="mo-kbd">P</span> Pausar • Sirva o pedido <strong style="color:#fde047;">★1º</strong> para multiplicar o Combo!</div>
-    `;
-  } else {
-    controlsBoxEl.innerHTML = `
-      <div><span class="mo-kbd">WASD</span> / <span class="mo-kbd">Setas</span> Mover 8 direções</div>
-      <div><span class="mo-kbd">Espaço</span> / <span class="mo-kbd">E</span> Pegar / Soltar / Servir</div>
-      <div><span class="mo-kbd">F</span> / <span class="mo-kbd">J</span> Picar / Lavar / Apagar Fogo</div>
-      <div><span class="mo-kbd">Q</span> / <span class="mo-kbd">K</span> Arremessar (acerta caldeirão e prato!)</div>
-      <div><span class="mo-kbd">Shift</span> Dash • <span class="mo-kbd">Tab</span> Trocar Chef (Solo)</div>
-      <div><span class="mo-kbd">1-4</span> Gritar • <span class="mo-kbd">M</span> Música • <span class="mo-kbd">Esc</span> Pausar</div>
-    `;
-  }
+  controlsBoxEl.innerHTML = `
+    <div>🎮 <strong>Controles ilustrados:</strong> aperte <span class="mo-kbd">F1</span> ou clique no botão <strong>🎮 Controles</strong> no topo a qualquer hora!</div>
+  `;
   refreshStartButton();
 }
 
