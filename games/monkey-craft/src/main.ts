@@ -1,5 +1,6 @@
 import { PeerRoom, mountMonkeyHud, type PlayerProfile } from '@monkey-slop/sdk';
 import { craftAudio } from './audio';
+import { createMonkeyCraftControls } from './controls';
 import { Game } from './game';
 import { NetSync } from './net';
 import { Renderer } from './render';
@@ -15,6 +16,7 @@ const renderer = new Renderer(canvas, g);
 let hud!: ReturnType<typeof mountMonkeyHud>;
 let sawHost = false;
 let paused = false;
+let pausedByControls = false;
 
 function leaveGuest(msg: string): void {
   if (g.role !== 'guest' && g.state !== 'loading') return;
@@ -73,7 +75,23 @@ const room = new PeerRoom<NetMsg>(SLUG, {
 g.room = room;
 g.net = new NetSync(g, room);
 
-hud = mountMonkeyHud({ slug: SLUG, title: 'Macacraft', room, hint: 'Cava, constrói e banana' });
+hud = mountMonkeyHud({
+  slug: SLUG,
+  title: 'Macacraft',
+  room,
+  hint: 'Cava, constrói e banana',
+  controls: createMonkeyCraftControls((open) => {
+    if (open) {
+      if (g.state === 'play' && !paused) {
+        paused = true;
+        pausedByControls = true;
+      }
+    } else if (pausedByControls) {
+      paused = false;
+      pausedByControls = false;
+    }
+  }),
+});
 g.toast = hud.toast;
 g.initDemo();
 
