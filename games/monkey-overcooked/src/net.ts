@@ -168,6 +168,7 @@ export class OvercookedNet {
       const continuous =
         soundToSend === 'chop' ||
         soundToSend === 'sizzle' ||
+        soundToSend === 'bubble' ||
         soundToSend === 'blend' ||
         soundToSend === 'wash' ||
         soundToSend === 'alarm' ||

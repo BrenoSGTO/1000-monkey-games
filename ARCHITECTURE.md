@@ -78,6 +78,6 @@ Cada agente trabalha em uma branch própria `game/<slug>` a partir de `origin/ma
 | # | Slug | Título Monkey Slop | Inspiração | Branch |
 |---|---|---|---|---|
 | 9 | `monkey-pico-park` | Pico Macaco: A Chave da Banana | Pico Park | `game/monkey-pico-park` |
-| 10 | `monkey-overcooked` | Macaco na Chapa: Cozinha do Caos | Overcooked | `game/monkey-overcooked` |
+| 10 | `monkey-overcooked` | Sopa de Macacão | Overcooked | `game/monkey-overcooked` |
 | 11 | `monkey-amongus` | Entre Macacos: Quem Roubou a Banana? | Among Us | `game/monkey-amongus` |
 | 12 | `monkey-sims` | Os Macacos: Vida na Árvore | The Sims | `game/monkey-sims` |

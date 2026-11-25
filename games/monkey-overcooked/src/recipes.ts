@@ -45,6 +45,23 @@ export const INGREDIENTS: Record<IngredientKind, IngredientInfo> = {
     accent: '#166534',
     throwable: true,
   },
+  carrot: {
+    id: 'carrot',
+    name: 'Cenoura',
+    shortName: 'Cenoura',
+    color: '#fb923c',
+    accent: '#9a3412',
+    choppableTo: 'carrot_chopped',
+    throwable: true,
+  },
+  carrot_chopped: {
+    id: 'carrot_chopped',
+    name: 'Cenoura Picada',
+    shortName: 'Cen.Pic',
+    color: '#fdba74',
+    accent: '#c2410c',
+    throwable: true,
+  },
   bread: {
     id: 'bread',
     name: 'Pão Brioche',
@@ -118,6 +135,22 @@ export const INGREDIENTS: Record<IngredientKind, IngredientInfo> = {
     accent: '#facc15',
     throwable: true,
   },
+  soup_banana: {
+    id: 'soup_banana',
+    name: 'Caldo de Banana',
+    shortName: 'Caldo',
+    color: '#f59e0b',
+    accent: '#fef08a',
+    throwable: true,
+  },
+  soup_macacao: {
+    id: 'soup_macacao',
+    name: 'Sopa de Macacão',
+    shortName: 'Sopa!',
+    color: '#ea580c',
+    accent: '#fde047',
+    throwable: true,
+  },
   burnt: {
     id: 'burnt',
     name: 'Carvão Macaco',
@@ -128,14 +161,41 @@ export const INGREDIENTS: Record<IngredientKind, IngredientInfo> = {
   },
 };
 
+export interface PotRecipeRule {
+  result: IngredientKind;
+  ingredients: IngredientKind[];
+  cookTime: number;
+  brothColor: string;
+}
+
+export const POT_RECIPES: PotRecipeRule[] = [
+  {
+    result: 'soup_banana',
+    ingredients: ['banana_chopped', 'coconut_chopped'],
+    cookTime: 4.8,
+    brothColor: '#fbbf24',
+  },
+  {
+    result: 'soup_macacao',
+    ingredients: ['banana_chopped', 'carrot_chopped', 'lettuce_chopped'],
+    cookTime: 5.5,
+    brothColor: '#ea580c',
+  },
+];
+
 export interface RecipeDef {
   id: RecipeId;
   name: string;
+  shortName: string;
   emoji: string;
   points: number;
   patience: number;
   requiredOnPlate: IngredientKind[];
+  /** Ingredients shown as visual mini-icons on the order ticket */
+  displayIngredients: IngredientKind[];
+  applianceTag?: string;
   stepsHint: string[];
+  guideText: string;
   color: string;
 }
 
@@ -143,41 +203,84 @@ export const RECIPES: Record<RecipeId, RecipeDef> = {
   banana_salad: {
     id: 'banana_salad',
     name: 'Salada de Banana',
+    shortName: 'Salada',
     emoji: '🥗',
-    points: 40,
-    patience: 48,
+    points: 45,
+    patience: 50,
     requiredOnPlate: ['banana_chopped'],
+    displayIngredients: ['banana_chopped'],
     stepsHint: ['🍌🔪'],
+    guideText: 'Pique a Banana na tábua e sirva no prato.',
     color: '#facc15',
+  },
+  sopa_banana: {
+    id: 'sopa_banana',
+    name: 'Caldo de Banana',
+    shortName: 'Caldo Ban.',
+    emoji: '🥣',
+    points: 80,
+    patience: 66,
+    requiredOnPlate: ['soup_banana'],
+    displayIngredients: ['banana_chopped', 'coconut_chopped'],
+    applianceTag: '🍲',
+    stepsHint: ['🍌🔪', '🥥🔪', '🍲'],
+    guideText: 'Pique Banana + Coco e ferva no Caldeirão.',
+    color: '#fbbf24',
+  },
+  sopa_macacao: {
+    id: 'sopa_macacao',
+    name: 'Sopa de Macacão',
+    shortName: 'Sopa Macacão',
+    emoji: '🍲',
+    points: 115,
+    patience: 80,
+    requiredOnPlate: ['soup_macacao'],
+    displayIngredients: ['banana_chopped', 'carrot_chopped', 'lettuce_chopped'],
+    applianceTag: '🍲',
+    stepsHint: ['🍌🔪', '🥕🔪', '🥬🔪', '🍲'],
+    guideText: 'Pique Banana + Cenoura + Alface e ferva no Caldeirão!',
+    color: '#ea580c',
   },
   x_macaco: {
     id: 'x_macaco',
     name: 'X-Macaco',
+    shortName: 'X-Macaco',
     emoji: '🍔',
-    points: 85,
-    patience: 70,
+    points: 90,
+    patience: 72,
     requiredOnPlate: ['bread', 'burger_cooked', 'lettuce_chopped'],
+    displayIngredients: ['bread', 'burger_cooked', 'lettuce_chopped'],
+    applianceTag: '🔥',
     stepsHint: ['🍞', '🍖🔥', '🥬🔪'],
+    guideText: 'Pão + Carne na Chapa + Alface Picada no prato.',
     color: '#f97316',
   },
   pastel_coco: {
     id: 'pastel_coco',
     name: 'Pastel de Coco',
+    shortName: 'Pastel',
     emoji: '🥟',
-    points: 75,
-    patience: 65,
+    points: 80,
+    patience: 66,
     requiredOnPlate: ['pastel_cooked'],
+    displayIngredients: ['dough', 'coconut_chopped'],
+    applianceTag: '🍳',
     stepsHint: ['🫓', '🥥🔪', '🍳'],
-    color: '#fbbf24',
+    guideText: 'Massa + Coco Picado na Fritadeira, depois no prato.',
+    color: '#f59e0b',
   },
   acai_turbo: {
     id: 'acai_turbo',
     name: 'Açaí Turbo',
+    shortName: 'Açaí Turbo',
     emoji: '🍧',
-    points: 75,
-    patience: 65,
+    points: 80,
+    patience: 66,
     requiredOnPlate: ['acai_cooked'],
+    displayIngredients: ['acai', 'banana_chopped'],
+    applianceTag: '🌀',
     stepsHint: ['🫐', '🍌🔪', '🌀'],
+    guideText: 'Açaí + Banana Picada no Liquidificador, depois no prato.',
     color: '#a855f7',
   },
 };
@@ -189,7 +292,6 @@ export function canPlaceIngredientOnPlate(
   if (ingredient === 'burnt') return false;
   if (plateContents.includes(ingredient)) return false;
 
-  // Check if adding this ingredient stays a valid subset of at least one recipe
   const next = [...plateContents, ingredient];
   for (const recipe of Object.values(RECIPES)) {
     if (next.every((ing) => recipe.requiredOnPlate.includes(ing))) {
@@ -209,6 +311,29 @@ export function matchCompletedRecipe(plateContents: IngredientKind[]): RecipeId 
     }
   }
   return undefined;
+}
+
+export function canAcceptInPot(
+  cookContents: IngredientKind[],
+  cookedResult: IngredientKind | null,
+  ing: IngredientKind,
+): boolean {
+  if (cookedResult !== null) return false;
+  if (cookContents.includes(ing)) return false;
+  const next = [...cookContents, ing];
+  return POT_RECIPES.some((rule) => next.every((item) => rule.ingredients.includes(item)));
+}
+
+export function matchPotRecipe(cookContents: IngredientKind[]): PotRecipeRule | null {
+  for (const rule of POT_RECIPES) {
+    if (
+      cookContents.length === rule.ingredients.length &&
+      rule.ingredients.every((req) => cookContents.includes(req))
+    ) {
+      return rule;
+    }
+  }
+  return null;
 }
 
 export function canAcceptInGrill(
@@ -242,7 +367,7 @@ export function canAcceptInBlender(
 
 export const SHOUT_MESSAGES = [
   '🔥 TÁ QUEIMANDO!',
+  '🍲 OLHA A SOPA!',
   '🍽️ LAVA A LOUÇA!',
   '🍌 JOGA BANANA!',
-  '🏃 CORRE!',
 ] as const;

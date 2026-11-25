@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Macaco na Chapa: Cozinha do Caos — Click Macacos</title>
+    <title>Sopa de Macacão — Click Macacos</title>
     <style>
       * {
         box-sizing: border-box;
@@ -42,14 +42,14 @@
         align-items: center;
         justify-content: center;
         padding: 58px 16px 16px;
-        background: radial-gradient(circle at 50% 30%, rgba(124, 45, 18, 0.88), rgba(15, 10, 6, 0.94));
+        background: radial-gradient(circle at 50% 30%, rgba(124, 45, 18, 0.86), rgba(15, 10, 6, 0.94));
         backdrop-filter: blur(5px);
       }
       .mo-overlay.hidden {
         display: none;
       }
       .mo-card {
-        width: min(920px, 100%);
+        width: min(960px, 100%);
         max-height: calc(100vh - 76px);
         overflow-y: auto;
         background: linear-gradient(180deg, #29180d 0%, #1a0f08 100%);
@@ -64,11 +64,11 @@
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
       }
       .mo-title {
         margin: 0;
-        font-size: clamp(22px, 3vw, 32px);
+        font-size: clamp(22px, 3vw, 34px);
         font-weight: 900;
         color: #fde047;
         text-shadow: 0 3px 0 #78350f;
@@ -77,6 +77,34 @@
         margin: 4px 0 0;
         font-size: 13px;
         color: #fed7aa;
+      }
+      .mo-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .mo-pill {
+        font-size: 12px;
+        font-weight: 800;
+        color: #fde047;
+        background: #422006;
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid #facc15;
+      }
+      .mo-music-btn {
+        cursor: pointer;
+        background: #2f1d12;
+        color: #fed7aa;
+        border: 1px solid #fb923c;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .mo-music-btn:hover {
+        background: #431407;
       }
       .mo-section-label {
         font-size: 12px;
@@ -123,7 +151,7 @@
       }
       .mo-kitchens {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
         gap: 10px;
       }
       .mo-kitchen-card {
@@ -145,16 +173,47 @@
         border-color: #f97316;
         box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.35);
       }
+      .mo-k-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 4px;
+      }
       .mo-k-name {
         font-weight: 900;
-        font-size: 14px;
+        font-size: 13px;
         color: #fdba74;
+      }
+      .mo-k-stars {
+        font-size: 12px;
+        letter-spacing: 1px;
+        white-space: nowrap;
       }
       .mo-k-meta {
         font-size: 11px;
         color: #fed7aa;
         margin-top: 4px;
         line-height: 1.35;
+      }
+      .mo-recipes-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 8px;
+      }
+      .mo-recipe-chip {
+        background: rgba(66, 32, 6, 0.72);
+        border: 1px solid #92400e;
+        border-radius: 10px;
+        padding: 8px 10px;
+        font-size: 12px;
+      }
+      .mo-recipe-chip strong {
+        color: #fde047;
+      }
+      .mo-recipe-guide {
+        color: #fed7aa;
+        font-size: 11px;
+        margin-top: 3px;
       }
       .mo-controls-box {
         margin-top: 12px;
@@ -191,8 +250,8 @@
         color: #422006;
         border: 3px solid #fef08a;
         border-radius: 14px;
-        padding: 12px 28px;
-        font-size: 18px;
+        padding: 12px 26px;
+        font-size: 17px;
         font-weight: 900;
         cursor: pointer;
         box-shadow: 0 5px 0 #854d0e;
@@ -224,7 +283,7 @@
       }
       .mo-stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
         gap: 10px;
         margin: 14px 0;
       }
@@ -236,7 +295,7 @@
         text-align: center;
       }
       .mo-stat-val {
-        font-size: 24px;
+        font-size: 22px;
         font-weight: 900;
         color: #fde047;
       }
@@ -246,7 +305,7 @@
         margin-top: 2px;
       }
       .mo-stars {
-        font-size: 42px;
+        font-size: 44px;
         letter-spacing: 8px;
         text-align: center;
         margin: 8px 0;
@@ -265,12 +324,14 @@
           <div style="display:flex;align-items:center;gap:14px;">
             <canvas id="mo-mascot" style="width:150px;height:96px;flex:none;margin:-8px 0 -6px -6px;"></canvas>
             <div>
-            <h1 class="mo-title">Macaco na Chapa: Cozinha do Caos</h1>
-            <p class="mo-sub">Pique, frite, arremesse bananas e não deixe a cozinha pegar fogo! 🔥</p>
+              <h1 class="mo-title">🍲 Sopa de Macacão</h1>
+              <p class="mo-sub">Ferva o caldeirão, pique ingredientes, arremesse bananas e não deixe a cozinha pegar fogo! 🔥</p>
             </div>
           </div>
-          <div id="mo-best-badge" style="font-size:13px;font-weight:800;color:#fde047;background:#422006;padding:6px 12px;border-radius:999px;border:1px solid #facc15;">
-            🏆 Recorde: 0 pts
+          <div class="mo-badges">
+            <button id="mo-music-btn" class="mo-music-btn">🎵 Música: ON</button>
+            <div id="mo-stars-badge" class="mo-pill">⭐ 0/15</div>
+            <div id="mo-best-badge" class="mo-pill">🏆 Recorde: 0 pts</div>
           </div>
         </div>
 
@@ -278,42 +339,53 @@
         <div class="mo-modes" id="mo-modes">
           <button class="mo-mode-btn active" data-mode="solo">
             <div class="mo-mode-title">🐒 Solo (2 Chefs + Tab)</div>
-            <div class="mo-mode-desc">Controle 2 macacos chefs! Aperte Tab para alternar enquanto um pica ou cozinha.</div>
+            <div class="mo-mode-desc">Controle 2 macacos chefs! Aperte F para picar/lavar e aperte Tab para mover o outro chef enquanto ele termina!</div>
           </button>
           <button class="mo-mode-btn" data-mode="local2p">
             <div class="mo-mode-title">🐒🐒 Co-op Local 2P</div>
-            <div class="mo-mode-desc">Dois jogadores no mesmo teclado! WASD vs Setas na mesma cozinha!</div>
+            <div class="mo-mode-desc">Dois jogadores no mesmo teclado! WASD vs Setas cozinhando juntos!</div>
           </button>
           <button class="mo-mode-btn" data-mode="online">
             <div class="mo-mode-title">🌐 Co-op Online P2P (2-4)</div>
-            <div class="mo-mode-desc">Abra uma sala no botão verde lá em cima e chame até 4 amigos!</div>
+            <div class="mo-mode-desc">Abra uma sala no botão verde lá em cima e chame até 4 amigos para ferver a sopa!</div>
           </button>
         </div>
 
         <div class="mo-section-label">2. Escolha a Cozinha</div>
         <div class="mo-kitchens" id="mo-kitchens"></div>
 
-        <div class="mo-controls-box" id="mo-controls-box">
-          <div><span class="mo-kbd">WASD</span> / <span class="mo-kbd">Setas</span> Mover 8 direções</div>
-          <div><span class="mo-kbd">Espaço</span> / <span class="mo-kbd">E</span> Pegar / Soltar / Entregar</div>
-          <div><span class="mo-kbd">F</span> / <span class="mo-kbd">J</span> Picar / Lavar / Apagar Fogo</div>
-          <div><span class="mo-kbd">Q</span> / <span class="mo-kbd">K</span> Arremessar Ingrediente</div>
-          <div><span class="mo-kbd">Shift</span> Dash (esbarra nos amigos!)</div>
-          <div><span class="mo-kbd">Tab</span> Trocar Chef (Solo) | <span class="mo-kbd">1-4</span> Gritar!</div>
-        </div>
+        <div class="mo-section-label">3. Cardápio desta Cozinha</div>
+        <div class="mo-recipes-grid" id="mo-recipes"></div>
+
+        <div class="mo-controls-box" id="mo-controls-box"></div>
 
         <div class="mo-footer">
           <div id="mo-online-status" style="font-size:13px;color:#86efac;font-weight:700;">
-            Pronto para cozinhar no modo Solo!
+            Pronto para ferver a sopa no modo Solo!
           </div>
-          <button id="mo-start-btn" class="mo-play-btn">🔥 ABRIR A COZINHA!</button>
+          <button id="mo-start-btn" class="mo-play-btn">🍲 ABRIR A COZINHA!</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pause Overlay -->
+    <div id="pause-overlay" class="mo-overlay hidden">
+      <div class="mo-card" style="max-width:560px;text-align:center;">
+        <h2 class="mo-title">⏸️ Cozinha Pausada</h2>
+        <p class="mo-sub" id="pause-subtitle">Cardápio do turno atual</p>
+        <div class="mo-recipes-grid" id="pause-recipes" style="text-align:left;margin:14px 0;"></div>
+        <div class="mo-footer" style="justify-content:center;">
+          <button id="pause-resume-btn" class="mo-play-btn">▶ Continuar</button>
+          <button id="pause-restart-btn" class="mo-secondary-btn">🔄 Reiniciar</button>
+          <button id="pause-music-btn" class="mo-secondary-btn">🎵 Música: ON</button>
+          <button id="pause-menu-btn" class="mo-secondary-btn">📋 Menu</button>
         </div>
       </div>
     </div>
 
     <!-- Results Overlay -->
     <div id="results-overlay" class="mo-overlay hidden">
-      <div class="mo-card" style="max-width:560px;text-align:center;">
+      <div class="mo-card" style="max-width:600px;text-align:center;">
         <h2 class="mo-title" id="res-title">🏁 Fim do Turno!</h2>
         <p class="mo-sub" id="res-subtitle">Resumo da cozinha</p>
         <div class="mo-stars" id="res-stars">⭐⭐⭐</div>
@@ -321,6 +393,10 @@
           <div class="mo-stat">
             <div class="mo-stat-val" id="res-score">0</div>
             <div class="mo-stat-lbl">Pontuação Total</div>
+          </div>
+          <div class="mo-stat">
+            <div class="mo-stat-val" id="res-tips">0</div>
+            <div class="mo-stat-lbl">Gorjetas 💵</div>
           </div>
           <div class="mo-stat">
             <div class="mo-stat-val" id="res-delivered">0</div>
@@ -336,6 +412,7 @@
           </div>
         </div>
         <div class="mo-footer" style="justify-content:center;">
+          <button id="res-next-btn" class="mo-play-btn" style="display:none;">➡ Próxima Cozinha</button>
           <button id="res-replay-btn" class="mo-play-btn">🔄 Jogar Novamente</button>
           <button id="res-menu-btn" class="mo-secondary-btn">📋 Trocar Cozinha</button>
         </div>

@@ -1,12 +1,12 @@
 {
   "slug": "monkey-overcooked",
-  "title": "Macaco na Chapa: Cozinha do Caos",
-  "subtitle": "Cozinha caótica cooperativa com macacos chefs, panelas em chamas e arremesso de bananas!",
+  "title": "Sopa de Macacão",
+  "subtitle": "Cozinha caótica cooperativa com caldeirões borbulhantes, panelas em chamas e arremesso de bananas!",
   "inspiredBy": "Overcooked",
-  "description": "Vista o chapéu de chef e tente sobreviver ao turno mais surtado da selva! Pique bananas e cocos, frite pastéis, bata açaí turbo, monte X-Macacos, arremesse ingredientes por cima do balcão, apague incêndios com o extintor e lave os pratos sujos antes que os pedidos estourem! Suporta Solo (2 chefs alternáveis no Tab), Co-op Local 2P no mesmo teclado e Online Co-op P2P para 2 a 4 chefs!",
+  "description": "Vista o chapéu de chef e ferva a lendária Sopa de Macacão no turno mais surtado da selva! Pique bananas, cenouras, alface e cocos, ferva caldeirões, frite pastéis, bata açaí turbo, monte X-Macacos, arremesse ingredientes direto na panela ou no prato do amigo, apague incêndios com o extintor e sobreviva à Hora do Rush em 5 cozinhas (incluindo o Caldeirão do Vulcão)! Suporta Solo (2 chefs alternáveis no Tab), Co-op Local 2P e Online Co-op P2P para 2 a 4 chefs!",
   "category": "acao",
-  "tags": ["cozinha", "coop", "caos", "arcade", "local-2p", "multiplayer"],
-  "emoji": "🍳",
+  "tags": ["cozinha", "sopa", "coop", "caos", "arcade", "local-2p", "multiplayer"],
+  "emoji": "🍲",
   "accentColor": "#f97316",
   "multiplayer": {
     "supported": true,
@@ -15,12 +15,12 @@
     "summary": "Co-op Online P2P para 2 a 4 chefs com sincronização autoritativa, gritos de cozinha (1-4) e arremesso de ingredientes — além de Co-op Local 2P no mesmo teclado e Solo com Tab!"
   },
   "controls": [
-    "Solo / Online: WASD ou Setas (mover), Espaço/E (pegar/soltar), F/J (picar/lavar/apagar fogo), Q/K (arremessar), Shift (dash)",
-    "Solo: Tab alterna instantaneamente entre os 2 chefs",
+    "Solo / Online: WASD ou Setas (mover), Espaço/E (pegar/soltar/servir), F/J (picar/lavar/apagar fogo), Q/K (arremessar), Shift (dash)",
+    "Solo: Tab alterna instantaneamente entre os 2 chefs (o outro continua picando/lavando!)",
     "Local 2P: Chef 1 WASD + E/F/Q/Shift | Chef 2 Setas + Enter(,)/.(M)//(N)/R-Shift",
-    "1 a 4: Gritos rápidos de cozinha (Tá queimando! Lava a louça! Joga banana! Corre!)"
+    "1 a 4: Gritos rápidos de cozinha | M: Música | Esc/P: Pausar"
   ],
   "thumbnail": "thumbnail.svg",
   "status": "playable",
-  "version": "1.0.0"
+  "version": "2.0.0"
 }

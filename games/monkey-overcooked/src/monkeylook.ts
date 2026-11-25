@@ -1,5 +1,5 @@
 /**
- * monkeylook.ts — chefs-macacos de "Macaco na Chapa": pelagem por jogador,
+ * monkeylook.ts — chefs-macacos de "Sopa de Macacão": pelagem por jogador,
  * toque de chef, avental. Apenas apresentação (nenhuma lógica de cozinha).
  */
 import { makeFurStyle, type FurStyle } from './monkeyart';

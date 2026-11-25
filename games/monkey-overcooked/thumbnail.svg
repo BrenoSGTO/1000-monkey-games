@@ -34,16 +34,16 @@
 
   <!-- Order tickets at top -->
   <g transform="translate(26, 18)">
-    <rect width="124" height="62" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="3"/>
-    <rect x="8" y="48" width="108" height="7" rx="3" fill="#22c55e"/>
-    <text x="14" y="26" font-size="18" font-family="system-ui, sans-serif" font-weight="900" fill="#78350f">🍔 X-MACACO</text>
-    <text x="14" y="42" font-size="13" font-family="system-ui, sans-serif" font-weight="700" fill="#92400e">🍞 + 🍖🔥 + 🥬</text>
+    <rect width="142" height="62" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="3"/>
+    <rect x="8" y="48" width="126" height="7" rx="3" fill="#22c55e"/>
+    <text x="12" y="25" font-size="14" font-family="system-ui, sans-serif" font-weight="900" fill="#78350f">🍲 SOPA MACACÃO</text>
+    <text x="12" y="42" font-size="13" font-family="system-ui, sans-serif" font-weight="700" fill="#92400e">🍌 + 🥕 + 🥬 → 🍲</text>
   </g>
-  <g transform="translate(164, 18)">
+  <g transform="translate(180, 18)">
     <rect width="124" height="62" rx="10" fill="#fef3c7" stroke="#ef4444" stroke-width="3"/>
     <rect x="8" y="48" width="44" height="7" rx="3" fill="#ef4444"/>
-    <text x="14" y="26" font-size="18" font-family="system-ui, sans-serif" font-weight="900" fill="#78350f">🥟 PASTEL</text>
-    <text x="14" y="42" font-size="13" font-family="system-ui, sans-serif" font-weight="700" fill="#92400e">🫓 + 🥥🔪 🔥</text>
+    <text x="14" y="25" font-size="15" font-family="system-ui, sans-serif" font-weight="900" fill="#78350f">🍔 X-MACACO</text>
+    <text x="14" y="42" font-size="13" font-family="system-ui, sans-serif" font-weight="700" fill="#92400e">🍞 + 🍖🔥 + 🥬</text>
   </g>
 
   <!-- Big fire behind stove -->
@@ -301,23 +301,31 @@
     <circle cx="-64" cy="-44" r="9" fill="#ffffff" opacity="0.7"/>
   </g>
 
-  <!-- Central Counter & Burning Grill -->
+  <!-- Central Counter & Bubbling Soup Cauldron -->
   <rect x="40" y="256" width="560" height="90" rx="14" fill="url(#counter)" stroke="#78350f" stroke-width="5"/>
   <rect x="40" y="256" width="560" height="22" rx="10" fill="#fde68a" opacity="0.5"/>
-  <!-- Grill pan -->
-  <rect x="260" y="226" width="120" height="44" rx="10" fill="#1e293b" stroke="#0f172a" stroke-width="4"/>
-  <circle cx="320" cy="244" r="22" fill="#451a03" stroke="#000" stroke-width="3"/>
-  <path d="M306,238 Q320,224 334,238" fill="none" stroke="#ef4444" stroke-width="4"/>
+  <!-- Soup Cauldron -->
+  <g transform="translate(320, 240)">
+    <ellipse cx="0" cy="14" rx="54" ry="20" fill="#1c1917" stroke="#0f172a" stroke-width="4"/>
+    <path d="M-50,-6 C-52,24 -36,34 0,34 C36,34 52,24 50,-6 Z" fill="#292524" stroke="#0f172a" stroke-width="4"/>
+    <ellipse cx="0" cy="-6" rx="50" ry="15" fill="#44403c" stroke="#0f172a" stroke-width="4"/>
+    <ellipse cx="0" cy="-6" rx="41" ry="10" fill="#ea580c"/>
+    <circle cx="-16" cy="-7" r="6" fill="#fde047"/>
+    <circle cx="14" cy="-5" r="5" fill="#fb923c"/>
+    <circle cx="2" cy="-9" r="5" fill="#4ade80"/>
+    <circle cx="-6" cy="-2" r="3" fill="#fef9c3" opacity="0.85"/>
+    <circle cx="22" cy="-9" r="3.5" fill="#fef9c3" opacity="0.85"/>
+  </g>
 
   <!-- Speech bubble -->
   <g transform="translate(244, 112)">
     <rect x="0" y="0" width="166" height="34" rx="12" fill="#fff" stroke="#dc2626" stroke-width="3"/>
-    <text x="12" y="22" font-size="13" font-family="system-ui, sans-serif" font-weight="900" fill="#dc2626">🔥 TÁ QUEIMANDO!</text>
+    <text x="12" y="22" font-size="13" font-family="system-ui, sans-serif" font-weight="900" fill="#dc2626">🍲 OLHA A SOPA!</text>
   </g>
 
   <!-- Title Banner -->
   <g transform="translate(320, 315)">
-    <rect x="-240" y="-26" width="480" height="44" rx="22" fill="#111827" stroke="#facc15" stroke-width="4"/>
-    <text x="0" y="3" text-anchor="middle" font-size="23" font-family="system-ui, sans-serif" font-weight="900" fill="#fde047" letter-spacing="0.5">🍳 MACACO NA CHAPA: COZINHA DO CAOS</text>
+    <rect x="-200" y="-26" width="400" height="44" rx="22" fill="#111827" stroke="#facc15" stroke-width="4"/>
+    <text x="0" y="3" text-anchor="middle" font-size="25" font-family="system-ui, sans-serif" font-weight="900" fill="#fde047" letter-spacing="0.8">🍲 SOPA DE MACACÃO</text>
   </g>
 </svg>

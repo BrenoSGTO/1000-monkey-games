@@ -6,8 +6,10 @@ import {
   canAcceptInBlender,
   canAcceptInFryer,
   canAcceptInGrill,
+  canAcceptInPot,
   canPlaceIngredientOnPlate,
   matchCompletedRecipe,
+  matchPotRecipe,
 } from './recipes';
 import type {
   BananaPeel,
@@ -32,14 +34,15 @@ import type {
 export interface SimCallbacks {
   onSound?: (sound: SimSoundEvent) => void;
   onFloatText?: (x: number, y: number, text: string, color: string) => void;
+  skipCountdown?: boolean;
 }
 
 const CHEF_COLORS = ['#facc15', '#4ade80', '#fb7185', '#38bdf8'];
-const CHEF_RADIUS = 0.32;
-const CHEF_SPEED = 4.55;
-const DASH_SPEED = 11.5;
+const CHEF_RADIUS = 0.31;
+const CHEF_SPEED = 4.75;
+const DASH_SPEED = 12.0;
 const DASH_DURATION = 0.16;
-const DASH_COOLDOWN = 0.65;
+const DASH_COOLDOWN = 0.6;
 
 export class KitchenSimulation {
   public kitchen: KitchenDef;
@@ -56,7 +59,10 @@ export class KitchenSimulation {
 
   public timeLeft: number;
   public totalTime: number;
+  public countdown: number;
+  public rushHour = false;
   public score = 0;
+  public tipsEarned = 0;
   public combo = 1;
   public maxCombo = 1;
   public deliveredCount = 0;
@@ -65,15 +71,17 @@ export class KitchenSimulation {
   public finished = false;
 
   public bridgeDocked = true;
-  public bridgeTimer = 8;
+  public bridgeTimer = 8.5;
   public bridgeWarning = false;
   public shake = 0;
 
   private nextId = 1;
-  private orderSpawnTimer = 2.0;
+  private orderSpawnTimer = 2.4;
   private pendingReturns: number[] = [];
   private ratSpawnTimer = 22;
   private peelSpawnTimer = 18;
+  private rushAnnounced = false;
+  private lastCountdownStep = 3;
   private callbacks: SimCallbacks;
 
   constructor(
@@ -87,11 +95,21 @@ export class KitchenSimulation {
     this.callbacks = callbacks;
     this.timeLeft = this.kitchen.duration;
     this.totalTime = this.kitchen.duration;
+    this.countdown = callbacks.skipCountdown ? 0 : 1.8;
+    this.lastCountdownStep = 3;
 
     this.buildTiles();
     this.spawnChefs(playerProfiles);
-    // Spawn 2 initial orders right away so players immediately have action
-    this.spawnOrder();
+
+    // Spawn 2 initial orders: start with a signature soup if available, then another dish
+    const soupFirst = this.kitchen.recipes.find(
+      (r) => r === 'sopa_macacao' || r === 'sopa_banana',
+    );
+    if (soupFirst) {
+      this.spawnOrder(soupFirst);
+    } else {
+      this.spawnOrder();
+    }
     this.spawnOrder();
   }
 
@@ -215,6 +233,27 @@ export class KitchenSimulation {
     return false;
   }
 
+  private findNearestFloorPoint(x: number, y: number, preferSide?: 'left' | 'right'): { x: number; y: number } {
+    let bestX = Math.max(1.5, Math.min(GRID_COLS - 1.5, x));
+    let bestY = Math.max(1.5, Math.min(GRID_ROWS - 1.5, y));
+    let bestDist = Infinity;
+
+    for (const tile of this.tiles) {
+      if (tile.baseType !== 'floor') continue;
+      if (preferSide === 'left' && tile.x >= GRID_COLS * 0.5) continue;
+      if (preferSide === 'right' && tile.x < GRID_COLS * 0.5) continue;
+      const cx = tile.x + 0.5;
+      const cy = tile.y + 0.5;
+      const d = Math.hypot(cx - x, cy - y);
+      if (d < bestDist) {
+        bestDist = d;
+        bestX = cx;
+        bestY = cy;
+      }
+    }
+    return { x: bestX, y: bestY };
+  }
+
   private isTileInteractive(tile: TileState | null): boolean {
     if (!tile) return false;
     return (
@@ -230,7 +269,7 @@ export class KitchenSimulation {
   }
 
   private addFloatText(x: number, y: number, text: string, color: string): void {
-    this.floatingTexts.push({ x, y, text, color, life: 1.15, maxLife: 1.15 });
+    this.floatingTexts.push({ x, y, text, color, life: 1.2, maxLife: 1.2 });
     this.callbacks.onFloatText?.(x, y, text, color);
   }
 
@@ -252,11 +291,14 @@ export class KitchenSimulation {
         z,
         vx: Math.cos(angle) * spd,
         vy: Math.sin(angle) * spd,
-        vz: 0.8 + Math.random() * 1.4,
+        vz: kind === 'steam' ? 0.65 + Math.random() * 0.55 : 0.8 + Math.random() * 1.4,
         color,
-        size: kind === 'smoke' || kind === 'foam' ? 5 + Math.random() * 6 : 3 + Math.random() * 4,
-        life: 0.45 + Math.random() * 0.4,
-        maxLife: 0.85,
+        size:
+          kind === 'smoke' || kind === 'foam' || kind === 'steam'
+            ? 5 + Math.random() * 6
+            : 3 + Math.random() * 4,
+        life: kind === 'steam' ? 0.65 + Math.random() * 0.35 : 0.45 + Math.random() * 0.4,
+        maxLife: 0.95,
         kind,
       });
     }
@@ -269,37 +311,69 @@ export class KitchenSimulation {
     }
 
     const clampedDt = Math.min(dt, 0.05);
-    this.timeLeft = Math.max(0, this.timeLeft - clampedDt);
     this.shake = Math.max(0, this.shake - clampedDt * 24);
+
+    // 0. Snappy 3-2-1-JÁ! countdown before the shift starts
+    if (this.countdown > 0) {
+      this.countdown = Math.max(0, this.countdown - clampedDt);
+      const stepNum = Math.ceil(this.countdown / 0.6);
+      if (stepNum < this.lastCountdownStep && stepNum > 0) {
+        this.lastCountdownStep = stepNum;
+        this.emitSound('tick');
+      } else if (this.countdown === 0 && this.lastCountdownStep > 0) {
+        this.lastCountdownStep = 0;
+        this.emitSound('start');
+        this.addFloatText(GRID_COLS * 0.5, GRID_ROWS * 0.45, '🍲 MÃO NA SOPA!', '#fde047');
+      }
+      this.updateVisualParticles(clampedDt);
+      return;
+    }
+
+    this.timeLeft = Math.max(0, this.timeLeft - clampedDt);
 
     if (this.timeLeft <= 0) {
       this.finished = true;
       return;
     }
 
-    // 1. Bridge cycle (Kitchen 2: Two Moving Trucks)
+    // Rush Hour in the final 35 seconds!
+    if (!this.rushAnnounced && this.timeLeft <= 35) {
+      this.rushAnnounced = true;
+      this.rushHour = true;
+      this.shake = 6;
+      this.emitSound('rush');
+      this.addFloatText(GRID_COLS * 0.5, 1.5, '🔥 HORA DO RUSH! +25% GORJETA!', '#fde047');
+    }
+
+    // 1. Bridge cycle (Kitchen 2 & 5)
     if (this.kitchen.hasBridgeCycle) {
       this.bridgeTimer -= clampedDt;
-      this.bridgeWarning = this.bridgeDocked && this.bridgeTimer <= 2.2;
+      this.bridgeWarning = this.bridgeDocked && this.bridgeTimer <= 2.4;
       if (this.bridgeTimer <= 0) {
         this.bridgeDocked = !this.bridgeDocked;
-        this.bridgeTimer = this.bridgeDocked ? 8.5 : 5.0;
+        this.bridgeTimer = this.bridgeDocked ? 9.0 : 4.8;
         this.bridgeWarning = false;
         this.emitSound('bridge');
         if (!this.bridgeDocked) {
-          // Safely push any chef standing on bridge onto nearest truck
+          // Safely push any chef standing on retracted bridge onto nearest real floor tile
           for (const chef of this.chefs) {
             const tile = this.getTile(Math.floor(chef.x), Math.floor(chef.y));
             if (tile?.baseType === 'bridge') {
-              chef.x = chef.x < GRID_COLS * 0.5 ? 5.45 : 8.55;
-              this.addFloatText(chef.x, chef.y - 0.5, 'PULOU!', '#fde047');
+              const side = chef.x < GRID_COLS * 0.5 ? 'left' : 'right';
+              const safe = this.findNearestFloorPoint(chef.x, chef.y, side);
+              chef.x = safe.x;
+              chef.y = safe.y;
+              this.addFloatText(chef.x, chef.y - 0.5, 'PULOU! 🐒', '#fde047');
             }
           }
-          // Floor items on retracted bridge fall into the road gap? Rescue them to edge!
+          // Rescue floor items on retracted bridge to nearest edge floor
           for (const fi of this.floorItems) {
             const tile = this.getTile(Math.floor(fi.x), Math.floor(fi.y));
             if (tile?.baseType === 'bridge') {
-              fi.x = fi.x < GRID_COLS * 0.5 ? 5.45 : 8.55;
+              const side = fi.x < GRID_COLS * 0.5 ? 'left' : 'right';
+              const safe = this.findNearestFloorPoint(fi.x, fi.y, side);
+              fi.x = safe.x;
+              fi.y = safe.y;
             }
           }
         }
@@ -355,7 +429,7 @@ export class KitchenSimulation {
     // 3. Thrown items physics
     this.updateThrownItems(clampedDt);
 
-    // 4. Stations: cooking, burning, fire spread, conveyors
+    // 4. Stations: cooking, simmering soup, burning, fire spread, conveyors
     this.updateStations(clampedDt);
 
     // 5. Dirty plate returns
@@ -413,7 +487,6 @@ export class KitchenSimulation {
     if (chef.slipTimer > 0) {
       chef.slipTimer = Math.max(0, chef.slipTimer - dt);
       chef.autoWorkTile = null;
-      // Spin while slipping!
       const angle = Math.atan2(chef.dirY, chef.dirX) + dt * 16;
       chef.dirX = Math.cos(angle);
       chef.dirY = Math.sin(angle);
@@ -424,7 +497,6 @@ export class KitchenSimulation {
       return;
     }
 
-    // Normalize input move
     let mx = inp.moveX;
     let my = inp.moveY;
     const mag = Math.hypot(mx, my);
@@ -433,41 +505,45 @@ export class KitchenSimulation {
       my /= mag;
       chef.dirX = mx;
       chef.dirY = my;
-      chef.walkCycle += dt * 14;
-      // Moving cancels auto-work
+      chef.walkCycle += dt * 14.5;
       chef.autoWorkTile = null;
     }
 
-    // Dash!
     if (inp.dashPressed && chef.dashCooldown <= 0) {
       chef.dashTimer = DASH_DURATION;
       chef.dashCooldown = DASH_COOLDOWN;
       chef.autoWorkTile = null;
       this.emitSound('dash');
-      this.spawnParticles(chef.x, chef.y, 0.15, 6, '#fde68a', 'dust', 2.0);
+      this.spawnParticles(chef.x, chef.y, 0.15, 7, '#fde68a', 'dust', 2.2);
     }
 
-    const speed = chef.dashTimer > 0 ? DASH_SPEED : CHEF_SPEED;
+    const feverBoost = this.combo >= 3 || this.rushHour ? 1.08 : 1.0;
+    const speed = chef.dashTimer > 0 ? DASH_SPEED : CHEF_SPEED * feverBoost;
     const targetVx = chef.dashTimer > 0 ? chef.dirX * speed : mx * speed;
     const targetVy = chef.dashTimer > 0 ? chef.dirY * speed : my * speed;
 
-    // Smooth decay of external bump velocity
     chef.vx = targetVx + (chef.vx - targetVx) * Math.pow(0.001, dt);
     chef.vy = targetVy + (chef.vy - targetVy) * Math.pow(0.001, dt);
 
     if (chef.dashTimer > 0) {
       this.moveChefBy(chef, chef.dirX * DASH_SPEED * dt, chef.dirY * DASH_SPEED * dt);
+      if (Math.random() < 0.6) {
+        this.spawnParticles(chef.x, chef.y, 0.12, 1, '#fef08a', 'spark', 0.9);
+      }
     } else {
       this.moveChefBy(chef, chef.vx * dt, chef.vy * dt);
+      if ((this.combo >= 3 || this.rushHour) && mag > 0.01 && Math.random() < 0.14) {
+        this.spawnParticles(chef.x, chef.y, 0.1, 1, '#facc15', 'spark', 0.6);
+      }
     }
 
-    // Banana peel check
+    // Banana peel slip check
     if (chef.dashTimer <= 0) {
       for (let i = this.peels.length - 1; i >= 0; i--) {
         const peel = this.peels[i];
         if (Math.hypot(chef.x - peel.x, chef.y - peel.y) < 0.45) {
           this.peels.splice(i, 1);
-          chef.slipTimer = 0.65;
+          chef.slipTimer = 0.6;
           chef.vx = chef.dirX * 3.5;
           chef.vy = chef.dirY * 3.5;
           this.emitSound('slip');
@@ -478,14 +554,12 @@ export class KitchenSimulation {
       }
     }
 
-    // Scare rat on dash bump
     if (chef.dashTimer > 0) {
       this.scareRatsNear(chef.x, chef.y, 0.95);
     }
 
     this.updateTargetTile(chef);
 
-    // Actions
     if (inp.interactPressed) {
       chef.autoWorkTile = null;
       this.handleInteract(chef);
@@ -500,10 +574,8 @@ export class KitchenSimulation {
   }
 
   private moveChefBy(chef: ChefState, dx: number, dy: number): void {
-    // Move X
     chef.x += dx;
     this.resolveTileCollisions(chef);
-    // Move Y
     chef.y += dy;
     this.resolveTileCollisions(chef);
   }
@@ -554,7 +626,6 @@ export class KitchenSimulation {
       }
     }
 
-    // Fallback: best interactive tile within reach in front cone
     const cx = Math.floor(chef.x);
     const cy = Math.floor(chef.y);
     let best: { x: number; y: number; score: number } | null = null;
@@ -566,9 +637,9 @@ export class KitchenSimulation {
         const vx = tile.x + 0.5 - chef.x;
         const vy = tile.y + 0.5 - chef.y;
         const d = Math.hypot(vx, vy);
-        if (d > 1.15) continue;
+        if (d > 1.18) continue;
         const dot = (vx * chef.dirX + vy * chef.dirY) / (d || 1);
-        if (dot > 0.45) {
+        if (dot > 0.42) {
           const score = dot * 2 - d;
           if (!best || score > best.score) {
             best = { x: tile.x, y: tile.y, score };
@@ -584,10 +655,11 @@ export class KitchenSimulation {
     for (const rat of this.rats) {
       if (Math.hypot(rat.x - x, rat.y - y) <= radius) {
         if (rat.carrying) {
+          const safe = this.findNearestFloorPoint(rat.x, rat.y);
           this.floorItems.push({
             id: this.nextId++,
-            x: rat.x,
-            y: rat.y,
+            x: safe.x,
+            y: safe.y,
             item: rat.carrying,
           });
           rat.carrying = null;
@@ -608,7 +680,7 @@ export class KitchenSimulation {
       return;
     }
 
-    // Check floor item pickup if hands empty and either no target tile or floor item right in front
+    // Check floor item pickup if hands empty
     if (!chef.held) {
       const fx = chef.x + chef.dirX * 0.45;
       const fy = chef.y + chef.dirY * 0.45;
@@ -624,9 +696,15 @@ export class KitchenSimulation {
           bestIdx = i;
         }
       }
-      // Prioritize floor item if there is no station directly targeted or floor item is super close
       const target = chef.targetTile ? this.getTile(chef.targetTile.x, chef.targetTile.y) : null;
-      const stationEmpty = !target || (!target.item && target.cleanPlateCount === 0 && target.dirtyCount === 0 && target.cookedResult === null && target.baseType !== 'crate');
+      const stationEmpty =
+        !target ||
+        (!target.item &&
+          target.cleanPlateCount === 0 &&
+          target.dirtyCount === 0 &&
+          target.cookedResult === null &&
+          target.cookContents.length === 0 &&
+          target.baseType !== 'crate');
       if (bestIdx >= 0 && (stationEmpty || bestDist < 0.45)) {
         const [picked] = this.floorItems.splice(bestIdx, 1);
         chef.held = picked.item;
@@ -637,7 +715,6 @@ export class KitchenSimulation {
 
     const tile = chef.targetTile ? this.getTile(chef.targetTile.x, chef.targetTile.y) : null;
     if (!tile) {
-      // Drop held item onto walkable floor if possible
       if (chef.held) {
         const dropX = Math.max(0.4, Math.min(GRID_COLS - 0.4, chef.x + chef.dirX * 0.5));
         const dropY = Math.max(0.4, Math.min(GRID_ROWS - 0.4, chef.y + chef.dirY * 0.5));
@@ -656,7 +733,6 @@ export class KitchenSimulation {
       return;
     }
 
-    // Dispatch by station type
     switch (tile.baseType) {
       case 'pass': {
         if (chef.held?.kind === 'plate') {
@@ -685,18 +761,21 @@ export class KitchenSimulation {
             this.combo = 1;
           }
           this.maxCombo = Math.max(this.maxCombo, this.combo);
-          const tip = Math.floor(order.timeLeft * 0.45);
-          const earned = Math.round(recipe.points * (1 + (this.combo - 1) * 0.25) + tip);
+          const rushBonus = this.rushHour ? 1.25 : 1.0;
+          const tip = Math.floor(order.timeLeft * 0.5 * rushBonus);
+          const baseWithCombo = Math.round(recipe.points * (1 + (this.combo - 1) * 0.25));
+          const earned = baseWithCombo + tip;
           this.score += earned;
+          this.tipsEarned += tip;
           this.deliveredCount += 1;
           chef.held = null;
           this.pendingReturns.push(2.6);
-          this.emitSound('deliver');
-          const comboTxt = this.combo > 1 ? ` x${this.combo}!` : '!';
+          this.emitSound(this.combo > 1 ? 'deliverCombo' : 'deliver');
+          const comboTxt = this.combo > 1 ? ` 🔥x${this.combo}!` : '!';
           this.addFloatText(tile.x + 0.5, tile.y, `+${earned} ${recipe.emoji}${comboTxt}`, '#4ade80');
-          this.spawnParticles(tile.x + 0.5, tile.y + 0.5, 0.5, 10, '#fde047', 'spark', 2.4);
+          this.spawnParticles(tile.x + 0.5, tile.y + 0.5, 0.5, 14, '#fde047', 'spark', 2.6);
           if (this.orders.length === 0) {
-            this.orderSpawnTimer = Math.min(this.orderSpawnTimer, 0.8);
+            this.orderSpawnTimer = Math.min(this.orderSpawnTimer, 0.7);
           }
         }
         return;
@@ -800,6 +879,16 @@ export class KitchenSimulation {
           this.emitSound('drop');
           return;
         }
+        if (
+          chef.held?.kind === 'plate' &&
+          chef.held.contents.length === 0 &&
+          !chef.held.burnt
+        ) {
+          tile.cleanPlateCount += 1;
+          chef.held = null;
+          this.emitSound('drop');
+          return;
+        }
         if (!chef.held) {
           if (tile.cleanPlateCount > 0) {
             tile.cleanPlateCount -= 1;
@@ -817,6 +906,7 @@ export class KitchenSimulation {
         return;
       }
 
+      case 'pot':
       case 'grill':
       case 'fryer':
       case 'blender': {
@@ -836,6 +926,7 @@ export class KitchenSimulation {
               chef.held.dish = matchCompletedRecipe(chef.held.contents);
               this.resetAppliance(tile);
               this.emitSound('pickup');
+              this.spawnParticles(tile.x + 0.5, tile.y + 0.5, 0.5, 5, '#fef08a', 'steam', 1.1);
               return;
             }
           } else if (!chef.held) {
@@ -847,6 +938,7 @@ export class KitchenSimulation {
         } else if (chef.held?.kind === 'ingredient') {
           const ing = chef.held.ingredient;
           const ok =
+            (tile.baseType === 'pot' && canAcceptInPot(tile.cookContents, tile.cookedResult, ing)) ||
             (tile.baseType === 'grill' && canAcceptInGrill(tile.cookContents, tile.cookedResult, ing)) ||
             (tile.baseType === 'fryer' && canAcceptInFryer(tile.cookContents, tile.cookedResult, ing)) ||
             (tile.baseType === 'blender' && canAcceptInBlender(tile.cookContents, tile.cookedResult, ing));
@@ -854,11 +946,26 @@ export class KitchenSimulation {
             tile.cookContents.push(ing);
             chef.held = null;
             this.emitSound('drop');
+            if (tile.baseType === 'pot') {
+              this.spawnParticles(tile.x + 0.5, tile.y + 0.5, 0.45, 4, '#fde68a', 'steam', 1.0);
+            }
             return;
           } else {
-            this.addFloatText(tile.x + 0.5, tile.y, 'NÃO VAI AÍ!', '#fb923c');
+            const msg =
+              tile.baseType === 'pot' && INGREDIENTS[ing].choppableTo
+                ? 'PIQUE ANTES! 🔪'
+                : 'NÃO VAI AÍ!';
+            this.addFloatText(tile.x + 0.5, tile.y, msg, '#fb923c');
             return;
           }
+        } else if (!chef.held && tile.cookContents.length > 0 && tile.cookProgress === 0) {
+          // Retrieve unfinished ingredient from appliance if not yet cooking
+          const popped = tile.cookContents.pop();
+          if (popped) {
+            chef.held = { kind: 'ingredient', ingredient: popped };
+            this.emitSound('pickup');
+          }
+          return;
         }
         return;
       }
@@ -953,9 +1060,9 @@ export class KitchenSimulation {
       x: chef.x + chef.dirX * 0.45,
       y: chef.y + chef.dirY * 0.45,
       z: 0.45,
-      vx: chef.dirX * 8.2,
-      vy: chef.dirY * 8.2,
-      vz: 2.35,
+      vx: chef.dirX * 8.4,
+      vy: chef.dirY * 8.4,
+      vz: 2.4,
       throwerId: chef.id,
       age: 0,
     });
@@ -973,7 +1080,6 @@ export class KitchenSimulation {
       if (!workHeld) return;
       chef.isWorking = true;
       this.emitSound('extinguish');
-      // Spawn foam jet
       const fx = chef.x + chef.dirX * 0.85;
       const fy = chef.y + chef.dirY * 0.85;
       this.particles.push({
@@ -991,18 +1097,22 @@ export class KitchenSimulation {
       });
 
       for (const tile of this.tiles) {
-        if (tile.fire <= 0) continue;
         const dx = tile.x + 0.5 - chef.x;
         const dy = tile.y + 0.5 - chef.y;
         const d = Math.hypot(dx, dy);
-        if (d < 2.1) {
+        if (d < 2.2) {
           const dot = (dx * chef.dirX + dy * chef.dirY) / (d || 1);
           if (dot > 0.35 || d < 0.9) {
-            tile.fire = Math.max(0, tile.fire - 78 * dt);
-            if (tile.fire === 0) {
-              this.firesExtinguished += 1;
-              this.score += 15;
-              this.addFloatText(tile.x + 0.5, tile.y, 'FOGO APAGADO! +15', '#38bdf8');
+            if (tile.fire > 0) {
+              tile.fire = Math.max(0, tile.fire - 82 * dt);
+              if (tile.fire === 0) {
+                this.firesExtinguished += 1;
+                this.score += 15;
+                this.addFloatText(tile.x + 0.5, tile.y, 'FOGO APAGADO! +15', '#38bdf8');
+              }
+            } else if (tile.burnProgress > 0 && tile.cookedResult !== 'burnt') {
+              // Cool down smoking stove!
+              tile.burnProgress = Math.max(0, tile.burnProgress - 0.55 * dt);
             }
           }
         }
@@ -1013,6 +1123,12 @@ export class KitchenSimulation {
     const tile = chef.targetTile ? this.getTile(chef.targetTile.x, chef.targetTile.y) : null;
     if (!tile) {
       chef.autoWorkTile = null;
+      return;
+    }
+
+    if (workPressed && tile.fire > 0) {
+      this.addFloatText(tile.x + 0.5, tile.y, 'PEGUE O EXTINTOR! 🧯', '#ef4444');
+      this.emitSound('alarm');
       return;
     }
 
@@ -1033,16 +1149,16 @@ export class KitchenSimulation {
       const info = INGREDIENTS[tile.item.ingredient];
       if (info.choppableTo) {
         chef.isWorking = true;
-        const prog = (tile.item.chopProgress ?? 0) + dt / 1.4;
+        const prog = (tile.item.chopProgress ?? 0) + dt / 1.3;
         tile.item.chopProgress = prog;
         this.emitSound('chop');
-        if (Math.random() < 0.35) {
+        if (Math.random() < 0.38) {
           this.spawnParticles(tile.x + 0.5, tile.y + 0.5, 0.45, 1, info.color, 'chop', 1.4);
         }
         if (prog >= 1) {
           tile.item = { kind: 'ingredient', ingredient: info.choppableTo };
           chef.autoWorkTile = null;
-          this.spawnParticles(tile.x + 0.5, tile.y + 0.5, 0.45, 7, info.color, 'chop', 2.0);
+          this.spawnParticles(tile.x + 0.5, tile.y + 0.5, 0.45, 8, info.color, 'chop', 2.0);
         }
         return;
       }
@@ -1051,9 +1167,9 @@ export class KitchenSimulation {
     // 3. Washing dirty plates at Sink
     if (tile.baseType === 'sink' && tile.dirtyCount > 0) {
       chef.isWorking = true;
-      tile.washProgress += dt / 1.5;
+      tile.washProgress += dt / 1.45;
       this.emitSound('wash');
-      if (Math.random() < 0.3) {
+      if (Math.random() < 0.35) {
         this.spawnParticles(tile.x + 0.5, tile.y + 0.5, 0.45, 1, '#bae6fd', 'foam', 1.1);
       }
       if (tile.washProgress >= 1) {
@@ -1078,7 +1194,6 @@ export class KitchenSimulation {
       const nextX = th.x + th.vx * dt;
       const nextY = th.y + th.vy * dt;
 
-      // Solid outer walls bounce thrown items back into kitchen
       const probeTile = this.getTile(Math.floor(nextX), Math.floor(nextY));
       if (!probeTile || probeTile.baseType === 'wall') {
         th.vx *= -0.35;
@@ -1091,17 +1206,34 @@ export class KitchenSimulation {
       th.vz -= 9.8 * dt;
       th.z += th.vz * dt;
 
-      // Mid-air catch by any chef with empty hands!
+      // Mid-air catch by any chef with empty hands OR holding a compatible plate!
       let caught = false;
       for (const chef of this.chefs) {
         if (chef.id === th.throwerId && th.age < 0.22) continue;
-        if (!chef.held && Math.hypot(chef.x - th.x, chef.y - th.y) < 0.55) {
-          chef.held = th.item;
-          this.emitSound('pickup');
-          this.addFloatText(chef.x, chef.y - 0.6, 'PEGOU! 🧤', '#fde047');
-          this.thrown.splice(i, 1);
-          caught = true;
-          break;
+        if (Math.hypot(chef.x - th.x, chef.y - th.y) < 0.58) {
+          if (!chef.held) {
+            chef.held = th.item;
+            this.emitSound('pickup');
+            this.addFloatText(chef.x, chef.y - 0.6, 'PEGOU! 🧤', '#fde047');
+            this.thrown.splice(i, 1);
+            caught = true;
+            break;
+          } else if (
+            chef.held.kind === 'plate' &&
+            !chef.held.burnt &&
+            th.item.kind === 'ingredient' &&
+            canPlaceIngredientOnPlate(chef.held.contents, th.item.ingredient)
+          ) {
+            chef.held.contents.push(th.item.ingredient);
+            chef.held.dish = matchCompletedRecipe(chef.held.contents);
+            this.score += 10;
+            this.emitSound('deliver');
+            this.addFloatText(chef.x, chef.y - 0.6, 'NO PRATO! 🎯 +10', '#4ade80');
+            this.spawnParticles(chef.x, chef.y, 0.4, 8, '#fde047', 'spark', 2.0);
+            this.thrown.splice(i, 1);
+            caught = true;
+            break;
+          }
         }
       }
       if (caught) continue;
@@ -1112,14 +1244,27 @@ export class KitchenSimulation {
 
         if (landTile && th.item.kind === 'ingredient') {
           const ing = th.item.ingredient;
-          // Land directly inside compatible appliance!
+          if (
+            landTile.baseType === 'pot' &&
+            landTile.fire === 0 &&
+            canAcceptInPot(landTile.cookContents, landTile.cookedResult, ing)
+          ) {
+            landTile.cookContents.push(ing);
+            this.score += 5;
+            this.emitSound('bubble');
+            this.addFloatText(landTile.x + 0.5, landTile.y, 'NO CALDEIRÃO! 🎯 +5', '#fde047');
+            this.spawnParticles(landTile.x + 0.5, landTile.y + 0.5, 0.5, 6, '#fde68a', 'steam', 1.4);
+            continue;
+          }
           if (
             landTile.baseType === 'grill' &&
             landTile.fire === 0 &&
             canAcceptInGrill(landTile.cookContents, landTile.cookedResult, ing)
           ) {
             landTile.cookContents.push(ing);
+            this.score += 5;
             this.emitSound('drop');
+            this.addFloatText(landTile.x + 0.5, landTile.y, 'NA CHAPA! 🎯 +5', '#fde047');
             continue;
           }
           if (
@@ -1128,7 +1273,9 @@ export class KitchenSimulation {
             canAcceptInFryer(landTile.cookContents, landTile.cookedResult, ing)
           ) {
             landTile.cookContents.push(ing);
+            this.score += 5;
             this.emitSound('drop');
+            this.addFloatText(landTile.x + 0.5, landTile.y, 'NA FRITADEIRA! 🎯 +5', '#fde047');
             continue;
           }
           if (
@@ -1137,10 +1284,11 @@ export class KitchenSimulation {
             canAcceptInBlender(landTile.cookContents, landTile.cookedResult, ing)
           ) {
             landTile.cookContents.push(ing);
+            this.score += 5;
             this.emitSound('drop');
+            this.addFloatText(landTile.x + 0.5, landTile.y, 'NO LIQUIDIF.! 🎯 +5', '#fde047');
             continue;
           }
-          // Land on counter / board / conveyor
           if (
             landTile.baseType === 'counter' ||
             landTile.baseType === 'board' ||
@@ -1157,7 +1305,9 @@ export class KitchenSimulation {
             ) {
               landTile.item.contents.push(ing);
               landTile.item.dish = matchCompletedRecipe(landTile.item.contents);
+              this.score += 5;
               this.emitSound('pickup');
+              this.addFloatText(landTile.x + 0.5, landTile.y, 'NO PRATO! 🎯 +5', '#4ade80');
               continue;
             }
           }
@@ -1176,23 +1326,35 @@ export class KitchenSimulation {
           });
           this.emitSound('drop');
         } else if (landTile?.baseType === 'gap') {
-          this.addFloatText(th.x, th.y, 'CAIU NA ESTRADA! 💨', '#94a3b8');
+          const msg = this.kitchen.gapStyle === 'lava' ? 'CAIU NA LAVA! 🌋' : 'CAIU NA ESTRADA! 💨';
+          this.addFloatText(th.x, th.y, msg, this.kitchen.gapStyle === 'lava' ? '#fb923c' : '#94a3b8');
+          this.spawnParticles(
+            th.x,
+            th.y,
+            0.2,
+            6,
+            this.kitchen.gapStyle === 'lava' ? '#f97316' : '#94a3b8',
+            'smoke',
+            1.4,
+          );
           this.emitSound('drop');
         } else {
-          // Bounce gently to nearest walkable spot around landing
+          // Safely bounce to nearest real floor tile instead of overlapping a station
+          const safe = this.findNearestFloorPoint(th.x, th.y);
           this.floorItems.push({
             id: this.nextId++,
-            x: Math.max(1.3, Math.min(GRID_COLS - 1.3, th.x)),
-            y: Math.max(1.3, Math.min(GRID_ROWS - 1.3, th.y)),
+            x: safe.x,
+            y: safe.y,
             item: th.item,
           });
+          this.emitSound('drop');
         }
       }
     }
   }
 
   private updateStations(dt: number): void {
-    // 1. Cooking & Burning & Fires
+    // 1. Cooking, Simmering Soup, Burning & Fires
     for (const tile of this.tiles) {
       if (tile.fire > 0) {
         if (Math.random() < 0.45) {
@@ -1201,8 +1363,7 @@ export class KitchenSimulation {
         if (Math.random() < 0.25) {
           this.spawnParticles(tile.x + 0.5, tile.y + 0.5, 0.7, 1, '#374151', 'smoke', 0.8);
         }
-        // Slow fire spread when fire is maxed
-        if (tile.fire >= 90 && Math.random() < dt * 0.12) {
+        if (tile.fire >= 90 && Math.random() < dt * 0.11) {
           const dirs = [
             [1, 0],
             [-1, 0],
@@ -1216,6 +1377,7 @@ export class KitchenSimulation {
             nb.fire === 0 &&
             (nb.baseType === 'counter' ||
               nb.baseType === 'board' ||
+              nb.baseType === 'pot' ||
               nb.baseType === 'grill' ||
               nb.baseType === 'fryer' ||
               nb.baseType === 'blender')
@@ -1227,10 +1389,49 @@ export class KitchenSimulation {
         continue;
       }
 
+      // Soup Pot (`pot`) cooking logic
+      if (tile.baseType === 'pot') {
+        const matched = tile.cookedResult === null ? matchPotRecipe(tile.cookContents) : null;
+        if (matched) {
+          tile.cookProgress += dt / matched.cookTime;
+          this.emitSound('bubble');
+          if (Math.random() < 0.28) {
+            this.spawnParticles(tile.x + 0.5, tile.y + 0.45, 0.55, 1, '#fef9c3', 'steam', 0.55);
+          }
+          if (tile.cookProgress >= 1) {
+            tile.cookProgress = 1;
+            tile.cookedResult = matched.result;
+            const label = matched.result === 'soup_macacao' ? 'SOPA PRONTA! 🍲' : 'CALDO PRONTO! 🥣';
+            this.addFloatText(tile.x + 0.5, tile.y, label, '#4ade80');
+            this.spawnParticles(tile.x + 0.5, tile.y + 0.45, 0.55, 8, '#fef08a', 'steam', 1.2);
+          }
+        } else if (tile.cookedResult !== null && tile.cookedResult !== 'burnt') {
+          if (Math.random() < 0.22) {
+            this.spawnParticles(tile.x + 0.5, tile.y + 0.45, 0.55, 1, '#f8fafc', 'steam', 0.45);
+          }
+          tile.burnProgress += dt / 9.2;
+          if (tile.burnProgress > 0.38) {
+            this.emitSound('alarm');
+            if (Math.random() < 0.35) {
+              this.spawnParticles(tile.x + 0.5, tile.y + 0.5, 0.5, 1, '#475569', 'smoke', 0.9);
+            }
+          }
+          if (tile.burnProgress >= 1) {
+            tile.cookedResult = 'burnt';
+            tile.fire = 100;
+            this.shake = 10;
+            this.emitSound('burn');
+            this.addFloatText(tile.x + 0.5, tile.y, '🔥 SOPA QUEIMOU!', '#ef4444');
+          }
+        }
+        continue;
+      }
+
+      // Grill, Fryer, Blender
       if (tile.baseType === 'grill' || tile.baseType === 'fryer' || tile.baseType === 'blender') {
         const needed = tile.baseType === 'grill' ? 1 : 2;
         if (tile.cookedResult === null && tile.cookContents.length === needed) {
-          const cookTime = tile.baseType === 'grill' ? 4.8 : 5.2;
+          const cookTime = tile.baseType === 'grill' ? 4.6 : 5.0;
           tile.cookProgress += dt / cookTime;
           if (tile.baseType === 'blender') {
             this.emitSound('blend');
@@ -1251,7 +1452,7 @@ export class KitchenSimulation {
             this.addFloatText(tile.x + 0.5, tile.y, 'PRONTO! ✨', '#4ade80');
           }
         } else if (tile.cookedResult !== null && tile.cookedResult !== 'burnt') {
-          tile.burnProgress += dt / 8.0;
+          tile.burnProgress += dt / 8.2;
           if (tile.burnProgress > 0.35) {
             this.emitSound('alarm');
             if (Math.random() < 0.35) {
@@ -1301,6 +1502,7 @@ export class KitchenSimulation {
   private updateOrders(dt: number): void {
     for (let i = this.orders.length - 1; i >= 0; i--) {
       const ord = this.orders[i];
+      ord.age += dt;
       ord.timeLeft -= dt;
       if (ord.timeLeft <= 0) {
         this.orders.splice(i, 1);
@@ -1314,28 +1516,40 @@ export class KitchenSimulation {
     }
 
     this.orderSpawnTimer -= dt;
+    const rushFactor = this.rushHour ? 0.78 : 1.0;
     if (this.orderSpawnTimer <= 0 && this.orders.length < this.kitchen.maxOrders) {
       this.spawnOrder();
-      this.orderSpawnTimer = this.kitchen.orderInterval * (0.85 + Math.random() * 0.3);
+      this.orderSpawnTimer = this.kitchen.orderInterval * rushFactor * (0.85 + Math.random() * 0.3);
     } else if (this.orders.length === 0) {
       this.spawnOrder();
     }
   }
 
-  private spawnOrder(): void {
+  private spawnOrder(forcedRecipe?: RecipeId): void {
     const pool = this.kitchen.recipes;
-    const recipeId: RecipeId = pool[Math.floor(Math.random() * pool.length)];
+    let recipeId: RecipeId;
+    if (forcedRecipe && pool.includes(forcedRecipe)) {
+      recipeId = forcedRecipe;
+    } else {
+      // Avoid 3 identical orders in a row
+      const lastTwo = this.orders.slice(-2).map((o) => o.recipe);
+      const filtered =
+        pool.length > 1 && lastTwo.length === 2 && lastTwo[0] === lastTwo[1]
+          ? pool.filter((r) => r !== lastTwo[0])
+          : pool;
+      recipeId = filtered[Math.floor(Math.random() * filtered.length)];
+    }
     const recipe = RECIPES[recipeId];
     this.orders.push({
       id: this.nextId++,
       recipe: recipeId,
       timeLeft: recipe.patience,
       maxTime: recipe.patience,
+      age: 0,
     });
   }
 
   private updateHazards(dt: number): void {
-    // Banana Peel hazard
     if (this.kitchen.hasPeelHazard) {
       this.peelSpawnTimer -= dt;
       if (this.peelSpawnTimer <= 0) {
@@ -1359,7 +1573,6 @@ export class KitchenSimulation {
       }
     }
 
-    // Thief Rat hazard
     if (this.kitchen.hasRatHazard) {
       this.ratSpawnTimer -= dt;
       if (this.ratSpawnTimer <= 0 && this.rats.length === 0) {
@@ -1393,7 +1606,6 @@ export class KitchenSimulation {
           continue;
         }
         if (rat.state === 'seeking') {
-          // Find nearest floor item or counter ingredient
           let bestTarget: { x: number; y: number; floorIdx?: number; tile?: TileState } | null = null;
           let bestDist = 999;
 
@@ -1448,7 +1660,6 @@ export class KitchenSimulation {
             }
           }
         } else {
-          // Fleeing toward nearest outer edge
           const exitX = rat.x < GRID_COLS / 2 ? 0.6 : GRID_COLS - 0.6;
           const dx = exitX - rat.x;
           const dy = GRID_ROWS * 0.5 - rat.y;
@@ -1477,7 +1688,7 @@ export class KitchenSimulation {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.z = Math.max(0, p.z + p.vz * dt);
-      if (p.kind !== 'fire' && p.kind !== 'smoke') {
+      if (p.kind !== 'fire' && p.kind !== 'smoke' && p.kind !== 'steam') {
         p.vz -= 4.2 * dt;
       }
     }
@@ -1496,7 +1707,10 @@ export class KitchenSimulation {
       mode: this.mode,
       timeLeft: this.timeLeft,
       totalTime: this.totalTime,
+      countdown: this.countdown,
+      rushHour: this.rushHour,
       score: this.score,
+      tipsEarned: this.tipsEarned,
       combo: this.combo,
       maxCombo: this.maxCombo,
       deliveredCount: this.deliveredCount,

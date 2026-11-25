@@ -1,5 +1,15 @@
 import { GRID_COLS, GRID_ROWS, KITCHENS } from './kitchens';
-import { INGREDIENTS, RECIPES } from './recipes';
+import {
+  INGREDIENTS,
+  RECIPES,
+  canAcceptInBlender,
+  canAcceptInFryer,
+  canAcceptInGrill,
+  canAcceptInPot,
+  canPlaceIngredientOnPlate,
+  matchCompletedRecipe,
+  matchPotRecipe,
+} from './recipes';
 import { FIGURE_HEIGHT_UNITS, HANDS, drawMonkey, makeFace, type HandPos, type Mood } from './monkeyart';
 import { chefApron, chefHat, chefStyle } from './monkeylook';
 import type {
@@ -45,16 +55,20 @@ export class KitchenRenderer {
     const kitchen = KITCHENS[snap.kitchenId];
 
     // Background
-    ctx.fillStyle = snap.kitchenId === 'caminhoes' ? '#1e293b' : '#1b110a';
-    ctx.fillRect(0, 0, w, h);
-
-    // Highway scrolling background for Kitchen 2
-    if (snap.kitchenId === 'caminhoes') {
+    if (kitchen.gapStyle === 'highway') {
       this.drawHighwayBg(ctx, w, h);
+    } else if (kitchen.gapStyle === 'lava') {
+      this.drawLavaBg(ctx, w, h);
+    } else {
+      const bgGrad = ctx.createRadialGradient(w * 0.5, h * 0.5, 40, w * 0.5, h * 0.5, Math.max(w, h) * 0.72);
+      bgGrad.addColorStop(0, '#2c190d');
+      bgGrad.addColorStop(1, '#130a05');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, w, h);
     }
 
-    // Reserve top 120px for HUD + Order Tickets, bottom 28px for control strip
-    const topMargin = 118;
+    // Reserve top 128px for HUD + Order Tickets, bottom 28px for control strip
+    const topMargin = 128;
     const bottomMargin = 28;
     const availW = w - 24;
     const availH = Math.max(200, h - topMargin - bottomMargin);
@@ -70,16 +84,16 @@ export class KitchenRenderer {
     ctx.save();
     ctx.translate(originX + shakeX, originY + shakeY);
 
-    // Truck beds shadow for Kitchen 2
-    if (snap.kitchenId === 'caminhoes') {
-      ctx.fillStyle = 'rgba(0,0,0,0.45)';
-      this.roundRect(ctx, -6, 6, tileSize * 6 + 12, boardH, 14);
+    // Split platform shadow (trucks / volcano islands) vs full board shadow
+    if (kitchen.gapStyle) {
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      this.roundRect(ctx, -6, 8, tileSize * 6 + 12, boardH, 14);
       ctx.fill();
-      this.roundRect(ctx, tileSize * 8 - 6, 6, tileSize * 6 + 12, boardH, 14);
+      this.roundRect(ctx, tileSize * 8 - 6, 8, tileSize * 6 + 12, boardH, 14);
       ctx.fill();
     } else {
-      ctx.fillStyle = 'rgba(0,0,0,0.45)';
-      this.roundRect(ctx, -8, 8, boardW + 16, boardH + 8, 16);
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      this.roundRect(ctx, -8, 10, boardW + 16, boardH + 8, 16);
       ctx.fill();
     }
 
@@ -104,8 +118,16 @@ export class KitchenRenderer {
     }
 
     // 3. Draw Station Contents / Progress Bars / Fire
+    const workingTiles = new Set<string>();
+    for (const chef of snap.chefs) {
+      if (chef.isWorking && chef.targetTile) {
+        workingTiles.add(`${chef.targetTile.x},${chef.targetTile.y}`);
+      }
+    }
+    let anyFire = false;
     for (const tile of snap.tiles) {
-      this.drawTileOverlay(ctx, tile, tileSize);
+      if (tile.fire > 0) anyFire = true;
+      this.drawTileOverlay(ctx, tile, tileSize, workingTiles.has(`${tile.x},${tile.y}`));
     }
 
     // 4. Draw Banana Peels
@@ -118,18 +140,24 @@ export class KitchenRenderer {
       this.drawHeldItem(ctx, fi.item, fi.x * tileSize, fi.y * tileSize, tileSize * 0.56);
     }
 
-    // 6. Draw Thief Rats
+    // 6. Subtle Throw Aim Dot for active chef holding throwable ingredient
+    const activeChef = snap.chefs.find((c) => c.id === activeChefId) ?? (snap.mode === 'solo' ? snap.chefs[0] : null);
+    if (activeChef?.held?.kind === 'ingredient') {
+      this.drawThrowPreview(ctx, activeChef, tileSize);
+    }
+
+    // 7. Draw Thief Rats
     for (const rat of snap.rats) {
       this.drawRat(ctx, rat.x * tileSize, rat.y * tileSize, tileSize, rat.vx, rat.vy, rat.carrying);
     }
 
-    // 7. Draw Chefs (sorted by Y for proper depth)
+    // 8. Draw Chefs (sorted by Y for proper depth)
     const sortedChefs = [...snap.chefs].sort((a, b) => a.y - b.y);
     for (const chef of sortedChefs) {
       this.drawChef(ctx, chef, tileSize, chef.id === activeChefId, snap.mode);
     }
 
-    // 8. Draw Thrown Items (arc height z)
+    // 9. Draw Thrown Items (arc height z)
     for (const th of snap.thrown) {
       const px = th.x * tileSize;
       const py = th.y * tileSize;
@@ -137,16 +165,16 @@ export class KitchenRenderer {
       ctx.beginPath();
       ctx.ellipse(px, py + tileSize * 0.12, tileSize * 0.16, tileSize * 0.08, 0, 0, Math.PI * 2);
       ctx.fill();
-      this.drawHeldItem(ctx, th.item, px, py - th.z * tileSize * 0.7, tileSize * 0.6);
+      this.drawHeldItem(ctx, th.item, px, py - th.z * tileSize * 0.7, tileSize * 0.62);
     }
 
-    // 9. Draw Particles
+    // 10. Draw Particles
     for (const p of particles) {
       const px = p.x * tileSize;
       const py = p.y * tileSize - p.z * tileSize * 0.6;
       const alpha = Math.max(0, p.life / p.maxLife);
       ctx.save();
-      ctx.globalAlpha = alpha;
+      ctx.globalAlpha = p.kind === 'steam' ? alpha * 0.6 : alpha;
       ctx.fillStyle = p.color;
       ctx.beginPath();
       ctx.arc(px, py, p.size * (tileSize / 56), 0, Math.PI * 2);
@@ -154,7 +182,23 @@ export class KitchenRenderer {
       ctx.restore();
     }
 
-    // 10. Draw Floating Texts
+    // 11. Extinguisher Beacon when fire is active!
+    if (anyFire) {
+      this.drawExtinguisherBeacon(ctx, snap, tileSize);
+    }
+
+    // 12. Contextual Action Hint above active chef's targeted tile
+    if (snap.countdown <= 0 && activeChef?.targetTile) {
+      const targetTile = snap.tiles[activeChef.targetTile.y * GRID_COLS + activeChef.targetTile.x];
+      if (targetTile) {
+        const hint = this.computeActionHint(activeChef, targetTile, snap);
+        if (hint) {
+          this.drawActionHint(ctx, targetTile.x * tileSize + tileSize * 0.5, targetTile.y * tileSize - 4, hint);
+        }
+      }
+    }
+
+    // 13. Draw Floating Texts
     for (const ft of floatingTexts) {
       const px = ft.x * tileSize;
       const py = ft.y * tileSize;
@@ -164,19 +208,35 @@ export class KitchenRenderer {
       ctx.font = `900 ${Math.max(13, Math.round(tileSize * 0.27))}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.lineWidth = 4;
-      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.strokeStyle = 'rgba(0,0,0,0.88)';
       ctx.strokeText(ft.text, px, py);
       ctx.fillStyle = ft.color;
       ctx.fillText(ft.text, px, py);
       ctx.restore();
     }
 
+    // Rush Hour warm border pulse around kitchen
+    if (snap.rushHour && snap.countdown <= 0) {
+      const pulse = 0.28 + Math.sin(this.animTime * 8) * 0.16;
+      ctx.save();
+      ctx.strokeStyle = `rgba(249, 115, 22, ${pulse})`;
+      ctx.lineWidth = 5;
+      this.roundRect(ctx, -4, -4, boardW + 8, boardH + 8, 14);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     ctx.restore(); // End board transform
 
-    // 11. Top HUD: Score + Timer (Top-Right) & Order Tickets (Below SDK bar)
+    // 14. Top HUD: Score + Combo + Timer & Order Tickets
     this.drawTopHud(ctx, w, snap);
 
-    // 12. Bottom Quick Control Strip
+    // 15. Opening 3-2-1 Countdown Overlay
+    if (snap.countdown > 0) {
+      this.drawCountdownOverlay(ctx, w, h, snap.countdown, kitchen.name);
+    }
+
+    // 16. Bottom Quick Control Strip
     this.drawBottomStrip(ctx, w, h, snap);
 
     ctx.restore();
@@ -185,17 +245,50 @@ export class KitchenRenderer {
   private drawHighwayBg(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, w, h);
-    const speed = 260;
+    const speed = 280;
     const offset = (this.animTime * speed) % 90;
-    ctx.fillStyle = '#475569';
+    ctx.fillStyle = '#64748b';
     for (let y = -90 + offset; y < h + 90; y += 90) {
       ctx.fillRect(w * 0.5 - 5, y, 10, 48);
     }
-    // Asphalt texture stripes
-    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.fillStyle = 'rgba(255,255,255,0.045)';
     for (let y = -60 + (offset % 60); y < h + 60; y += 60) {
       ctx.fillRect(w * 0.22, y, 4, 24);
       ctx.fillRect(w * 0.78, y, 4, 24);
+    }
+  }
+
+  private drawLavaBg(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const grad = ctx.createLinearGradient(0, 0, w, h);
+    grad.addColorStop(0, '#1c0a04');
+    grad.addColorStop(0.45, '#450a0a');
+    grad.addColorStop(0.5, '#9a3412');
+    grad.addColorStop(0.55, '#450a0a');
+    grad.addColorStop(1, '#1c0a04');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    // Central flowing lava stream
+    const lavaW = Math.max(96, w * 0.16);
+    const lx = w * 0.5 - lavaW * 0.5;
+    const streamGrad = ctx.createLinearGradient(lx, 0, lx + lavaW, 0);
+    streamGrad.addColorStop(0, '#991b1b');
+    streamGrad.addColorStop(0.3, '#ea580c');
+    streamGrad.addColorStop(0.5, '#facc15');
+    streamGrad.addColorStop(0.7, '#ea580c');
+    streamGrad.addColorStop(1, '#991b1b');
+    ctx.fillStyle = streamGrad;
+    ctx.fillRect(lx, 0, lavaW, h);
+
+    // Animated magma blobs
+    const speed = 85;
+    const offset = (this.animTime * speed) % 110;
+    ctx.fillStyle = 'rgba(254, 240, 138, 0.35)';
+    for (let y = -110 + offset; y < h + 110; y += 110) {
+      const wave = Math.sin(this.animTime * 2.5 + y * 0.03) * 14;
+      ctx.beginPath();
+      ctx.ellipse(w * 0.5 + wave, y, 16, 28, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
@@ -203,7 +296,7 @@ export class KitchenRenderer {
     ctx: CanvasRenderingContext2D,
     tile: TileState,
     s: number,
-    kitchen: { floorA: string; floorB: string; counterColor: string; themeColor: string },
+    kitchen: { floorA: string; floorB: string; counterColor: string; themeColor: string; gapStyle?: 'highway' | 'lava' },
     snap: SimSnapshot,
   ): void {
     const x = tile.x * s;
@@ -216,16 +309,15 @@ export class KitchenRenderer {
     if (tile.baseType === 'bridge') {
       if (snap.bridgeDocked) {
         const flash = snap.bridgeWarning && Math.floor(this.animTime * 8) % 2 === 0;
-        ctx.fillStyle = flash ? '#f97316' : '#64748b';
+        ctx.fillStyle = flash ? '#f97316' : kitchen.gapStyle === 'lava' ? '#57534e' : '#475569';
         ctx.fillRect(x, y, s, s);
-        ctx.fillStyle = flash ? '#fde047' : '#94a3b8';
+        ctx.fillStyle = flash ? '#fde047' : kitchen.gapStyle === 'lava' ? '#78716c' : '#94a3b8';
         ctx.fillRect(x + 3, y + 3, s - 6, s - 6);
-        // Hazard stripes on edge
         ctx.fillStyle = '#facc15';
         ctx.fillRect(x + 4, y + s * 0.45, s - 8, 4);
       } else {
-        // Retracted bridge preview dashed frame
-        ctx.strokeStyle = 'rgba(250, 204, 21, 0.28)';
+        ctx.strokeStyle = kitchen.gapStyle === 'lava' ? 'rgba(251, 146, 60, 0.4)' : 'rgba(250, 204, 21, 0.3)';
+        ctx.lineWidth = 2;
         ctx.setLineDash([5, 5]);
         ctx.strokeRect(x + 3, y + 3, s - 6, s - 6);
         ctx.setLineDash([]);
@@ -237,20 +329,28 @@ export class KitchenRenderer {
     ctx.fillStyle = (tile.x + tile.y) % 2 === 0 ? kitchen.floorA : kitchen.floorB;
     ctx.fillRect(x, y, s, s);
 
-    if (tile.baseType === 'floor') return;
-
-    if (tile.baseType === 'wall') {
-      ctx.fillStyle = '#291c14';
-      ctx.fillRect(x, y, s, s);
-      ctx.fillStyle = '#3f2c1f';
-      ctx.fillRect(x + 3, y + 3, s - 6, s - 8);
+    if (tile.baseType === 'floor') {
+      // Subtle floor tile seam
+      ctx.strokeStyle = 'rgba(0,0,0,0.045)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, s - 1, s - 1);
       return;
     }
 
-    // Counter-type block
+    if (tile.baseType === 'wall') {
+      ctx.fillStyle = '#241710';
+      ctx.fillRect(x, y, s, s);
+      ctx.fillStyle = '#3b281c';
+      ctx.fillRect(x + 2, y + 2, s - 4, s - 9);
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillRect(x + 3, y + 3, s - 6, 3);
+      return;
+    }
+
+    // 2.5D Counter block (front face + elevated top surface)
     const pad = 2;
-    ctx.fillStyle = '#451a03';
-    this.roundRect(ctx, x + pad, y + pad, s - pad * 2, s - pad * 2, 7);
+    ctx.fillStyle = '#3b1506';
+    this.roundRect(ctx, x + pad, y + pad + 2, s - pad * 2, s - pad * 2 - 1, 7);
     ctx.fill();
 
     const topColor =
@@ -264,37 +364,41 @@ export class KitchenRenderer {
               ? '#334155'
               : tile.baseType === 'conveyor'
                 ? '#1e293b'
-                : kitchen.counterColor;
+                : tile.baseType === 'pot'
+                  ? '#7c2d12'
+                  : kitchen.counterColor;
 
     ctx.fillStyle = topColor;
-    this.roundRect(ctx, x + pad + 2, y + pad + 2, s - (pad + 2) * 2, s - (pad + 4) * 2, 5);
+    this.roundRect(ctx, x + pad + 2, y + pad + 1, s - (pad + 2) * 2, s - (pad + 5) * 2, 5);
     ctx.fill();
 
-    // Station specific top surface details
+    // Subtle top specular highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillRect(x + pad + 6, y + pad + 2, s - (pad + 6) * 2, 2);
+
     const cx = x + s * 0.5;
-    const cy = y + s * 0.5;
+    const cy = y + s * 0.47;
 
     switch (tile.baseType) {
       case 'crate': {
         ctx.fillStyle = '#92400e';
-        this.roundRect(ctx, x + 6, y + 6, s - 12, s - 14, 5);
+        this.roundRect(ctx, x + 6, y + 5, s - 12, s - 14, 5);
         ctx.fill();
         ctx.strokeStyle = '#fde68a';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x + 8, y + 8, s - 16, s - 18);
+        ctx.strokeRect(x + 8, y + 7, s - 16, s - 18);
         if (tile.crateIngredient) {
-          this.drawIngredientIcon(ctx, tile.crateIngredient, cx, cy, s * 0.48);
+          this.drawIngredientIcon(ctx, tile.crateIngredient, cx, cy, s * 0.5);
         }
         break;
       }
       case 'board': {
         ctx.fillStyle = '#fef3c7';
-        this.roundRect(ctx, x + s * 0.14, y + s * 0.16, s * 0.72, s * 0.64, 5);
+        this.roundRect(ctx, x + s * 0.14, y + s * 0.14, s * 0.72, s * 0.64, 5);
         ctx.fill();
         ctx.strokeStyle = '#d97706';
         ctx.lineWidth = 1.5;
         ctx.stroke();
-        // Little knife on side when empty
         if (!tile.item) {
           ctx.fillStyle = '#cbd5e1';
           ctx.fillRect(cx + s * 0.14, cy - s * 0.2, s * 0.08, s * 0.26);
@@ -303,11 +407,71 @@ export class KitchenRenderer {
         }
         break;
       }
+      case 'pot': {
+        // Stove base + glowing burner ring
+        ctx.fillStyle = '#1c1917';
+        this.roundRect(ctx, x + 6, y + 5, s - 12, s - 14, 6);
+        ctx.fill();
+        const active = tile.cookContents.length > 0 || tile.cookedResult !== null;
+        if (active) {
+          const glow = 0.5 + Math.sin(this.animTime * 9 + tile.x) * 0.25;
+          ctx.strokeStyle = `rgba(249, 115, 22, ${glow})`;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(cx, cy, s * 0.34, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        // Cast-iron cauldron handles
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(cx - s * 0.31, cy, s * 0.07, Math.PI * 0.5, Math.PI * 1.5);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx + s * 0.31, cy, s * 0.07, -Math.PI * 0.5, Math.PI * 0.5);
+        ctx.stroke();
+        // Cauldron rim
+        ctx.fillStyle = '#292524';
+        ctx.strokeStyle = '#57534e';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, s * 0.31, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        // Broth surface
+        const matched = matchPotRecipe(tile.cookContents);
+        let brothColor = '#44403c';
+        if (tile.cookedResult === 'burnt') brothColor = '#111827';
+        else if (tile.cookedResult === 'soup_macacao') brothColor = '#ea580c';
+        else if (tile.cookedResult === 'soup_banana') brothColor = '#f59e0b';
+        else if (matched) brothColor = matched.brothColor;
+        else if (tile.cookContents.length > 0) brothColor = '#b45309';
+
+        ctx.fillStyle = brothColor;
+        ctx.beginPath();
+        ctx.arc(cx, cy, s * 0.24, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Bubbling soup animation when simmering or ready!
+        if (matched || (tile.cookedResult && tile.cookedResult !== 'burnt')) {
+          ctx.fillStyle = 'rgba(254, 249, 195, 0.72)';
+          for (let i = 0; i < 3; i++) {
+            const phase = (this.animTime * 2.6 + i * 0.37 + tile.x) % 1;
+            const ang = i * 2.1 + tile.y;
+            const bx = cx + Math.cos(ang) * s * 0.11;
+            const by = cy + Math.sin(ang) * s * 0.11;
+            const br = (1 - Math.abs(phase * 2 - 1)) * s * 0.065;
+            ctx.beginPath();
+            ctx.arc(bx, by, Math.max(0.8, br), 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        break;
+      }
       case 'grill': {
         ctx.fillStyle = '#1e293b';
-        this.roundRect(ctx, x + 6, y + 6, s - 12, s - 14, 6);
+        this.roundRect(ctx, x + 6, y + 5, s - 12, s - 14, 6);
         ctx.fill();
-        // Grill grates / glowing coil
         const hot = tile.cookContents.length > 0 || tile.cookedResult !== null;
         ctx.strokeStyle = hot ? '#f97316' : '#475569';
         ctx.lineWidth = 2.5;
@@ -321,49 +485,69 @@ export class KitchenRenderer {
       }
       case 'fryer': {
         ctx.fillStyle = '#334155';
-        this.roundRect(ctx, x + 6, y + 6, s - 12, s - 14, 6);
+        this.roundRect(ctx, x + 6, y + 5, s - 12, s - 14, 6);
         ctx.fill();
-        ctx.fillStyle = tile.cookContents.length > 0 ? '#facc15' : '#ca8a04';
-        this.roundRect(ctx, x + 10, y + 10, s - 20, s - 22, 4);
+        const frying = tile.cookContents.length > 0 || tile.cookedResult !== null;
+        ctx.fillStyle = frying ? '#facc15' : '#ca8a04';
+        this.roundRect(ctx, x + 10, y + 9, s - 20, s - 22, 4);
         ctx.fill();
+        if (frying && tile.cookedResult !== 'burnt') {
+          ctx.fillStyle = 'rgba(255,255,255,0.6)';
+          const bx = cx + Math.sin(this.animTime * 11 + tile.x) * s * 0.14;
+          const by = cy + Math.cos(this.animTime * 9 + tile.y) * s * 0.1;
+          ctx.beginPath();
+          ctx.arc(bx, by, s * 0.045, 0, Math.PI * 2);
+          ctx.fill();
+        }
         break;
       }
       case 'blender': {
         ctx.fillStyle = '#1e293b';
-        this.roundRect(ctx, x + 8, y + 8, s - 16, s - 16, 8);
+        this.roundRect(ctx, x + 8, y + 6, s - 16, s - 16, 8);
         ctx.fill();
-        ctx.fillStyle = tile.cookContents.length > 0 ? '#a855f7' : '#cbd5e1';
+        const blending = tile.cookContents.length > 0 || tile.cookedResult !== null;
+        ctx.fillStyle = blending ? '#a855f7' : '#cbd5e1';
         ctx.beginPath();
-        ctx.arc(cx, cy - 1, s * 0.26, 0, Math.PI * 2);
+        ctx.arc(cx, cy, s * 0.25, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#f8fafc';
         ctx.lineWidth = 2;
         ctx.stroke();
+        if (blending && tile.cookedResult === null && tile.cookProgress > 0) {
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(this.animTime * 16);
+          ctx.strokeStyle = '#fde047';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-s * 0.14, 0);
+          ctx.lineTo(s * 0.14, 0);
+          ctx.stroke();
+          ctx.restore();
+        }
         break;
       }
       case 'sink': {
         ctx.fillStyle = '#bae6fd';
-        this.roundRect(ctx, x + 8, y + 8, s - 16, s - 18, 6);
+        this.roundRect(ctx, x + 8, y + 7, s - 16, s - 18, 6);
         ctx.fill();
-        // Faucet
         ctx.fillStyle = '#cbd5e1';
-        ctx.fillRect(cx - 4, y + 4, 8, 10);
+        ctx.fillRect(cx - 4, y + 3, 8, 10);
         break;
       }
       case 'pass': {
-        // Animated arrows on delivery pass
         const shift = (this.animTime * 24) % 14;
         ctx.save();
         ctx.beginPath();
-        ctx.rect(x + 5, y + 5, s - 10, s - 12);
+        ctx.rect(x + 5, y + 4, s - 10, s - 12);
         ctx.clip();
         ctx.strokeStyle = '#fef08a';
         ctx.lineWidth = 2.5;
         for (let px = x - 14 + shift; px < x + s + 14; px += 14) {
           ctx.beginPath();
-          ctx.moveTo(px, y + 10);
+          ctx.moveTo(px, y + 9);
           ctx.lineTo(px + 7, cy);
-          ctx.lineTo(px, y + s - 14);
+          ctx.lineTo(px, y + s - 15);
           ctx.stroke();
         }
         ctx.restore();
@@ -375,7 +559,7 @@ export class KitchenRenderer {
       }
       case 'return': {
         ctx.fillStyle = '#94a3b8';
-        this.roundRect(ctx, x + 7, y + 7, s - 14, s - 16, 5);
+        this.roundRect(ctx, x + 7, y + 6, s - 14, s - 16, 5);
         ctx.fill();
         break;
       }
@@ -388,7 +572,7 @@ export class KitchenRenderer {
       }
       case 'trash': {
         ctx.fillStyle = '#0f172a';
-        this.roundRect(ctx, x + 9, y + 9, s - 18, s - 20, 6);
+        this.roundRect(ctx, x + 9, y + 8, s - 18, s - 20, 6);
         ctx.fill();
         ctx.font = `${Math.round(s * 0.36)}px system-ui, sans-serif`;
         ctx.textAlign = 'center';
@@ -418,18 +602,22 @@ export class KitchenRenderer {
     }
   }
 
-  private drawTileOverlay(ctx: CanvasRenderingContext2D, tile: TileState, s: number): void {
+  private drawTileOverlay(
+    ctx: CanvasRenderingContext2D,
+    tile: TileState,
+    s: number,
+    isActivelyWorked: boolean,
+  ): void {
     const x = tile.x * s;
     const y = tile.y * s;
     let cx = x + s * 0.5;
-    let cy = y + s * 0.48;
+    let cy = y + s * 0.46;
 
     if (tile.baseType === 'conveyor' && tile.conveyorDir && tile.item) {
       cx += tile.conveyorDir.dx * tile.conveyorOffset * s * 0.45;
       cy += tile.conveyorDir.dy * tile.conveyorOffset * s * 0.45;
     }
 
-    // Clean plates stack on 'plates' or 'sink'
     if (tile.baseType === 'plates' && tile.cleanPlateCount > 0) {
       for (let i = 0; i < Math.min(4, tile.cleanPlateCount); i++) {
         this.drawPlate(ctx, cx, cy - i * 3, s * 0.56, [], false, false);
@@ -454,7 +642,6 @@ export class KitchenRenderer {
       this.drawDirtyPlate(ctx, cx, cy, s * 0.52, tile.dirtyCount);
     }
 
-    // Item sitting on station
     if (tile.item) {
       this.drawHeldItem(ctx, tile.item, cx, cy, s * 0.58);
       if (tile.item.kind === 'ingredient' && (tile.item.chopProgress ?? 0) > 0) {
@@ -468,23 +655,48 @@ export class KitchenRenderer {
           '#4ade80',
         );
       }
+      // Animated chopping knife on active board!
+      if (tile.baseType === 'board' && isActivelyWorked) {
+        const chopY = Math.abs(Math.sin(this.animTime * 24)) * s * 0.16;
+        ctx.save();
+        ctx.translate(cx + s * 0.18, cy - s * 0.12 - chopY);
+        ctx.rotate(-0.45 + Math.sin(this.animTime * 24) * 0.2);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(-3, -10, 6, 14);
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(-3, 4, 6, 7);
+        ctx.restore();
+      }
     }
 
-    // Appliance contents & progress
-    if (tile.baseType === 'grill' || tile.baseType === 'fryer' || tile.baseType === 'blender') {
+    // Appliance contents & progress (`pot`, `grill`, `fryer`, `blender`)
+    if (
+      tile.baseType === 'pot' ||
+      tile.baseType === 'grill' ||
+      tile.baseType === 'fryer' ||
+      tile.baseType === 'blender'
+    ) {
       if (tile.cookedResult) {
-        this.drawIngredientIcon(ctx, tile.cookedResult, cx, cy, s * 0.48);
+        this.drawIngredientIcon(ctx, tile.cookedResult, cx, cy, s * 0.5);
       } else if (tile.cookContents.length > 0) {
+        const len = tile.cookContents.length;
         tile.cookContents.forEach((ing, idx) => {
-          const offset = tile.cookContents.length === 2 ? (idx === 0 ? -s * 0.14 : s * 0.14) : 0;
-          this.drawIngredientIcon(ctx, ing, cx + offset, cy, s * 0.36);
+          let ox = 0;
+          let oy = 0;
+          if (len === 2) {
+            ox = idx === 0 ? -s * 0.13 : s * 0.13;
+          } else if (len >= 3) {
+            const ang = (idx / len) * Math.PI * 2 - Math.PI * 0.5;
+            ox = Math.cos(ang) * s * 0.13;
+            oy = Math.sin(ang) * s * 0.11;
+          }
+          this.drawIngredientIcon(ctx, ing, cx + ox, cy + oy, len >= 3 ? s * 0.3 : s * 0.36);
         });
       }
 
       if (tile.cookedResult === null && tile.cookProgress > 0) {
         this.drawProgressBar(ctx, x + 6, y + s - 11, s - 12, 6, tile.cookProgress, '#4ade80');
       } else if (tile.cookedResult !== null && tile.cookedResult !== 'burnt') {
-        // Ready checkmark / warning!
         if (tile.burnProgress > 0.35) {
           const pulse = Math.floor(this.animTime * 10) % 2 === 0;
           this.drawProgressBar(
@@ -515,10 +727,19 @@ export class KitchenRenderer {
     if (tile.fire > 0) {
       const flicker = Math.sin(this.animTime * 22 + tile.x * 3) * 3;
       ctx.save();
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.78)';
+      // Warm fire glow halo
+      const glow = ctx.createRadialGradient(cx, cy, 4, cx, cy, s * 0.9);
+      glow.addColorStop(0, 'rgba(249, 115, 22, 0.45)');
+      glow.addColorStop(1, 'rgba(249, 115, 22, 0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(cx, cy, s * 0.9, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.85)';
       ctx.beginPath();
       ctx.moveTo(cx - s * 0.32, y + s * 0.75);
-      ctx.quadraticCurveTo(cx - s * 0.35, cy - s * 0.25, cx + flicker, y + s * 0.08);
+      ctx.quadraticCurveTo(cx - s * 0.35, cy - s * 0.25, cx + flicker, y + s * 0.06);
       ctx.quadraticCurveTo(cx + s * 0.35, cy - s * 0.25, cx + s * 0.32, y + s * 0.75);
       ctx.closePath();
       ctx.fill();
@@ -526,12 +747,168 @@ export class KitchenRenderer {
       ctx.fillStyle = '#facc15';
       ctx.beginPath();
       ctx.moveTo(cx - s * 0.16, y + s * 0.75);
-      ctx.quadraticCurveTo(cx - s * 0.15, cy, cx - flicker * 0.6, y + s * 0.26);
+      ctx.quadraticCurveTo(cx - s * 0.15, cy, cx - flicker * 0.6, y + s * 0.25);
       ctx.quadraticCurveTo(cx + s * 0.15, cy, cx + s * 0.16, y + s * 0.75);
       ctx.closePath();
       ctx.fill();
       ctx.restore();
     }
+  }
+
+  private drawThrowPreview(ctx: CanvasRenderingContext2D, chef: ChefState, s: number): void {
+    // Approximate landing spot for throw (vz=2.4, g=9.8, z0=0.45 -> flight ~0.64s, v=8.4 -> ~4.8 tiles? No, check math:
+    // 0.45 + 2.4t - 4.9t^2 = 0 => t = (2.4 + sqrt(5.76 + 8.82))/9.8 = (2.4 + 3.82)/9.8 = 0.635s
+    // distance = 0.45 + 8.4 * 0.635 = ~5.7 tiles, capped inside grid
+    const dist = 5.4;
+    const tx = Math.max(0.5, Math.min(GRID_COLS - 0.5, chef.x + chef.dirX * dist));
+    const ty = Math.max(0.5, Math.min(GRID_ROWS - 0.5, chef.y + chef.dirY * dist));
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(250, 204, 21, 0.32)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 6]);
+    ctx.beginPath();
+    ctx.moveTo((chef.x + chef.dirX * 0.5) * s, (chef.y + chef.dirY * 0.5) * s);
+    ctx.lineTo(tx * s, ty * s);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.strokeStyle = 'rgba(250, 204, 21, 0.55)';
+    ctx.beginPath();
+    ctx.arc(tx * s, ty * s, s * 0.18, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private drawExtinguisherBeacon(ctx: CanvasRenderingContext2D, snap: SimSnapshot, s: number): void {
+    // Don't show if a chef is already holding the extinguisher
+    if (snap.chefs.some((c) => c.held?.kind === 'extinguisher')) return;
+
+    let ex: number | null = null;
+    let ey: number | null = null;
+
+    for (const t of snap.tiles) {
+      if (t.item?.kind === 'extinguisher') {
+        ex = (t.x + 0.5) * s;
+        ey = t.y * s;
+        break;
+      }
+    }
+    if (ex === null) {
+      for (const fi of snap.floorItems) {
+        if (fi.item.kind === 'extinguisher') {
+          ex = fi.x * s;
+          ey = fi.y * s - s * 0.4;
+          break;
+        }
+      }
+    }
+    if (ex === null || ey === null) return;
+
+    const bob = Math.sin(this.animTime * 10) * 5;
+    ctx.save();
+    ctx.fillStyle = '#0ea5e9';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    this.roundRect(ctx, ex - 38, ey - 26 + bob, 76, 20, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.font = '900 10px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('🧯 EXTINTOR!', ex, ey - 13 + bob);
+    ctx.restore();
+  }
+
+  private computeActionHint(chef: ChefState, tile: TileState, snap: SimSnapshot): string | null {
+    if (tile.fire > 0) {
+      return chef.held?.kind === 'extinguisher' ? 'F: Apagar fogo!' : '🧯 Pegue o Extintor!';
+    }
+    switch (tile.baseType) {
+      case 'crate':
+        if (!chef.held && !tile.item && tile.crateIngredient) {
+          return `E: ${INGREDIENTS[tile.crateIngredient].name}`;
+        }
+        return null;
+      case 'board':
+        if (tile.item?.kind === 'ingredient' && INGREDIENTS[tile.item.ingredient].choppableTo) {
+          return 'F: Picar!';
+        }
+        if (chef.held?.kind === 'ingredient' && INGREDIENTS[chef.held.ingredient].choppableTo && !tile.item) {
+          return 'E: Colocar p/ picar';
+        }
+        return null;
+      case 'pot':
+        if (tile.cookedResult && tile.cookedResult !== 'burnt') {
+          return chef.held?.kind === 'plate' ? 'E: Servir Sopa!' : 'E: Pegar Sopa';
+        }
+        if (chef.held?.kind === 'ingredient') {
+          if (canAcceptInPot(tile.cookContents, tile.cookedResult, chef.held.ingredient)) {
+            return 'E: Por no Caldeirão';
+          }
+          if (INGREDIENTS[chef.held.ingredient].choppableTo) {
+            return '🔪 Pique na tábua antes!';
+          }
+        }
+        return null;
+      case 'grill':
+        if (tile.cookedResult && tile.cookedResult !== 'burnt') return 'E: Tirar da Chapa!';
+        if (chef.held?.kind === 'ingredient' && canAcceptInGrill(tile.cookContents, tile.cookedResult, chef.held.ingredient)) {
+          return 'E: Grelhar Carne';
+        }
+        return null;
+      case 'fryer':
+        if (tile.cookedResult && tile.cookedResult !== 'burnt') return 'E: Tirar Pastel!';
+        if (chef.held?.kind === 'ingredient' && canAcceptInFryer(tile.cookContents, tile.cookedResult, chef.held.ingredient)) {
+          return 'E: Fritar';
+        }
+        return null;
+      case 'blender':
+        if (tile.cookedResult && tile.cookedResult !== 'burnt') return 'E: Pegar Açaí!';
+        if (chef.held?.kind === 'ingredient' && canAcceptInBlender(tile.cookContents, tile.cookedResult, chef.held.ingredient)) {
+          return 'E: Bater Açaí';
+        }
+        return null;
+      case 'sink':
+        if (tile.dirtyCount > 0) return 'F: Lavar Prato!';
+        if (chef.held?.kind === 'dirty_plate') return 'E: Por na Pia';
+        return null;
+      case 'return':
+        if (tile.dirtyCount > 0) return 'E: Pegar Pratos Sujos';
+        return null;
+      case 'plates':
+        if (!chef.held && tile.cleanPlateCount > 0) return 'E: Pegar Prato';
+        if (chef.held?.kind === 'ingredient' && tile.cleanPlateCount > 0 && canPlaceIngredientOnPlate([], chef.held.ingredient)) {
+          return 'E: Empratar!';
+        }
+        return null;
+      case 'pass':
+        if (chef.held?.kind === 'plate') {
+          const rec = matchCompletedRecipe(chef.held.contents);
+          if (rec && snap.orders.some((o) => o.recipe === rec)) {
+            return `E: ENTREGAR ${RECIPES[rec].emoji}!`;
+          }
+        }
+        return null;
+      default:
+        return null;
+    }
+  }
+
+  private drawActionHint(ctx: CanvasRenderingContext2D, x: number, y: number, text: string): void {
+    ctx.save();
+    ctx.font = '800 11px system-ui, sans-serif';
+    const w = ctx.measureText(text).width + 14;
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 1.5;
+    this.roundRect(ctx, x - w * 0.5, y - 16, w, 19, 7);
+    ctx.fill();
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#fef08a';
+    ctx.fillText(text, x, y - 3);
+    ctx.restore();
   }
 
   private drawChef(
@@ -548,23 +925,22 @@ export class KitchenRenderer {
     ctx.save();
     ctx.translate(px, py);
 
-    // Active Solo ring
+    // Active Solo ring & pointer
     if (isActive && mode === 'solo') {
+      const pulse = 1 + Math.sin(this.animTime * 7) * 0.06;
       ctx.strokeStyle = '#fde047';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.ellipse(0, r * 0.62, r * 1.18, r * 0.55, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, r * 0.62, r * 1.2 * pulse, r * 0.56 * pulse, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
 
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.32)';
+    ctx.fillStyle = 'rgba(0,0,0,0.34)';
     ctx.beginPath();
     ctx.ellipse(0, r * 0.65, r * 0.9, r * 0.42, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Facing rotation for body wobble
-    const bob = Math.sin(chef.walkCycle) * 2.2;
     const chopBob = chef.isWorking ? Math.sin(this.animTime * 28) * 3 : 0;
 
     // ── macaco-chef (pintor compartilhado) ──
@@ -591,11 +967,9 @@ export class KitchenRenderer {
         armL = HANDS.up(-1, t * 20);
         armR = HANDS.up(1, t * 20 + 1.3);
       } else if (chef.isWorking) {
-        // picando/lavando: mãos alternando na frente do peito
         armL = { x: -0.45, y: -1.35 + Math.sin(this.animTime * 28) * 0.28 };
         armR = { x: 0.45, y: -1.35 - Math.sin(this.animTime * 28) * 0.28 };
       } else if (chef.held) {
-        // segura o item: mãos vão até ele
         const hx = (chef.dirX * r * 1.15) / u;
         const hy = (chef.dirY * r * 0.95 + chopBob - feetY) / u;
         const cx = Math.max(-1.1, Math.min(1.1, hx));
@@ -641,6 +1015,29 @@ export class KitchenRenderer {
       ctx.restore();
     }
 
+    // Active chef overhead chevron in Solo mode
+    if (isActive && mode === 'solo' && !chef.shoutText) {
+      const bob = Math.sin(this.animTime * 7) * 3;
+      ctx.fillStyle = '#fde047';
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -r * 1.72 + bob);
+      ctx.lineTo(-6, -r * 2.02 + bob);
+      ctx.lineTo(6, -r * 2.02 + bob);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // Auto-working indicator on inactive Solo chef
+    if (!isActive && chef.autoWorkTile && chef.isWorking) {
+      const bob = Math.sin(this.animTime * 14) * 3;
+      ctx.font = `900 ${Math.round(s * 0.28)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('⚡', 0, -r * 1.75 + bob);
+    }
+
     // Held Item in front of chef
     if (chef.held) {
       const hx = chef.dirX * r * 1.15;
@@ -651,7 +1048,7 @@ export class KitchenRenderer {
     // Name tag below chef
     ctx.font = `800 ${Math.max(10, Math.round(s * 0.2))}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillStyle = 'rgba(0,0,0,0.68)';
     const tagW = ctx.measureText(chef.name).width + 10;
     this.roundRect(ctx, -tagW * 0.5, r * 1.0, tagW, 15, 6);
     ctx.fill();
@@ -662,7 +1059,7 @@ export class KitchenRenderer {
     if (chef.shoutText) {
       ctx.font = `900 ${Math.max(11, Math.round(s * 0.22))}px system-ui, sans-serif`;
       const bw = ctx.measureText(chef.shoutText).width + 16;
-      const by = -r * 2.15;
+      const by = -r * 2.2;
       ctx.fillStyle = '#ffffff';
       ctx.strokeStyle = '#ef4444';
       ctx.lineWidth = 2.5;
@@ -710,6 +1107,10 @@ export class KitchenRenderer {
   ): void {
     const r = size * 0.52;
     ctx.save();
+    if (complete) {
+      ctx.shadowColor = '#22c55e';
+      ctx.shadowBlur = 8;
+    }
     ctx.fillStyle = burnt ? '#334155' : '#f8fafc';
     ctx.strokeStyle = complete ? '#22c55e' : '#94a3b8';
     ctx.lineWidth = complete ? 3 : 2;
@@ -717,6 +1118,7 @@ export class KitchenRenderer {
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+    ctx.shadowBlur = 0;
 
     ctx.strokeStyle = '#cbd5e1';
     ctx.lineWidth = 1.5;
@@ -726,13 +1128,13 @@ export class KitchenRenderer {
 
     if (contents.length > 0) {
       if (contents.length === 1) {
-        this.drawIngredientIcon(ctx, contents[0], x, y, size * 0.72);
+        this.drawIngredientIcon(ctx, contents[0], x, y, size * 0.76);
       } else {
         contents.forEach((ing, idx) => {
           const ang = (idx / contents.length) * Math.PI * 2 - Math.PI * 0.5;
           const ox = Math.cos(ang) * r * 0.35;
           const oy = Math.sin(ang) * r * 0.35;
-          this.drawIngredientIcon(ctx, ing, x + ox, y + oy, size * 0.45);
+          this.drawIngredientIcon(ctx, ing, x + ox, y + oy, size * 0.46);
         });
       }
     }
@@ -756,7 +1158,6 @@ export class KitchenRenderer {
     ctx.fill();
     ctx.stroke();
 
-    // Brown smudges
     ctx.fillStyle = '#78350f';
     ctx.beginPath();
     ctx.arc(x - r * 0.25, y - r * 0.1, r * 0.22, 0, Math.PI * 2);
@@ -778,7 +1179,6 @@ export class KitchenRenderer {
     this.roundRect(ctx, -size * 0.22, -size * 0.28, size * 0.44, size * 0.62, 5);
     ctx.fill();
     ctx.stroke();
-    // Nozzle
     ctx.fillStyle = '#1e293b';
     ctx.fillRect(-size * 0.1, -size * 0.4, size * 0.2, size * 0.14);
     ctx.fillRect(size * 0.08, -size * 0.36, size * 0.24, size * 0.08);
@@ -851,6 +1251,55 @@ export class KitchenRenderer {
           ctx.fill();
           ctx.stroke();
           ctx.restore();
+        }
+        break;
+      }
+      case 'carrot': {
+        ctx.save();
+        ctx.rotate(-0.45);
+        // Leafy green top
+        ctx.strokeStyle = '#16a34a';
+        ctx.lineWidth = Math.max(1.8, r * 0.22);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(r * 0.45, 0);
+        ctx.lineTo(r * 0.85, -r * 0.24);
+        ctx.moveTo(r * 0.45, 0);
+        ctx.lineTo(r * 0.88, r * 0.18);
+        ctx.stroke();
+        // Orange body
+        ctx.fillStyle = '#fb923c';
+        ctx.strokeStyle = '#9a3412';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.78, 0);
+        ctx.quadraticCurveTo(r * 0.1, -r * 0.44, r * 0.52, -r * 0.24);
+        ctx.quadraticCurveTo(r * 0.62, 0, r * 0.52, r * 0.24);
+        ctx.quadraticCurveTo(r * 0.1, r * 0.44, -r * 0.78, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+        break;
+      }
+      case 'carrot_chopped': {
+        ctx.fillStyle = '#fb923c';
+        ctx.strokeStyle = '#9a3412';
+        ctx.lineWidth = 1.5;
+        for (const [ox, oy] of [
+          [-r * 0.34, -r * 0.22],
+          [r * 0.34, -r * 0.14],
+          [0, r * 0.32],
+        ]) {
+          ctx.beginPath();
+          ctx.arc(ox, oy, r * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#fed7aa';
+          ctx.beginPath();
+          ctx.arc(ox, oy, r * 0.1, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#fb923c';
         }
         break;
       }
@@ -961,11 +1410,62 @@ export class KitchenRenderer {
         ctx.arc(0, 0, r * 0.72, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        // Banana slices on top!
         ctx.fillStyle = '#fde047';
         ctx.beginPath();
         ctx.arc(-r * 0.22, -r * 0.1, r * 0.18, 0, Math.PI * 2);
         ctx.arc(r * 0.22, r * 0.1, r * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'soup_banana': {
+        // Creamy golden banana-coconut soup bowl
+        ctx.fillStyle = '#fef3c7';
+        ctx.strokeStyle = '#92400e';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.78, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.62, 0, Math.PI * 2);
+        ctx.fill();
+        // Swirl + coconut & banana garnish
+        ctx.fillStyle = '#fef9c3';
+        ctx.beginPath();
+        ctx.arc(-r * 0.2, -r * 0.12, r * 0.16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(r * 0.2, r * 0.14, r * 0.14, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'soup_macacao': {
+        // Signature Sopa de Macacão! Rich terracotta bowl + hearty orange broth + colorful chunks!
+        ctx.fillStyle = '#7c2d12';
+        ctx.strokeStyle = '#fef08a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ea580c';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.64, 0, Math.PI * 2);
+        ctx.fill();
+        // Banana slice, carrot coin, green herb!
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.arc(-r * 0.22, -r * 0.16, r * 0.16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fb923c';
+        ctx.beginPath();
+        ctx.arc(r * 0.24, -r * 0.08, r * 0.15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#4ade80';
+        ctx.beginPath();
+        ctx.arc(0, r * 0.22, r * 0.16, 0, Math.PI * 2);
         ctx.fill();
         break;
       }
@@ -1015,14 +1515,12 @@ export class KitchenRenderer {
     const ang = Math.atan2(vy, vx);
     ctx.rotate(ang);
     const r = s * 0.26;
-    // Tail
     ctx.strokeStyle = '#f472b6';
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(-r * 0.8, 0);
     ctx.quadraticCurveTo(-r * 1.5, Math.sin(this.animTime * 18) * 6, -r * 1.8, 0);
     ctx.stroke();
-    // Body
     ctx.fillStyle = '#64748b';
     ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 2;
@@ -1030,7 +1528,6 @@ export class KitchenRenderer {
     ctx.ellipse(0, 0, r, r * 0.65, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    // Bandit mask + ears
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(r * 0.25, -r * 0.4, r * 0.28, r * 0.8);
     ctx.fillStyle = '#f472b6';
@@ -1046,7 +1543,6 @@ export class KitchenRenderer {
   }
 
   private drawTopHud(ctx: CanvasRenderingContext2D, w: number, snap: SimSnapshot): void {
-    // Top-Right Score + Combo + Timer (placed away from top-left SDK bar)
     const mins = Math.floor(snap.timeLeft / 60);
     const secs = Math.floor(snap.timeLeft % 60);
     const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -1057,8 +1553,13 @@ export class KitchenRenderer {
     const timerW = 104;
     const timerX = w - timerW - 12;
     const timerY = 8;
-    ctx.fillStyle = urgentTime && Math.floor(this.animTime * 4) % 2 === 0 ? '#991b1b' : 'rgba(17,24,39,0.92)';
-    ctx.strokeStyle = urgentTime ? '#ef4444' : '#facc15';
+    ctx.fillStyle =
+      urgentTime && Math.floor(this.animTime * 4) % 2 === 0
+        ? '#991b1b'
+        : snap.rushHour
+          ? '#7c2d12'
+          : 'rgba(17,24,39,0.92)';
+    ctx.strokeStyle = urgentTime ? '#ef4444' : snap.rushHour ? '#f97316' : '#facc15';
     ctx.lineWidth = 2.5;
     this.roundRect(ctx, timerX, timerY, timerW, 36, 12);
     ctx.fill();
@@ -1069,10 +1570,10 @@ export class KitchenRenderer {
     ctx.fillText(`⏱ ${timeStr}`, timerX + timerW * 0.5, timerY + 24);
 
     // Score & Combo pill
-    const scoreW = 175;
+    const scoreW = 186;
     const scoreX = timerX - scoreW - 8;
     ctx.fillStyle = 'rgba(17,24,39,0.92)';
-    ctx.strokeStyle = '#4ade80';
+    ctx.strokeStyle = snap.combo >= 3 ? '#facc15' : '#4ade80';
     ctx.lineWidth = 2.5;
     this.roundRect(ctx, scoreX, timerY, scoreW, 36, 12);
     ctx.fill();
@@ -1083,67 +1584,165 @@ export class KitchenRenderer {
     ctx.fillText(`💰 ${snap.score} pts`, scoreX + 12, timerY + 24);
     if (snap.combo > 1) {
       ctx.textAlign = 'right';
-      ctx.fillStyle = '#facc15';
-      ctx.fillText(`x${snap.combo}`, scoreX + scoreW - 10, timerY + 24);
+      ctx.fillStyle = snap.combo >= 3 ? '#fb923c' : '#facc15';
+      ctx.fillText(`🔥x${snap.combo}`, scoreX + scoreW - 10, timerY + 24);
     }
 
-    // Order Tickets Rail at y = 50px
-    const maxCardW = Math.min(168, Math.floor((w - 32) / Math.max(1, snap.orders.length)) - 8);
-    const cardW = Math.max(115, maxCardW);
-    const cardH = 60;
+    // Rush Hour badge to the left of score if space permits
+    if (snap.rushHour && scoreX > 410) {
+      const rushW = 132;
+      const rushX = scoreX - rushW - 8;
+      ctx.fillStyle = '#9a3412';
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 2;
+      this.roundRect(ctx, rushX, timerY + 3, rushW, 30, 10);
+      ctx.fill();
+      ctx.stroke();
+      ctx.font = '900 12px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fef08a';
+      ctx.fillText('🔥 RUSH +25%!', rushX + rushW * 0.5, timerY + 22);
+    }
+
+    // Order Tickets Rail at y = 50px (with custom vector ingredient icons!)
+    const maxCardW = Math.min(182, Math.floor((w - 28) / Math.max(1, snap.orders.length)) - 8);
+    const cardW = Math.max(122, maxCardW);
+    const cardH = 70;
     const startX = 12;
     const startY = 50;
 
     snap.orders.forEach((order, idx) => {
       const rec = RECIPES[order.recipe];
+      const slideIn = Math.min(1, order.age * 4.5);
+      const slideOffset = (1 - slideIn) * -18;
       const cx = startX + idx * (cardW + 8);
+      const cy = startY + slideOffset;
       const pct = Math.max(0, Math.min(1, order.timeLeft / order.maxTime));
       const low = pct < 0.28;
 
-      ctx.fillStyle = low && Math.floor(this.animTime * 6) % 2 === 0 ? '#fef2f2' : '#fef3c7';
+      ctx.save();
+      ctx.globalAlpha = Math.max(0.2, slideIn);
+
+      ctx.fillStyle = low && Math.floor(this.animTime * 6) % 2 === 0 ? '#fef2f2' : '#fffbeb';
       ctx.strokeStyle = idx === 0 ? '#facc15' : low ? '#ef4444' : '#d97706';
       ctx.lineWidth = idx === 0 ? 3 : 2;
-      this.roundRect(ctx, cx, startY, cardW, cardH, 10);
+      this.roundRect(ctx, cx, cy, cardW, cardH, 10);
       ctx.fill();
       ctx.stroke();
 
-      // Header
-      ctx.font = '900 13px system-ui, sans-serif';
+      // Header bar with recipe color accent
+      ctx.fillStyle = idx === 0 ? '#fef08a' : '#fde68a';
+      this.roundRect(ctx, cx + 2, cy + 2, cardW - 4, 22, 8);
+      ctx.fill();
+
+      // Recipe name (clipped cleanly to card width)
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(cx + 6, cy + 2, cardW - (idx === 0 ? 52 : 12), 22);
+      ctx.clip();
+      ctx.font = '900 12px system-ui, sans-serif';
       ctx.textAlign = 'left';
       ctx.fillStyle = '#78350f';
-      ctx.fillText(`${rec.emoji} ${rec.name}`, cx + 8, startY + 19);
+      const titleText = cardW < 146 ? `${rec.emoji} ${rec.shortName}` : `${rec.emoji} ${rec.name}`;
+      ctx.fillText(titleText, cx + 7, cy + 17);
+      ctx.restore();
 
-      // Steps Hint
-      ctx.font = '700 12px system-ui, sans-serif';
-      ctx.fillStyle = '#92400e';
-      ctx.fillText(rec.stepsHint.join(' + '), cx + 8, startY + 38);
+      // First order combo badge
+      if (idx === 0) {
+        ctx.fillStyle = '#ea580c';
+        this.roundRect(ctx, cx + cardW - 44, cy + 4, 39, 16, 6);
+        ctx.fill();
+        ctx.font = '900 9px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('★1º', cx + cardW - 24.5, cy + 15);
+      }
+
+      // Visual mini ingredient icons row
+      const ings = rec.displayIngredients;
+      const iconSz = 22;
+      let ix = cx + 18;
+      const iy = cy + 39;
+      ings.forEach((ing, i) => {
+        this.drawIngredientIcon(ctx, ing, ix, iy, iconSz);
+        if (i < ings.length - 1) {
+          ctx.font = '900 10px system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#92400e';
+          ctx.fillText('+', ix + 13, iy + 4);
+        }
+        ix += 26;
+      });
+
+      // Appliance badge on right side of icon row
+      if (rec.applianceTag) {
+        ctx.font = '14px system-ui, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(`→${rec.applianceTag}`, cx + cardW - 7, iy + 5);
+      }
 
       // Patience Bar
-      const barW = cardW - 16;
+      const barW = cardW - 14;
       ctx.fillStyle = '#d6d3d1';
-      this.roundRect(ctx, cx + 8, startY + 46, barW, 8, 4);
+      this.roundRect(ctx, cx + 7, cy + 56, barW, 8, 4);
       ctx.fill();
       ctx.fillStyle = pct > 0.5 ? '#22c55e' : pct > 0.25 ? '#eab308' : '#ef4444';
-      this.roundRect(ctx, cx + 8, startY + 46, barW * pct, 8, 4);
+      this.roundRect(ctx, cx + 7, cy + 56, barW * pct, 8, 4);
       ctx.fill();
+
+      ctx.restore();
     });
 
     ctx.restore();
   }
 
+  private drawCountdownOverlay(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    countdown: number,
+    kitchenName: string,
+  ): void {
+    const num = Math.max(1, Math.ceil(countdown / 0.6));
+    const frac = (countdown % 0.6) / 0.6;
+    const scale = 0.85 + (1 - frac) * 0.4;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(15, 10, 6, 0.42)';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.translate(w * 0.5, h * 0.5);
+    ctx.font = '900 20px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#fed7aa';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 4;
+    ctx.strokeText(kitchenName, 0, -64);
+    ctx.fillText(kitchenName, 0, -64);
+
+    ctx.scale(scale, scale);
+    ctx.font = '900 84px system-ui, sans-serif';
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = '#78350f';
+    ctx.strokeText(String(num), 0, 26);
+    ctx.fillStyle = '#fde047';
+    ctx.fillText(String(num), 0, 26);
+    ctx.restore();
+  }
+
   private drawBottomStrip(ctx: CanvasRenderingContext2D, w: number, h: number, snap: SimSnapshot): void {
     ctx.save();
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
     ctx.fillRect(0, h - 26, w, 26);
     ctx.font = '700 12px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = '#fde68a';
     const modeHint =
       snap.mode === 'solo'
-        ? 'SOLO: [Tab] Trocar Chef • [Espaço/E] Pegar/Entregar • [F/J] Picar/Lavar/Apagar • [Q/K] Arremessar • [Shift] Dash • [1-4] Gritar'
+        ? 'SOLO: [Tab] Trocar Chef • [Espaço/E] Pegar/Entregar • [F/J] Picar/Lavar/Apagar • [Q/K] Arremessar • [Shift] Dash • [M] Música • [Esc/P] Pausar'
         : snap.mode === 'local2p'
-          ? 'LOCAL 2P: P1 WASD + E/F/Q/Shift • P2 Setas + Enter(,)/.(M)//(N)/R-Shift • [1-4] Gritar'
-          : 'ONLINE CO-OP: [WASD/Setas] Mover • [Espaço/E] Pegar/Entregar • [F/J] Picar/Lavar/Apagar • [Q/K] Arremessar • [Shift] Dash • [1-4] Gritar';
+          ? 'LOCAL 2P: P1 WASD+E/F/Q/Shift • P2 Setas+Enter(,)/.(M)//(N)/R-Shift • [1-4] Gritar • [M] Música • [Esc/P] Pausar'
+          : 'ONLINE CO-OP: [WASD/Setas] Mover • [Espaço/E] Pegar/Entregar • [F/J] Picar/Lavar/Apagar • [Q/K] Arremessar • [Shift] Dash • [M] Música';
     ctx.fillText(modeHint, w * 0.5, h - 9);
     ctx.restore();
   }
@@ -1158,7 +1757,7 @@ export class KitchenRenderer {
     color: string,
   ): void {
     ctx.save();
-    ctx.fillStyle = 'rgba(15,23,42,0.85)';
+    ctx.fillStyle = 'rgba(15,23,42,0.88)';
     this.roundRect(ctx, x, y, w, h, 3);
     ctx.fill();
     ctx.fillStyle = color;

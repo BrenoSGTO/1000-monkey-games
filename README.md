@@ -105,7 +105,7 @@ Navegue por todos os jogos num launcher único com filtros por categoria, busca 
 | Jogo | Inspiração | Categoria | Multiplayer Planejado |
 |---|---|---|---|
 | 🔑 **Pico Macaco: A Chave da Banana** | Pico Park | Arcade / Puzzle | Co-op P2P (2–6) com empilhamento de macacos + Local 2–3P + Solo alternável |
-| 🍳 **Macaco na Chapa: Cozinha do Caos** | Overcooked | Ação / Party | Cozinha Co-op P2P (2–4) + Local 2P + Solo com 2 chefs |
+| 🍲 **Sopa de Macacão** | Overcooked | Ação / Party | Cozinha Co-op P2P (2–4) + Local 2P + Solo com 2 chefs |
 | 🛸 **Entre Macacos: Quem Roubou a Banana?** | Among Us | Estratégia / Party | Dedução social P2P (2–10) com chat & votação + Bots IA para Solo |
 | 🏡 **Os Macacos: Vida na Árvore** | The Sims | Simulação | República Online P2P (2–6 amigos na mesma casa) + modo família |
 

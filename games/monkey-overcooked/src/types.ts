@@ -1,12 +1,14 @@
 export type GameMode = 'solo' | 'local2p' | 'online';
 
-export type KitchenId = 'quiosque' | 'caminhoes' | 'esteira' | 'faria-lima';
+export type KitchenId = 'quiosque' | 'caminhoes' | 'esteira' | 'faria-lima' | 'vulcao';
 
 export type IngredientKind =
   | 'banana'
   | 'banana_chopped'
   | 'lettuce'
   | 'lettuce_chopped'
+  | 'carrot'
+  | 'carrot_chopped'
   | 'bread'
   | 'burger'
   | 'burger_cooked'
@@ -16,9 +18,17 @@ export type IngredientKind =
   | 'pastel_cooked'
   | 'acai'
   | 'acai_cooked'
+  | 'soup_banana'
+  | 'soup_macacao'
   | 'burnt';
 
-export type RecipeId = 'banana_salad' | 'x_macaco' | 'pastel_coco' | 'acai_turbo';
+export type RecipeId =
+  | 'banana_salad'
+  | 'sopa_banana'
+  | 'sopa_macacao'
+  | 'x_macaco'
+  | 'pastel_coco'
+  | 'acai_turbo';
 
 export type HeldItem =
   | { kind: 'ingredient'; ingredient: IngredientKind; chopProgress?: number }
@@ -34,6 +44,7 @@ export type StationType =
   | 'counter'
   | 'crate'
   | 'board'
+  | 'pot'
   | 'grill'
   | 'fryer'
   | 'blender'
@@ -112,6 +123,7 @@ export interface OrderTicket {
   recipe: RecipeId;
   timeLeft: number;
   maxTime: number;
+  age: number;
 }
 
 export interface ThiefRat {
@@ -145,7 +157,7 @@ export interface SimParticle {
   size: number;
   life: number;
   maxLife: number;
-  kind: 'smoke' | 'fire' | 'foam' | 'chop' | 'spark' | 'dust';
+  kind: 'smoke' | 'fire' | 'foam' | 'chop' | 'spark' | 'dust' | 'steam';
 }
 
 export interface FloatingText {
@@ -166,6 +178,7 @@ export interface KitchenDef {
   floorA: string;
   floorB: string;
   counterColor: string;
+  gapStyle?: 'highway' | 'lava';
   duration: number;
   recipes: RecipeId[];
   stars: [number, number, number];
@@ -192,6 +205,7 @@ export interface ChefInputState {
 export type SimSoundEvent =
   | 'chop'
   | 'sizzle'
+  | 'bubble'
   | 'blend'
   | 'wash'
   | 'pickup'
@@ -199,6 +213,7 @@ export type SimSoundEvent =
   | 'throw'
   | 'dash'
   | 'deliver'
+  | 'deliverCombo'
   | 'orderFail'
   | 'alarm'
   | 'extinguish'
@@ -206,14 +221,20 @@ export type SimSoundEvent =
   | 'rat'
   | 'shout'
   | 'burn'
-  | 'bridge';
+  | 'bridge'
+  | 'tick'
+  | 'start'
+  | 'rush';
 
 export interface SimSnapshot {
   kitchenId: KitchenId;
   mode: GameMode;
   timeLeft: number;
   totalTime: number;
+  countdown: number;
+  rushHour: boolean;
   score: number;
+  tipsEarned: number;
   combo: number;
   maxCombo: number;
   deliveredCount: number;

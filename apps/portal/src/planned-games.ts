@@ -211,14 +211,14 @@ export const PLANNED_GAMES: CatalogGame[] = [
   },
   {
     slug: 'monkey-overcooked',
-    title: 'Macaco na Chapa: Cozinha do Caos',
-    subtitle: 'Pastel de Coco, Açaí & Incêndio na Cozinha',
+    title: 'Sopa de Macacão',
+    subtitle: 'Caldeirões Borbulhantes, Pastel de Coco & Incêndio na Cozinha',
     inspiredBy: 'Overcooked',
     description:
-      'Pique bananas, frite pastéis de coco, lave pratos, arremesse ingredientes pelo balcão e apague incêndios no fogão antes que os clientes macacos virem a mesa!',
+      'Ferva a lendária Sopa de Macacão, pique bananas e cenouras, frite pastéis de coco, lave pratos, arremesse ingredientes pelo balcão e apague incêndios antes que os clientes macacos virem a mesa!',
     category: 'acao',
-    tags: ['cozinha', 'co-op', 'caos', 'party'],
-    emoji: '🍳',
+    tags: ['cozinha', 'sopa', 'co-op', 'caos', 'party'],
+    emoji: '🍲',
     accentColor: '#ef4444',
     multiplayer: {
       supported: true,

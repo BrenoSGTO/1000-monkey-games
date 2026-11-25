@@ -9,24 +9,67 @@ import './mascot';
 import type { ChefInputState, GameMode, KitchenId, SimSnapshot } from './types';
 
 const SLUG = 'monkey-overcooked';
+const PROGRESS_KEY = 'sopa-de-macacao:kitchen-progress';
+
+interface KitchenProgress {
+  bestScore: number;
+  stars: number;
+}
+
+function loadKitchenProgress(): Record<string, KitchenProgress> {
+  try {
+    const raw = localStorage.getItem(PROGRESS_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) as Record<string, KitchenProgress>;
+  } catch {
+    return {};
+  }
+}
+
+function saveKitchenProgress(kitchenId: KitchenId, score: number, stars: number): void {
+  const all = loadKitchenProgress();
+  const prev = all[kitchenId] ?? { bestScore: 0, stars: 0 };
+  all[kitchenId] = {
+    bestScore: Math.max(prev.bestScore, score),
+    stars: Math.max(prev.stars, stars),
+  };
+  try {
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(all));
+  } catch {
+    // ignore storage errors
+  }
+}
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const menuOverlay = document.getElementById('menu-overlay') as HTMLDivElement;
+const pauseOverlay = document.getElementById('pause-overlay') as HTMLDivElement;
 const resultsOverlay = document.getElementById('results-overlay') as HTMLDivElement;
 const kitchensWrap = document.getElementById('mo-kitchens') as HTMLDivElement;
+const recipesWrap = document.getElementById('mo-recipes') as HTMLDivElement;
 const modesWrap = document.getElementById('mo-modes') as HTMLDivElement;
 const startBtn = document.getElementById('mo-start-btn') as HTMLButtonElement;
 const onlineStatusEl = document.getElementById('mo-online-status') as HTMLDivElement;
 const bestBadgeEl = document.getElementById('mo-best-badge') as HTMLDivElement;
+const starsBadgeEl = document.getElementById('mo-stars-badge') as HTMLDivElement;
+const musicBtnEl = document.getElementById('mo-music-btn') as HTMLButtonElement;
 const controlsBoxEl = document.getElementById('mo-controls-box') as HTMLDivElement;
+
+const pauseSubtitle = document.getElementById('pause-subtitle') as HTMLParagraphElement;
+const pauseRecipesWrap = document.getElementById('pause-recipes') as HTMLDivElement;
+const pauseResumeBtn = document.getElementById('pause-resume-btn') as HTMLButtonElement;
+const pauseRestartBtn = document.getElementById('pause-restart-btn') as HTMLButtonElement;
+const pauseMusicBtn = document.getElementById('pause-music-btn') as HTMLButtonElement;
+const pauseMenuBtn = document.getElementById('pause-menu-btn') as HTMLButtonElement;
 
 const resTitle = document.getElementById('res-title') as HTMLHeadingElement;
 const resSubtitle = document.getElementById('res-subtitle') as HTMLParagraphElement;
 const resStars = document.getElementById('res-stars') as HTMLDivElement;
 const resScore = document.getElementById('res-score') as HTMLDivElement;
+const resTips = document.getElementById('res-tips') as HTMLDivElement;
 const resDelivered = document.getElementById('res-delivered') as HTMLDivElement;
 const resCombo = document.getElementById('res-combo') as HTMLDivElement;
 const resFires = document.getElementById('res-fires') as HTMLDivElement;
+const resNextBtn = document.getElementById('res-next-btn') as HTMLButtonElement;
 const resReplayBtn = document.getElementById('res-replay-btn') as HTMLButtonElement;
 const resMenuBtn = document.getElementById('res-menu-btn') as HTMLButtonElement;
 
@@ -34,6 +77,7 @@ let selectedMode: GameMode = 'solo';
 let selectedKitchen: KitchenId = 'quiosque';
 let sim: KitchenSimulation | null = null;
 let inGame = false;
+let paused = false;
 let reportedResult = false;
 let activeSoloChefIdx = 0;
 
@@ -77,6 +121,7 @@ const net = new OvercookedNet({
     openMenu();
   },
   onRemoteSnapshot: (snap) => {
+    kitchenAudio.setRushTempo(snap.rushHour);
     if (snap.finished && !reportedResult) {
       showResults(snap);
     }
@@ -88,33 +133,91 @@ const net = new OvercookedNet({
 
 hudHandle = mountMonkeyHud({
   slug: SLUG,
-  title: 'Macaco na Chapa',
+  title: 'Sopa de Macacão',
   room: net.room,
 });
+
+// Preview kitchen background while on menu — updates dynamically when choosing a kitchen!
+let previewSim = createPreviewSim(selectedKitchen);
+
+function createPreviewSim(kitchenId: KitchenId): KitchenSimulation {
+  return new KitchenSimulation(
+    kitchenId,
+    'solo',
+    [
+      { id: 'p1', name: 'Chef Macacão', color: '#facc15' },
+      { id: 'p2', name: 'Sub-Chef', color: '#4ade80' },
+    ],
+    { skipCountdown: true },
+  );
+}
+
+function syncMusicLabels(): void {
+  const label = kitchenAudio.isMusicMuted() ? '🔇 Música: OFF' : '🎵 Música: ON';
+  musicBtnEl.textContent = label;
+  pauseMusicBtn.textContent = label;
+}
+
+musicBtnEl.onclick = () => {
+  kitchenAudio.toggleMusic();
+  syncMusicLabels();
+};
+
+pauseMusicBtn.onclick = () => {
+  kitchenAudio.toggleMusic();
+  syncMusicLabels();
+};
 
 function refreshBestBadge(): void {
   const rec = getGameScore(SLUG);
   bestBadgeEl.textContent = `🏆 Recorde: ${rec.bestScore} pts`;
+  const prog = loadKitchenProgress();
+  const totalStars = KITCHEN_ORDER.reduce((acc, id) => acc + (prog[id]?.stars ?? 0), 0);
+  starsBadgeEl.textContent = `⭐ ${totalStars}/${KITCHEN_ORDER.length * 3}`;
+}
+
+function renderRecipeList(container: HTMLElement, kitchenId: KitchenId): void {
+  const k = KITCHENS[kitchenId];
+  container.innerHTML = '';
+  for (const rId of k.recipes) {
+    const r = RECIPES[rId];
+    const el = document.createElement('div');
+    el.className = 'mo-recipe-chip';
+    el.innerHTML = `
+      <div><strong>${r.emoji} ${r.name}</strong> <span style="color:#86efac;font-weight:800;">+${r.points} pts</span></div>
+      <div class="mo-recipe-guide">${r.stepsHint.join(' + ')} — ${r.guideText}</div>
+    `;
+    container.appendChild(el);
+  }
 }
 
 function renderKitchenCards(): void {
+  const prog = loadKitchenProgress();
   kitchensWrap.innerHTML = '';
   for (const id of KITCHEN_ORDER) {
     const k = KITCHENS[id];
+    const p = prog[id] ?? { bestScore: 0, stars: 0 };
     const btn = document.createElement('button');
     btn.className = `mo-kitchen-card ${selectedKitchen === id ? 'active' : ''}`;
     const recipeIcons = k.recipes.map((r) => RECIPES[r].emoji).join(' ');
+    const starsStr = `${'⭐'.repeat(p.stars)}${'☆'.repeat(3 - p.stars)}`;
     btn.innerHTML = `
-      <div class="mo-k-name">${k.name}</div>
+      <div class="mo-k-top">
+        <div class="mo-k-name">${k.name}</div>
+        <div class="mo-k-stars">${starsStr}</div>
+      </div>
       <div class="mo-k-meta">${k.subtitle}</div>
-      <div class="mo-k-meta" style="margin-top:6px;">Pratos: ${recipeIcons} • ⏱ ${Math.floor(k.duration / 60)}:${(k.duration % 60).toString().padStart(2, '0')}</div>
+      <div class="mo-k-meta" style="margin-top:6px;">Pratos: ${recipeIcons} • ⏱ ${Math.floor(k.duration / 60)}:${(k.duration % 60).toString().padStart(2, '0')}${p.bestScore > 0 ? ` • 🏆 ${p.bestScore}` : ''}</div>
     `;
     btn.onclick = () => {
       selectedKitchen = id;
+      previewSim = createPreviewSim(id);
       renderKitchenCards();
+      renderRecipeList(recipesWrap, id);
     };
     kitchensWrap.appendChild(btn);
   }
+  renderRecipeList(recipesWrap, selectedKitchen);
 }
 
 function syncModeButtons(): void {
@@ -127,16 +230,16 @@ function syncModeButtons(): void {
     controlsBoxEl.innerHTML = `
       <div><strong style="color:#facc15;">Chef 1:</strong> <span class="mo-kbd">WASD</span> mover • <span class="mo-kbd">E</span> pegar • <span class="mo-kbd">F</span> picar/lavar • <span class="mo-kbd">Q</span> jogar • <span class="mo-kbd">L-Shift</span> dash</div>
       <div><strong style="color:#4ade80;">Chef 2:</strong> <span class="mo-kbd">Setas</span> mover • <span class="mo-kbd">Enter</span>/<span class="mo-kbd">,</span> pegar • <span class="mo-kbd">.</span>/<span class="mo-kbd">M</span> picar/lavar • <span class="mo-kbd">/</span>/<span class="mo-kbd">N</span> jogar • <span class="mo-kbd">R-Shift</span> dash</div>
-      <div><span class="mo-kbd">1-4</span> Gritos rápidos de cozinha!</div>
+      <div><span class="mo-kbd">1-4</span> Gritos rápidos • <span class="mo-kbd">Esc</span>/<span class="mo-kbd">P</span> Pausar • Sirva o pedido <strong style="color:#fde047;">★1º</strong> para multiplicar o Combo!</div>
     `;
   } else {
     controlsBoxEl.innerHTML = `
       <div><span class="mo-kbd">WASD</span> / <span class="mo-kbd">Setas</span> Mover 8 direções</div>
-      <div><span class="mo-kbd">Espaço</span> / <span class="mo-kbd">E</span> Pegar / Soltar / Entregar</div>
+      <div><span class="mo-kbd">Espaço</span> / <span class="mo-kbd">E</span> Pegar / Soltar / Servir</div>
       <div><span class="mo-kbd">F</span> / <span class="mo-kbd">J</span> Picar / Lavar / Apagar Fogo</div>
-      <div><span class="mo-kbd">Q</span> / <span class="mo-kbd">K</span> Arremessar Ingrediente</div>
-      <div><span class="mo-kbd">Shift</span> Dash (esbarra nos amigos!)</div>
-      <div><span class="mo-kbd">Tab</span> Trocar Chef (Solo) | <span class="mo-kbd">1-4</span> Gritar!</div>
+      <div><span class="mo-kbd">Q</span> / <span class="mo-kbd">K</span> Arremessar (acerta caldeirão e prato!)</div>
+      <div><span class="mo-kbd">Shift</span> Dash • <span class="mo-kbd">Tab</span> Trocar Chef (Solo)</div>
+      <div><span class="mo-kbd">1-4</span> Gritar • <span class="mo-kbd">M</span> Música • <span class="mo-kbd">Esc</span> Pausar</div>
     `;
   }
   refreshStartButton();
@@ -147,11 +250,11 @@ function refreshStartButton(): void {
     if (!net.isConnected()) {
       onlineStatusEl.textContent = 'Abra ou entre numa sala no botão verde "🐒 Co-op Online" lá em cima!';
       startBtn.disabled = false;
-      startBtn.textContent = '🔥 TESTAR SOLO / CRIAR SALA';
+      startBtn.textContent = '🍲 TESTAR SOLO / CRIAR SALA';
     } else if (net.isHost()) {
       onlineStatusEl.textContent = `Você é o Host (${net.getPlayers().length}/4 chefs)! Escolha a cozinha e comece!`;
       startBtn.disabled = false;
-      startBtn.textContent = '🔥 ABRIR COZINHA ONLINE!';
+      startBtn.textContent = '🍲 ABRIR COZINHA ONLINE!';
     } else {
       onlineStatusEl.textContent = 'Conectado como convidado — aguardando o Host iniciar...';
       startBtn.disabled = true;
@@ -160,10 +263,10 @@ function refreshStartButton(): void {
   } else {
     onlineStatusEl.textContent =
       selectedMode === 'solo'
-        ? 'Solo: 2 macacos chefs alternáveis com Tab!'
+        ? 'Solo: 2 macacos chefs alternáveis com Tab! Dica: sirva o pedido ★1º para combos!'
         : 'Local 2P: dois chefs no mesmo teclado!';
     startBtn.disabled = false;
-    startBtn.textContent = '🔥 ABRIR A COZINHA!';
+    startBtn.textContent = '🍲 ABRIR A COZINHA!';
   }
 }
 
@@ -174,11 +277,33 @@ modesWrap.querySelectorAll<HTMLButtonElement>('.mo-mode-btn').forEach((btn) => {
   };
 });
 
+function setPaused(next: boolean): void {
+  if (!inGame || reportedResult) return;
+  // Online guests don't pause the authoritative host simulation
+  if (selectedMode === 'online' && net.isConnected()) {
+    if (net.isHost()) {
+      net.broadcastBackToMenu();
+      openMenu();
+    }
+    return;
+  }
+  paused = next;
+  keysDown.clear();
+  pendingPresses.clear();
+  if (paused) {
+    pauseSubtitle.textContent = `${KITCHENS[selectedKitchen].name} — Cardápio do turno`;
+    renderRecipeList(pauseRecipesWrap, selectedKitchen);
+    syncMusicLabels();
+    pauseOverlay.classList.remove('hidden');
+  } else {
+    pauseOverlay.classList.add('hidden');
+  }
+}
+
 function startMatch(): void {
   if (selectedMode === 'online' && net.isConnected() && !net.isHost()) return;
 
   if (selectedMode === 'online' && !net.isConnected()) {
-    // Fallback gracefully to solo if user clicked start without opening room
     selectedMode = 'solo';
     syncModeButtons();
   }
@@ -193,8 +318,8 @@ function startMatch(): void {
     ];
   } else {
     profiles = [
-      { id: 's1', name: 'Chimp 1', color: '#facc15' },
-      { id: 's2', name: 'Chimp 2', color: '#4ade80' },
+      { id: 's1', name: 'Macacão 1', color: '#facc15' },
+      { id: 's2', name: 'Macacão 2', color: '#4ade80' },
     ];
   }
 
@@ -215,34 +340,49 @@ function startMatch(): void {
 
   activeSoloChefIdx = 0;
   inGame = true;
+  paused = false;
   reportedResult = false;
   menuOverlay.classList.add('hidden');
+  pauseOverlay.classList.add('hidden');
   resultsOverlay.classList.add('hidden');
-  hudHandle?.toast(`${KITCHENS[selectedKitchen].name} — Mão na massa!`, 'banana');
+  kitchenAudio.setRushTempo(false);
+  kitchenAudio.startMusic();
+  hudHandle?.toast(`${KITCHENS[selectedKitchen].name} — Ferva a Sopa de Macacão! 🍲`, 'banana');
 }
 
 function startClientMatch(): void {
   sim = null;
   inGame = true;
+  paused = false;
   reportedResult = false;
   menuOverlay.classList.add('hidden');
+  pauseOverlay.classList.add('hidden');
   resultsOverlay.classList.add('hidden');
-  hudHandle?.toast(`${KITCHENS[selectedKitchen].name} — Turno iniciado!`, 'banana');
+  kitchenAudio.setRushTempo(false);
+  kitchenAudio.startMusic();
+  hudHandle?.toast(`${KITCHENS[selectedKitchen].name} — Turno iniciado! 🍲`, 'banana');
 }
 
 function openMenu(): void {
   inGame = false;
+  paused = false;
   sim = null;
+  kitchenAudio.stopMusic();
+  previewSim = createPreviewSim(selectedKitchen);
   menuOverlay.classList.remove('hidden');
+  pauseOverlay.classList.add('hidden');
   resultsOverlay.classList.add('hidden');
   refreshBestBadge();
   renderKitchenCards();
   refreshStartButton();
+  syncMusicLabels();
 }
 
 function showResults(snap: SimSnapshot): void {
   if (reportedResult) return;
   reportedResult = true;
+  paused = false;
+  kitchenAudio.stopMusic();
 
   const k = KITCHENS[snap.kitchenId];
   let stars = 0;
@@ -250,6 +390,7 @@ function showResults(snap: SimSnapshot): void {
   if (snap.score >= k.stars[1]) stars = 2;
   if (snap.score >= k.stars[2]) stars = 3;
 
+  saveKitchenProgress(snap.kitchenId, snap.score, stars);
   reportGameScore(SLUG, snap.score, {
     stars,
     kitchen: snap.kitchenId,
@@ -258,15 +399,27 @@ function showResults(snap: SimSnapshot): void {
   refreshBestBadge();
   kitchenAudio.playFanfare();
 
-  resTitle.textContent = stars >= 2 ? '🎉 Cozinha Campeã!' : stars === 1 ? '👏 Turno Sobrevivido!' : '🔥 Quase Pegou Fogo Tudo!';
-  resSubtitle.textContent = `${k.name} • Meta 3★: ${k.stars[2]} pts`;
+  resTitle.textContent =
+    stars === 3
+      ? '👑 Chef Supremo da Sopa!'
+      : stars === 2
+        ? '🎉 Sopa de Macacão Aprovada!'
+        : stars === 1
+          ? '👏 Turno Sobrevivido!'
+          : '🔥 Quase Queimou o Caldeirão!';
+  resSubtitle.textContent = `${k.name} • Metas: 1★ ${k.stars[0]} | 2★ ${k.stars[1]} | 3★ ${k.stars[2]} pts`;
   resStars.textContent = `${'⭐'.repeat(stars)}${'☆'.repeat(3 - stars)}`;
   resScore.textContent = `${snap.score}`;
+  resTips.textContent = `+${snap.tipsEarned}`;
   resDelivered.textContent = `${snap.deliveredCount}`;
   resCombo.textContent = `${snap.maxCombo}x`;
   resFires.textContent = `${snap.firesExtinguished}`;
 
   const isGuest = selectedMode === 'online' && net.isConnected() && !net.isHost();
+  const nextIdx = KITCHEN_ORDER.indexOf(snap.kitchenId) + 1;
+  const hasNext = nextIdx > 0 && nextIdx < KITCHEN_ORDER.length;
+  resNextBtn.style.display = hasNext && !isGuest ? 'inline-block' : 'none';
+
   resReplayBtn.disabled = isGuest;
   resMenuBtn.disabled = isGuest;
   resReplayBtn.textContent = isGuest ? '⏳ Aguardando Host...' : '🔄 Jogar Novamente';
@@ -276,6 +429,13 @@ function showResults(snap: SimSnapshot): void {
 
 startBtn.onclick = () => startMatch();
 resReplayBtn.onclick = () => startMatch();
+resNextBtn.onclick = () => {
+  const nextIdx = KITCHEN_ORDER.indexOf(selectedKitchen) + 1;
+  if (nextIdx > 0 && nextIdx < KITCHEN_ORDER.length) {
+    selectedKitchen = KITCHEN_ORDER[nextIdx];
+    startMatch();
+  }
+};
 resMenuBtn.onclick = () => {
   if (selectedMode === 'online' && net.isHost()) {
     net.broadcastBackToMenu();
@@ -283,25 +443,36 @@ resMenuBtn.onclick = () => {
   openMenu();
 };
 
+pauseResumeBtn.onclick = () => setPaused(false);
+pauseRestartBtn.onclick = () => startMatch();
+pauseMenuBtn.onclick = () => openMenu();
+
 // Keyboard handling
 window.addEventListener('keydown', (e) => {
   if (!inGame) return;
   const target = e.target as HTMLElement | null;
   if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
 
-  if (
-    ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab'].includes(e.code)
-  ) {
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab'].includes(e.code)) {
     e.preventDefault();
   }
 
-  if (e.code === 'Escape') {
-    if (selectedMode !== 'online' || !net.isConnected() || net.isHost()) {
-      if (selectedMode === 'online' && net.isHost()) {
-        net.broadcastBackToMenu();
-      }
-      openMenu();
+  if (e.code === 'Escape' || e.code === 'KeyP') {
+    if (!reportedResult) {
+      setPaused(!paused);
     }
+    return;
+  }
+
+  if (paused) return;
+
+  if (e.code === 'KeyM' && selectedMode !== 'local2p' && !e.repeat) {
+    kitchenAudio.toggleMusic();
+    syncMusicLabels();
+    hudHandle?.toast(
+      kitchenAudio.isMusicMuted() ? '🔇 Música desativada' : '🎵 Música ativada!',
+      'info',
+    );
     return;
   }
 
@@ -406,12 +577,6 @@ function readLocal2PInputs(): [ChefInputState, ChefInputState] {
   return [p1, p2];
 }
 
-// Preview kitchen background while on menu
-const previewSim = new KitchenSimulation('quiosque', 'solo', [
-  { id: 'p1', name: 'Chef Macaco', color: '#facc15' },
-  { id: 'p2', name: 'Sub-Chef', color: '#4ade80' },
-]);
-
 let lastTs = performance.now();
 
 function frame(ts: number): void {
@@ -444,26 +609,30 @@ function frame(ts: number): void {
 
   // Authoritative simulation (Solo, Local 2P, or Online Host)
   if (sim) {
-    const inputs: Record<string, ChefInputState> = {};
+    if (!paused) {
+      const inputs: Record<string, ChefInputState> = {};
 
-    if (selectedMode === 'local2p') {
-      const [p1, p2] = readLocal2PInputs();
-      if (sim.chefs[0]) inputs[sim.chefs[0].id] = p1;
-      if (sim.chefs[1]) inputs[sim.chefs[1].id] = p2;
-    } else if (selectedMode === 'online' && net.isConnected() && net.isHost()) {
-      const localInp = readSingleChefInput();
-      inputs[net.room.localPlayer.id] = localInp;
-      const remotes = net.consumeRemoteInputs();
-      for (const [id, rInp] of Object.entries(remotes)) {
-        inputs[id] = rInp;
+      if (selectedMode === 'local2p') {
+        const [p1, p2] = readLocal2PInputs();
+        if (sim.chefs[0]) inputs[sim.chefs[0].id] = p1;
+        if (sim.chefs[1]) inputs[sim.chefs[1].id] = p2;
+      } else if (selectedMode === 'online' && net.isConnected() && net.isHost()) {
+        const localInp = readSingleChefInput();
+        inputs[net.room.localPlayer.id] = localInp;
+        const remotes = net.consumeRemoteInputs();
+        for (const [id, rInp] of Object.entries(remotes)) {
+          inputs[id] = rInp;
+        }
+      } else {
+        const localInp = readSingleChefInput();
+        const activeChef = sim.chefs[activeSoloChefIdx];
+        if (activeChef) inputs[activeChef.id] = localInp;
       }
-    } else {
-      const localInp = readSingleChefInput();
-      const activeChef = sim.chefs[activeSoloChefIdx];
-      if (activeChef) inputs[activeChef.id] = localInp;
+
+      sim.step(dt, inputs);
+      kitchenAudio.setRushTempo(sim.rushHour);
     }
 
-    sim.step(dt, inputs);
     const snap = sim.getSnapshot();
 
     if (selectedMode === 'online' && net.isHost()) {
@@ -477,7 +646,7 @@ function frame(ts: number): void {
           ? net.room.localPlayer.id
           : null;
 
-    renderer.render(snap, sim.particles, sim.floatingTexts, activeId, dt);
+    renderer.render(snap, sim.particles, sim.floatingTexts, activeId, paused ? 0 : dt);
 
     if (snap.finished && !reportedResult) {
       showResults(snap);
@@ -491,4 +660,5 @@ function frame(ts: number): void {
 refreshBestBadge();
 renderKitchenCards();
 syncModeButtons();
+syncMusicLabels();
 requestAnimationFrame(frame);
