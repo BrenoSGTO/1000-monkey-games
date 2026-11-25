@@ -1,10 +1,12 @@
 import { mountMonkeyHud, type MonkeyHudHandle, PeerRoom } from '@monkey-slop/sdk';
+import { MONKEY_AMONGUS_CONTROLS } from './controls';
 import type { NetMessage } from './types';
 
 export interface NetCallbacks {
   onPlayersChange: () => void;
   onMessage: (senderId: string, senderName: string, msg: NetMessage) => void;
   onConnectedChange: () => void;
+  onControlsOpenChange?: (open: boolean) => void;
 }
 
 export class GameNetwork {
@@ -36,6 +38,10 @@ export class GameNetwork {
       slug: 'monkey-amongus',
       title: 'Entre Macacos: Quem Roubou a Banana?',
       room: this.room,
+      controls: {
+        ...MONKEY_AMONGUS_CONTROLS,
+        onOpenChange: (open) => this.callbacks.onControlsOpenChange?.(open),
+      },
     });
   }
 
