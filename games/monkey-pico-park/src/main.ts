@@ -1,5 +1,6 @@
 import { getGameScore, mountMonkeyHud, reportGameScore, type PlayerProfile } from '@monkey-slop/sdk';
 import { picoAudio } from './audio';
+import { createControlsConfig } from './controls';
 import { LEVELS } from './levels';
 import { applySnapshotToWorld, OnlineCoordinator, playersToSlots } from './net';
 import {
@@ -67,6 +68,7 @@ let lastRenderInfo: RenderFrameInfo = {
 };
 
 let hud!: ReturnType<typeof mountMonkeyHud>;
+let controlsOpen = false;
 
 const online = new OnlineCoordinator(SLUG, {
   onPlayersUpdated: (players) => {
@@ -118,6 +120,12 @@ hud = mountMonkeyHud({
   slug: SLUG,
   title: 'Mico Park: A Chave da Banana',
   room: online.room,
+  controls: createControlsConfig((open) => {
+    controlsOpen = open;
+    if (open) {
+      keysDown.clear();
+    }
+  }),
 });
 
 const physicsCallbacks: PhysicsCallbacks = {
@@ -445,8 +453,8 @@ function frame(now: number): void {
       ft.life -= rawDt;
       if (ft.life <= 0) world.floatingTexts.splice(i, 1);
     }
-  } else {
-    // Local / Solo / Online Host simulation
+  } else if (!(controlsOpen && !online.isConnected())) {
+    // Local / Solo / Online Host simulation (paused when controls guide is open locally)
     accumulator += rawDt;
     while (accumulator >= FIXED_DT) {
       const inputs = gatherWorldInputs();

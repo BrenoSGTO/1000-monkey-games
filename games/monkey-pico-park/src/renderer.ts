@@ -932,15 +932,7 @@ function drawPlayingHud(
   ctx.font = '700 12px system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const modeTip =
-    world.mode === 'solo'
-      ? 'Tab/Q/1-3: Trocar Macaco | F: Seguir | E/B: Gritar | '
-      : world.mode === 'local2'
-        ? 'P1: WASD | P2: Setas | E/Enter: Gritar | '
-        : world.mode === 'local3'
-          ? 'P1: WASD | P2: Setas | P3: IJKL | '
-          : 'E/B: Gritar | ';
-  ctx.fillText(`${modeTip}${def.hint}`, WORLD_W * 0.5, WORLD_H - 21);
+  ctx.fillText(`🎮 Controles: F1  •  ${def.hint}`, WORLD_W * 0.5, WORLD_H - 21);
   ctx.restore();
 }
 
@@ -1123,7 +1115,7 @@ function drawMenuOverlay(
   ctx.font = '700 13px system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText(
-    `🏆 Recorde Local: ${ui.bestScore} pts   •   Grito de Macaco: E ou B   •   Reiniciar Rápido: R`,
+    `🏆 Recorde Local: ${ui.bestScore} pts   •   🎮 Controles: F1`,
     WORLD_W * 0.5,
     cardY + 516,
   );
