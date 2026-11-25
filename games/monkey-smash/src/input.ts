@@ -83,6 +83,11 @@ export function anyKeyDown(): boolean {
   return down.size > 0;
 }
 
+export function clearInput(): void {
+  down.clear();
+  touchBits = 0;
+}
+
 /** Controles de toque na tela (mostrados só em dispositivos touch). */
 export function mountTouchControls(root: HTMLElement): { show: (v: boolean) => void } {
   const wrap = document.createElement('div');

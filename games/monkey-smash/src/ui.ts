@@ -238,9 +238,7 @@ export class UI {
           <button class="ms-mode" style="background:#4ade80" data-m="online"><span class="em">🌐</span><b>Online P2P (até 4)</b><span>Crie uma sala pelo botão 🐒 Co-op Online e chame os amigos.</span></button>
         </div>
         <div class="ms-help">
-          <b>Controles</b> — <b>Solo:</b> <kbd>A</kbd><kbd>D</kbd>/Setas mover, <kbd>W</kbd>/<kbd>Espaço</kbd> pular, <kbd>S</kbd> descer · <kbd>F</kbd>/<kbd>J</kbd> leve · <kbd>G</kbd>/<kbd>K</kbd> forte · <kbd>H</kbd>/<kbd>L</kbd> especial · <kbd>T</kbd>/<kbd>I</kbd>/<kbd>Shift</kbd> defesa · <kbd>R</kbd>/<kbd>O</kbd> agarrar<br>
-          <b>2P:</b> P1 = <kbd>WASD</kbd> + <kbd>F</kbd><kbd>G</kbd><kbd>H</kbd><kbd>T</kbd><kbd>R</kbd> · P2 = Setas + <kbd>,</kbd><kbd>.</kbd><kbd>/</kbd><kbd>;</kbd><kbd>'</kbd> (leve, forte, especial, defesa, agarrar)<br>
-          Direção + ataque muda o golpe (cima, baixo, frente). No ar: aéreos. Segure defesa + ←/→ para rolar. <kbd>Esc</kbd> pausa.
+          🎮 <b>Controles ilustrados:</b> aperte <kbd>F1</kbd> ou clique em <b>🎮 Controles</b> no topo a qualquer hora · <kbd>Esc</kbd> pausa a luta.
         </div>
       </div>`;
     this.title.querySelectorAll<HTMLButtonElement>('.ms-mode').forEach((b) => {

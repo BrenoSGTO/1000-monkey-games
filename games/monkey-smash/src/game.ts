@@ -6,7 +6,7 @@ import { createWorld, stepFighter, stepWorld, placementOrder, newFighter, type W
 import { botInput, createBrain, type Brain } from './ai';
 import { Renderer, type RenderView } from './render';
 import { UI, type Mode, type ResultData, type Setup } from './ui';
-import { bindKeyboard, mountTouchControls, readInput, type Scheme } from './input';
+import { bindKeyboard, clearInput, mountTouchControls, readInput, type Scheme } from './input';
 import { SnapBuffer, packWorld, snapToState, unpackFighter, type LobbySlot, type NetMsg, type Snap } from './net';
 import { sfx, startMusic, stopMusic } from './sfx';
 import { pick } from './fx';
@@ -32,6 +32,7 @@ export class Game {
   private brains: (Brain | null)[] = [];
   private schemes: (Scheme | null)[] = [];
   private paused = false;
+  private pausedByControls = false;
   private acc = 0;
   private last = 0;
   private resultsShown = false;
@@ -333,13 +334,28 @@ export class Game {
     this.phase = 'menu';
     this.world = null;
     this.paused = false;
+    this.pausedByControls = false;
     this.touch.show(false);
     stopMusic();
+  }
+
+  setControlsOpen(open: boolean): void {
+    if (open) {
+      clearInput();
+      if (this.phase === 'battle' && !this.paused) {
+        this.pausedByControls = true;
+        this.setPaused(true);
+      }
+    } else if (this.pausedByControls) {
+      this.pausedByControls = false;
+      this.setPaused(false);
+    }
   }
 
   private setPaused(p: boolean): void {
     if (this.phase !== 'battle') return;
     this.paused = p;
+    if (!p) this.pausedByControls = false;
     if (p) {
       this.ui.showPause(this.role !== 'guest', this.role === 'local' ? (this.cfg!.slots.filter((s) => s.ctrl === Ctrl.LOCAL).length > 1 ? 'local' : 'solo') : 'online');
     } else this.ui.hidePause();
