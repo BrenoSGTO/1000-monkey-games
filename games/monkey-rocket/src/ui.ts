@@ -49,6 +49,7 @@ export interface UiCallbacks {
   onSolo: (s: Settings) => void;
   onLocal: (s: Settings) => void;
   onOnlineStart: (s: Settings) => void;
+  onHelp: () => void;
   onResume: () => void;
   onRestart: () => void;
   onMenu: () => void;
@@ -180,7 +181,7 @@ export class GameUi {
         <div class="mr-grid">
           <button class="mr-btn blue" data-a="local">🐵🐵 2 JOGADORES<small>mesmo teclado</small></button>
           <button class="mr-btn green" data-a="online">🌐 ONLINE<small>até 4 macacos (P2P)</small></button>
-          <button class="mr-btn gray" data-a="help">❓ COMO JOGAR<small>controles</small></button>
+          <button class="mr-btn gray" data-a="help">❓ COMO JOGAR<small>controles (F1)</small></button>
         </div>
         <div class="mr-row"><span class="mr-lab">Formato</span>${chip('format', '1v1', '1 vs 1', s.format === '1v1')}${chip('format', '2v2', '2 vs 2', s.format === '2v2')}
           <span class="mr-lab">Tempo</span>${chip('time', '60', '1:00', s.time === 60)}${chip('time', '120', '2:00', s.time === 120)}${chip('time', '180', '3:00', s.time === 180)}</div>
@@ -188,22 +189,7 @@ export class GameUi {
         <div class="mr-row"><span class="mr-lab">Arena</span>${themeBtns}</div>
         <div class="mr-row"><span class="mr-lab">Bots</span>${botBtns}
           <span class="mr-lab">2P Local</span>${chip('coop', '0', 'Versus', !s.coop)}${chip('coop', '1', 'Co-op vs Bots', s.coop)}</div>
-        <div class="mr-help"><b>${CARS[s.car].name}:</b> ${CARS[s.car].tagline}<br/>${THEMES[s.theme].name} — ${THEMES[s.theme].sub}</div>
-      </div>`);
-  }
-
-  private showHelp(): void {
-    this.show(`
-      <div class="mr-card">
-        <div class="mr-title2">Como jogar 🐒</div>
-        <div class="mr-help" style="font-size:14px;text-align:left">
-          <b>Solo / Online:</b> <b>A / D</b> ou <b>← / →</b> andam (no ar, giram o carro). <b>W / ↑ / Espaço</b> pula; aperte de novo no ar pro <b>pulo duplo</b>, ou segure uma direção pra um <b>flip</b> que chuta a bola com força!<br/>
-          <b>Shift / S / ↓ / X</b> = turbo de guaraná (o macaco põe a cabeça pra fora e grita 🙈).<br/><br/>
-          <b>2 Jogadores:</b> P1 = <b>A/D</b>, pula <b>W</b>, turbo <b>S</b> ou <b>Shift esq.</b> · P2 = <b>←/→</b>, pula <b>↑</b>, turbo <b>↓</b> ou <b>Enter</b>.<br/><br/>
-          Cole na <b>parede e no teto</b>: encoste as rodas e dirija! Capotou? Pule pra desvirar. Pegue as bolinhas de <b>turbo</b> pelo campo (as grandes valem 100). Empate = <b>gol de ouro</b>.<br/>
-          <b>Celular:</b> botões na tela. <b>Esc / P</b> pausa.
-        </div>
-        <button class="mr-btn" data-a="back">VOLTAR</button>
+        <div class="mr-help"><b>${CARS[s.car].name}:</b> ${CARS[s.car].tagline}<br/>${THEMES[s.theme].name} — ${THEMES[s.theme].sub} · 🎮 Controles: <b>F1</b></div>
       </div>`);
   }
 
@@ -299,7 +285,7 @@ export class GameUi {
         this.cb.onOnlineStart(this.settings);
         break;
       case 'help':
-        this.showHelp();
+        this.cb.onHelp();
         break;
       case 'back':
         this.showTitle();
