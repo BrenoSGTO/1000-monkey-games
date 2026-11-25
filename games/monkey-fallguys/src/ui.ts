@@ -62,11 +62,7 @@ export class Ui {
         <b>Como jogar:</b> até <b>24 macacos</b> caem na selva e vão sendo <b>eliminados</b> a cada rodada
         (corrida, chão que some, gangorra, pega-rabo, futebol de coco…) até sobrar <b>1 campeão</b> com a Coroa da Banana!
         <div class="keys">
-          <span><kbd>A</kbd><kbd>D</kbd> mover</span>
-          <span><kbd>W</kbd>/<kbd>Espaço</kbd> pular</span>
-          <span><kbd>S</kbd>/<kbd>Shift</kbd> mergulhar</span>
-          <span><kbd>E</kbd> agarrar</span>
-          <span>2P: <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd></span>
+          <span>🎮 Controles: <kbd>F1</kbd> (ou botão no topo)</span>
         </div>
       </div>
       ${best > 0 ? `<div class="fg-best">🏆 Recorde: ${best} pts</div>` : ''}
