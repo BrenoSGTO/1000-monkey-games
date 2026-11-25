@@ -22,7 +22,8 @@ body {
   height: 100%;
   overflow: hidden;
 }
-canvas#game-canvas {
+canvas#game-canvas,
+canvas#gl-canvas {
   position: absolute;
   inset: 0;
   display: block;

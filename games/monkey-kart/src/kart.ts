@@ -11,7 +11,7 @@ import {
   SURF_VOID,
   emptyInput,
 } from './types';
-import { type Track, nearestIdx, surfaceAt, trackPoint } from './tracks';
+import { SOLID_CELL, type Track, nearestIdx, solidKey, surfaceAt, trackPoint } from './tracks';
 import { angDiff, approach, clamp } from './util';
 
 export const KART_R = 22;
@@ -286,6 +286,7 @@ export function stepKart(k: Kart, inp: Input, dt: number, tr: Track, maxBase: nu
       k.spinAngle = 0;
       k.invulnT = Math.max(k.invulnT, 1.4);
     }
+    collideSolids(k, tr);
     k.spd = k.vx * Math.cos(k.h) + k.vy * Math.sin(k.h);
     trackProgress(k, tr, dt);
     return;
@@ -389,6 +390,7 @@ export function stepKart(k: Kart, inp: Input, dt: number, tr: Track, maxBase: nu
   k.x += k.vx * dt;
   k.y += k.vy * dt;
   k.spd = vf;
+  if (collideSolids(k, tr)) k.spd = k.vx * fx2 + k.vy * fy2;
 
   if (k.drift === 0 && Math.abs(k.steer) > 0.8 && vf > topRef * 0.6) {
     // small chance of scream face in tight turns; keep expressive
@@ -399,6 +401,44 @@ export function stepKart(k: Kart, inp: Input, dt: number, tr: Track, maxBase: nu
   if (surf === SURF_ROAD || surf === SURF_SHORT) {
     if (k.dist < tr.halfW + 10) k.safeLapF = k.lapF;
   }
+}
+
+/** Pushes the kart out of solid scenery (trees, houses, rocks...). Returns true on contact. */
+function collideSolids(k: Kart, tr: Track): boolean {
+  const cx = Math.floor(k.x / SOLID_CELL);
+  const cy = Math.floor(k.y / SOLID_CELL);
+  let hit = false;
+  for (let oy = -1; oy <= 1; oy++) {
+    for (let ox = -1; ox <= 1; ox++) {
+      const list = tr.solids.get(solidKey(cx + ox, cy + oy));
+      if (!list) continue;
+      for (const s of list) {
+        const dx = k.x - s.x;
+        const dy = k.y - s.y;
+        const rr = s.r + KART_R * 0.8;
+        const d2 = dx * dx + dy * dy;
+        if (d2 >= rr * rr) continue;
+        const d = Math.sqrt(d2) || 1;
+        const nx = dx / d;
+        const ny = dy / d;
+        k.x = s.x + nx * rr;
+        k.y = s.y + ny * rr;
+        const vn = k.vx * nx + k.vy * ny;
+        if (vn < 0) {
+          k.vx -= vn * nx * 1.5;
+          k.vy -= vn * ny * 1.5;
+          k.vx *= 0.75;
+          k.vy *= 0.75;
+          if (-vn > 90 && k.bumpT <= 0) {
+            k.bumpT = 0.35;
+            k.fxQ.push({ t: 'bump' });
+          }
+        }
+        hit = true;
+      }
+    }
+  }
+  return hit;
 }
 
 function trackProgress(k: Kart, tr: Track, dt: number): void {
