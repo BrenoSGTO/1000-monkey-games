@@ -858,9 +858,9 @@ export class CityUi {
         <p>Você assumiu a <b>Prefeitura da Selva</b>! Comece ligando a energia e expandindo a Avenida das Bananas.</p>
         <ul>
           <li>📋 Siga o <b>Guia do Prefeito</b> à esquerda para ganhar Bananas bônus!</li>
-          <li>⚡ <b>Usinas</b> iluminam prédios na <b>área azul</b>; <b>Estradas</b> se arrastam em linha reta (em L).</li>
-          <li>🔍 Use <b>Inspecionar (0)</b> para ver status/dono ou reparar; 💥 <b>Demolir (8)</b> devolve <b>50%</b>!</li>
+          <li>⚡ <b>Usinas</b> iluminam na <b>área azul</b>; <b>Estradas</b> se conectam à Prefeitura e geram comércio.</li>
           <li>🐒 Jogue <b>Solo</b>, <b>2P Local (turnos)</b> ou <b>Co-op Online</b> no topo esquerdo!</li>
+          <li>🎮 <b>Controles:</b> aperte <b>F1</b> ou clique em <b>🎮 Controles</b> a qualquer hora.</li>
         </ul>
         <div class="msky-mode-grid">
           <button class="msky-mode-card active" data-mode="classic">

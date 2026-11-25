@@ -1,4 +1,5 @@
 import { monkeyAudio, mountMonkeyHud, PeerRoom, reportGameScore } from '@monkey-slop/sdk';
+import { SKYLINE_CONTROLS } from './controls';
 import { computeLPath, gridToWorld, inBounds, TOWN_HALL_POS, worldToGrid } from './map';
 import { CityRenderer, type CameraState, type HoverState } from './renderer';
 import { CitySimulation } from './simulation';
@@ -67,6 +68,7 @@ let ui!: CityUi;
 let sim!: CitySimulation;
 let lastPlayerCount = 0;
 let hasInitialSync = false;
+let speedBeforeControls: 0 | 1 | 2 | null = null;
 
 function isHostOrSolo(): boolean {
   return !room.roomCode || room.localPlayer.isHost;
@@ -240,6 +242,24 @@ hud = mountMonkeyHud<CityNetMessage>({
   slug: SLUG,
   title: TITLE,
   room,
+  controls: {
+    ...SKYLINE_CONTROLS,
+    onOpenChange: (open) => {
+      keys.clear();
+      if (!sim || !ui || room.roomCode) return;
+      if (open) {
+        if (sim.simSpeed !== 0) {
+          speedBeforeControls = sim.simSpeed;
+          sim.simSpeed = 0;
+          ui.setSpeed(0);
+        }
+      } else if (speedBeforeControls !== null) {
+        sim.simSpeed = speedBeforeControls;
+        ui.setSpeed(speedBeforeControls);
+        speedBeforeControls = null;
+      }
+    },
+  },
 });
 
 const initialSeed = Math.floor(Math.random() * 999999) + 1;
