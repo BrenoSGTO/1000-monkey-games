@@ -8,6 +8,7 @@ import {
   type PlayerProfile,
 } from '@monkey-slop/sdk';
 import { dashAudio } from './audio-engine';
+import { monkeyDashControls } from './controls';
 import { createLevelEditor, loadSavedCustomLevel, saveCustomLevel } from './editor';
 import { OFFICIAL_LEVELS } from './levels';
 import {
@@ -267,9 +268,7 @@ menuOverlay.innerHTML = `
   </div>
 
   <div class="md-controls-hint">
-    <strong>Solo / Online:</strong> <b>Espaço / Clique / W / Seta Cima</b> para Pular, Voar, Zigue-zaguear ou Inverter Gravidade •
-    <strong>2P Local:</strong> J1 <b>W / Espaço</b> vs J2 <b>Seta Cima / Enter</b> •
-    <b>P</b>: Prática • <b>Z</b>: Colocar CP • <b>X</b>: Remover CP • <b>B</b>: Buzina (3s cd) • <b>R</b>: Reiniciar
+    🎮 Controles: <b>F1</b> ou botão no topo
   </div>
 `;
 app.appendChild(menuOverlay);
@@ -440,10 +439,32 @@ const room = new PeerRoom<DashNetMessage>('monkey-dash', {
   },
 });
 
+let controlsPaused = false;
+let pausedBeatOffset = 0;
+
 hudHandle = mountMonkeyHud({
   slug: 'monkey-dash',
   title: 'Chimp Dash: Surto Rítmico',
   room,
+  controls: {
+    ...monkeyDashControls,
+    onOpenChange: (open) => {
+      controlsPaused = open;
+      if (open) {
+        pushRunnerInputUp(r1);
+        if (r2) pushRunnerInputUp(r2);
+        if (screenMode === 'playing') {
+          pausedBeatOffset = dashAudio.getCurrentBeatCount();
+          dashAudio.stopMusic();
+        }
+      } else {
+        lastTime = performance.now();
+        if (screenMode === 'playing') {
+          dashAudio.startMusic(activeLevel.songId, activeLevel.bpm, pausedBeatOffset);
+        }
+      }
+    },
+  },
 });
 
 // UI Element refs
@@ -1586,20 +1607,22 @@ function tick(now: number): void {
   }
 
   if (screenMode === 'countdown') {
-    countdownTimer -= frameDt;
-    const ceilVal = Math.max(0, Math.ceil(countdownTimer));
-    if (ceilVal !== lastCountdownInt) {
-      lastCountdownInt = ceilVal;
-      if (ceilVal > 0) {
-        cdNum.textContent = String(ceilVal);
-        dashAudio.playCountdownBeep(false);
+    if (!controlsPaused) {
+      countdownTimer -= frameDt;
+      const ceilVal = Math.max(0, Math.ceil(countdownTimer));
+      if (ceilVal !== lastCountdownInt) {
+        lastCountdownInt = ceilVal;
+        if (ceilVal > 0) {
+          cdNum.textContent = String(ceilVal);
+          dashAudio.playCountdownBeep(false);
+        }
       }
-    }
-    if (countdownTimer <= 0) {
-      countdownOverlay.style.display = 'none';
-      screenMode = 'playing';
-      dashAudio.playCountdownBeep(true);
-      dashAudio.startMusic(activeLevel.songId, activeLevel.bpm, 0);
+      if (countdownTimer <= 0) {
+        countdownOverlay.style.display = 'none';
+        screenMode = 'playing';
+        dashAudio.playCountdownBeep(true);
+        dashAudio.startMusic(activeLevel.songId, activeLevel.bpm, 0);
+      }
     }
 
     renderGameFrame(ctx, canvas.width, canvas.height, {
@@ -1625,7 +1648,7 @@ function tick(now: number): void {
     return;
   }
 
-  if (screenMode === 'playing') {
+  if (screenMode === 'playing' && !controlsPaused) {
     accumulator += frameDt;
     while (accumulator >= FIXED_DT) {
       accumulator -= FIXED_DT;

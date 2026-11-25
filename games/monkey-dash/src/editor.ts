@@ -121,7 +121,7 @@ export function createLevelEditor(
     </div>
 
     <div class="md-ed-footer">
-      <span>Clique/Arraste: colocar • Botão Direito: apagar • Ctrl+Z: desfazer • Roda do mouse ou barra: rolar pista</span>
+      <span>🎮 Controles: <b>F1</b> • Use a barra para rolar a pista</span>
       <input id="ed-scroll" type="range" min="0" max="100" value="0" style="flex:1;max-width:340px;" />
       <span id="ed-coords">Col: 0 • Objetos: 0</span>
     </div>
