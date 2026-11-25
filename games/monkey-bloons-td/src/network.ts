@@ -1,5 +1,6 @@
 import { mountMonkeyHud, PeerRoom, type MonkeyHudHandle } from '@monkey-slop/sdk';
 import type { PeerEnvelope, PlayerProfile } from '@monkey-slop/sdk';
+import { MONKEY_BLOONS_CONTROLS } from './controls';
 import type { TdNetMessage } from './types';
 
 export interface NetworkBridgeCallbacks {
@@ -7,6 +8,7 @@ export interface NetworkBridgeCallbacks {
   onStatusChange: (status: 'idle' | 'connecting' | 'connected' | 'error', detail?: string) => void;
   onMessage: (envelope: PeerEnvelope<TdNetMessage>) => void;
   onNewPeerConnected?: () => void;
+  onControlsOpenChange?: (open: boolean) => void;
 }
 
 export class TdNetworkBridge {
@@ -40,6 +42,10 @@ export class TdNetworkBridge {
       slug: 'monkey-bloons-td',
       title: 'Macaco Estoura-Bexiga TD',
       room: this.room,
+      controls: {
+        ...MONKEY_BLOONS_CONTROLS,
+        onOpenChange: callbacks.onControlsOpenChange,
+      },
     });
   }
 
